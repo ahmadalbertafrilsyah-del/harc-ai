@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Harc-AI by Mahatma Academy",
+  title: "HARC-AI by Mahatma Academy",
   description: "Humanistic, Adaptive,and Responsive-Cultural Assessment supported by Artificial Intelligence",
 };
 

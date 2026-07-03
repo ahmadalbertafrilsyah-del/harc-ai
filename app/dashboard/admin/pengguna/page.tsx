@@ -18,6 +18,9 @@ export default function ManajemenPenggunaAdmin() {
   const [activeTab, setActiveTab] = useState("aktif"); 
   const [isLoading, setIsLoading] = useState(true);
   
+  // State Pencarian
+  const [searchQuery, setSearchQuery] = useState("");
+  
   // State Real-time dari Firebase
   const [daftarGuru, setDaftarGuru] = useState<any[]>([]);
   const [daftarPengajuan, setDaftarPengajuan] = useState<any[]>([]);
@@ -48,10 +51,30 @@ export default function ManajemenPenggunaAdmin() {
   }, []);
 
   // ==========================================
+  // LOGIKA PENCARIAN (FILTERING)
+  // ==========================================
+  const filteredGuru = daftarGuru.filter((guru) => {
+    const keyword = searchQuery.toLowerCase();
+    return (
+      (guru.nama || "").toLowerCase().includes(keyword) ||
+      (guru.email || "").toLowerCase().includes(keyword) ||
+      (guru.instansi || "").toLowerCase().includes(keyword)
+    );
+  });
+
+  const filteredPengajuan = daftarPengajuan.filter((pengajuan) => {
+    const keyword = searchQuery.toLowerCase();
+    return (
+      (pengajuan.nama || "").toLowerCase().includes(keyword) ||
+      (pengajuan.email || "").toLowerCase().includes(keyword) ||
+      (pengajuan.instansi || "").toLowerCase().includes(keyword)
+    );
+  });
+
+  // ==========================================
   // FUNGSI KENDALI ADMIN
   // ==========================================
 
-  // 1. ACC Akun Baru
   const handleAccAkun = async (pengajuan: any) => {
     const konfirmasi = confirm(`Apakah Anda yakin ingin meng-ACC akun untuk ${pengajuan.nama}?`);
     if (!konfirmasi) return;
@@ -65,7 +88,7 @@ export default function ManajemenPenggunaAdmin() {
         role: "guru",
         spesialisasi: "Bahasa Daerah",
         status: "Aktif",
-        aiTokens: 10, // Alokasi token awal untuk guru baru
+        aiTokens: 10000, 
         createdAt: serverTimestamp()
       });
 
@@ -77,7 +100,6 @@ export default function ManajemenPenggunaAdmin() {
     }
   };
 
-  // 2. Tolak Pengajuan
   const handleTolakAkun = async (id: string) => {
     if (!confirm("Tolak dan hapus pengajuan ini?")) return;
     try {
@@ -87,7 +109,6 @@ export default function ManajemenPenggunaAdmin() {
     }
   };
 
-  // 3. Update Token AI Guru
   const handleUpdateToken = async (id: string, currentTokens: number, nama: string) => {
     const input = prompt(`Atur ulang jumlah Token AI untuk ${nama} (Saat ini: ${currentTokens || 0}):`, currentTokens?.toString() || "0");
     if (input === null) return; 
@@ -106,7 +127,6 @@ export default function ManajemenPenggunaAdmin() {
     }
   };
 
-  // 4. Toggle Status (Bekukan / Aktifkan)
   const handleToggleStatus = async (id: string, currentStatus: string, nama: string) => {
     const newStatus = currentStatus === "Aktif" ? "Dibekukan" : "Aktif";
     const konfirmasi = confirm(`Anda yakin ingin merubah status akun ${nama} menjadi: ${newStatus.toUpperCase()}?`);
@@ -119,14 +139,13 @@ export default function ManajemenPenggunaAdmin() {
     }
   };
 
-  // 5. Hapus Permanen
   const handleHapusGuru = async (id: string, nama: string) => {
     const konfirmasi = confirm(`PERINGATAN FATAL!\n\nApakah Anda yakin ingin MENGHAPUS PERMANEN seluruh data profil ${nama}? Tindakan ini tidak dapat dibatalkan.`);
     if (!konfirmasi) return;
 
     try {
       await deleteDoc(doc(db, "users", id));
-      setDetailGuru(null); // Tutup modal jika sedang dibuka
+      setDetailGuru(null); 
     } catch (error) {
       console.error("Gagal menghapus akun:", error);
     }
@@ -150,21 +169,34 @@ export default function ManajemenPenggunaAdmin() {
           <h1 className={`text-2xl font-bold text-slate-900 ${teachersFont.className}`}>Manajemen Pengguna</h1>
           <p className="text-slate-500 text-sm mt-1">Kelola akses, pembekuan akun, dan distribusi Token AI Pendidik.</p>
         </div>
+        
+        {/* KOLOM PENCARIAN YANG SUDAH BERFUNGSI */}
         <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-2 rounded-lg w-full md:w-64 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all shadow-sm">
           <Search size={16} className="text-slate-400" />
-          <input type="text" placeholder="Cari pendidik..." className="bg-transparent border-none outline-none text-sm w-full text-slate-700 placeholder:text-slate-400" />
+          <input 
+            type="text" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Cari nama, email, instansi..." 
+            className="bg-transparent border-none outline-none text-sm w-full text-slate-700 placeholder:text-slate-400" 
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery("")} className="text-slate-400 hover:text-slate-600">
+              <X size={14} />
+            </button>
+          )}
         </div>
       </div>
 
       {/* TABS KONTROL */}
       <div className="flex gap-6 border-b border-slate-200">
         <button onClick={() => setActiveTab("aktif")} className={`pb-3 text-sm font-bold transition-all relative ${activeTab === "aktif" ? "text-indigo-700" : "text-slate-500 hover:text-slate-700"}`}>
-          Database Pendidik ({daftarGuru.length})
+          Database Pendidik ({filteredGuru.length})
           {activeTab === "aktif" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-indigo-600 rounded-t-full"></span>}
         </button>
         <button onClick={() => setActiveTab("pengajuan")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 ${activeTab === "pengajuan" ? "text-indigo-700" : "text-slate-500 hover:text-slate-700"}`}>
           Antrean Pengajuan
-          {daftarPengajuan.length > 0 && <span className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{daftarPengajuan.length}</span>}
+          {filteredPengajuan.length > 0 && <span className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{filteredPengajuan.length}</span>}
           {activeTab === "pengajuan" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-indigo-600 rounded-t-full"></span>}
         </button>
       </div>
@@ -184,7 +216,7 @@ export default function ManajemenPenggunaAdmin() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 <AnimatePresence>
-                  {daftarGuru.length > 0 ? daftarGuru.map((guru) => (
+                  {filteredGuru.length > 0 ? filteredGuru.map((guru) => (
                     <motion.tr key={guru.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="hover:bg-indigo-50/30 transition-colors group">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
@@ -234,7 +266,11 @@ export default function ManajemenPenggunaAdmin() {
                       </td>
                     </motion.tr>
                   )) : (
-                    <tr><td colSpan={4} className="text-center py-12 text-slate-500 text-sm">Belum ada pendidik yang aktif dalam database.</td></tr>
+                    <tr>
+                      <td colSpan={4} className="text-center py-12 text-slate-500 text-sm">
+                        {searchQuery ? "Pendidik tidak ditemukan dengan kata kunci tersebut." : "Belum ada pendidik yang aktif dalam database."}
+                      </td>
+                    </tr>
                   )}
                 </AnimatePresence>
               </tbody>
@@ -243,7 +279,7 @@ export default function ManajemenPenggunaAdmin() {
         </motion.div>
       )}
 
-      {/* TAB 2: ANTREAN PENGAJUAN (Tetap sama, disesuaikan tampilannya) */}
+      {/* TAB 2: ANTREAN PENGAJUAN */}
       {activeTab === "pengajuan" && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-xl shadow-sm border border-slate-200/80 overflow-hidden">
           <div className="overflow-x-auto min-h-[400px]">
@@ -258,7 +294,7 @@ export default function ManajemenPenggunaAdmin() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 <AnimatePresence>
-                  {daftarPengajuan.length > 0 ? daftarPengajuan.map((pengajuan) => (
+                  {filteredPengajuan.length > 0 ? filteredPengajuan.map((pengajuan) => (
                     <motion.tr key={pengajuan.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, x: -20 }} className="hover:bg-amber-50/30 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -295,7 +331,9 @@ export default function ManajemenPenggunaAdmin() {
                       <td colSpan={4} className="text-center py-16 text-slate-500">
                         <div className="flex flex-col items-center justify-center">
                           <ShieldCheck size={32} className="text-slate-300 mb-3" />
-                          <p className="text-sm font-bold text-slate-700">Tidak ada pengajuan baru.</p>
+                          <p className="text-sm font-bold text-slate-700">
+                             {searchQuery ? "Tidak ada pengajuan yang sesuai dengan kata kunci." : "Tidak ada pengajuan baru."}
+                          </p>
                         </div>
                       </td>
                     </tr>
