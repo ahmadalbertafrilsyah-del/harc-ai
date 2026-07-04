@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Send, Loader2, Sparkles, ChevronUp, Paperclip, CheckCircle2, User } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 // IMPORT FIREBASE
 import { db } from "@/lib/firebase"; 
@@ -31,6 +33,7 @@ export default function ChatbotAdminGeminiStyle() {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -81,6 +84,7 @@ export default function ChatbotAdminGeminiStyle() {
         const masterPrompt = `
         Anda adalah HARC-AI, asisten pendidikan canggih.
         ATURAN MUTLAK: Anda HANYA boleh menjawab pertanyaan seputar pendidikan, kurikulum, pedagogi, dan kebudayaan.
+        Gunakan format Markdown untuk setiap list, penekanan (bold), dan gunakan tabel jika memberikan data ringkasan.
         
         ATURAN PEMBATASAN:
         ${constraints || "Tidak ada batasan khusus."}
@@ -97,6 +101,24 @@ export default function ChatbotAdminGeminiStyle() {
     
     fetchMasterContext();
   }, []);
+
+  // FITUR BACA DOKUMEN (Ekstraksi teks dari file)
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result;
+      if (typeof text === "string") {
+        setInput((prev) => prev + `\n\n[Dokumen Referensi: ${file.name}]\n${text}\n\nTolong analisis dokumen di atas: `);
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reset file input agar bisa unggah file yang sama lagi jika perlu
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -118,7 +140,6 @@ export default function ChatbotAdminGeminiStyle() {
         ...newChatHistory
       ];
 
-      // Arahkan pemanggilan ke endpoint lokal yang baru dibuat
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -167,7 +188,7 @@ export default function ChatbotAdminGeminiStyle() {
     <div className="flex flex-col h-[calc(100vh-128px)] md:h-[calc(100vh-64px)] -m-4 md:-m-6 lg:-m-8 bg-[#f8fafc] relative">
       
       <div className="flex-1 overflow-y-auto px-4 md:px-8 pt-8 pb-40">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-4xl mx-auto">
 
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center mt-10 md:mt-20 animate-in fade-in duration-700">
@@ -200,7 +221,39 @@ export default function ChatbotAdminGeminiStyle() {
                         ? 'bg-slate-200/70 px-5 py-3.5 rounded-3xl text-slate-800' 
                         : 'text-slate-800 pt-1.5'
                     }`}>
-                      {msg.content.split('\n').map((line, i) => <span key={i}>{line}<br/></span>)}
+                      {msg.role === 'user' ? (
+                        // Jika pesan dari user, tampilkan teks biasa
+                        msg.content.split('\n').map((line, i) => <span key={i}>{line}<br/></span>)
+                      ) : (
+                        // Jika pesan dari AI, render menggunakan ReactMarkdown & remarkGfm
+                        <ReactMarkdown 
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            p: ({node, ...props}) => <p className="mb-3 last:mb-0" {...props} />,
+                            strong: ({node, ...props}) => <strong className="font-bold text-indigo-900" {...props} />,
+                            h1: ({node, ...props}) => <h1 className="text-2xl font-bold mt-5 mb-3" {...props} />,
+                            h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-4 mb-2" {...props} />,
+                            h3: ({node, ...props}) => <h3 className="text-lg font-bold mt-4 mb-2 text-slate-800" {...props} />,
+                            ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-4 space-y-1" {...props} />,
+                            ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-4 space-y-1" {...props} />,
+                            li: ({node, ...props}) => <li className="pl-1" {...props} />,
+                            blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-indigo-500 pl-4 py-1 my-3 bg-indigo-50/50 italic text-slate-700" {...props} />,
+                            table: ({node, ...props}) => (
+                              <div className="overflow-x-auto my-5 rounded-lg border border-slate-200 shadow-sm">
+                                <table className="w-full text-left text-sm" {...props} />
+                              </div>
+                            ),
+                            thead: ({node, ...props}) => <thead className="bg-slate-50 border-b border-slate-200" {...props} />,
+                            th: ({node, ...props}) => <th className="px-4 py-3 font-bold text-slate-700 whitespace-nowrap" {...props} />,
+                            td: ({node, ...props}) => <td className="px-4 py-3 border-b border-slate-100/80 text-slate-600 align-top" {...props} />,
+                            code: ({node, className, children, ...props}) => {
+                              return <code className="bg-slate-100 text-pink-600 px-1.5 py-0.5 rounded text-[13px] font-mono" {...props}>{children}</code>
+                            }
+                          }}
+                        >
+                          {msg.content}
+                        </ReactMarkdown>
+                      )}
                     </div>
                   </motion.div>
                 ))}
@@ -234,7 +287,7 @@ export default function ChatbotAdminGeminiStyle() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={isTyping}
-              placeholder="Tanyakan seputar kurikulum, evaluasi, atau korpus budaya..." 
+              placeholder="Tanyakan seputar kurikulum, evaluasi, atau unggah dokumen..." 
               className="w-full bg-transparent max-h-40 px-4 py-3 text-[15px] text-slate-800 placeholder:text-slate-400 focus:outline-none resize-none disabled:opacity-50 scrollbar-thin scrollbar-thumb-slate-200"
               rows={1}
               style={{ minHeight: '60px' }}
@@ -242,10 +295,20 @@ export default function ChatbotAdminGeminiStyle() {
             
             <div className="flex items-center justify-between px-2 pb-1 pt-2">
               
+              {/* Input File Tersembunyi */}
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileUpload} 
+                className="hidden" 
+                accept=".txt,.csv,.md,.json" 
+              />
+              
               <button 
                 type="button"
+                onClick={() => fileInputRef.current?.click()}
                 className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors flex items-center justify-center"
-                title="Unggah File (Dalam Pengembangan)"
+                title="Unggah File Referensi (Teks, CSV, MD)"
               >
                 <Paperclip size={20} />
               </button>
