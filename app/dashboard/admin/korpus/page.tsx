@@ -11,7 +11,7 @@ import { useState, useEffect } from "react";
 
 // IMPORT FIREBASE REAL-TIME
 import { db } from "@/lib/firebase"; 
-import { collection, onSnapshot, doc, addDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { collection, onSnapshot, doc, addDoc, deleteDoc, updateDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -21,21 +21,16 @@ export default function KorpusStandarAdmin() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  
-  // State Real-time dari Firebase
+  const [batasanForm, setBatasanForm] = useState({ kategori: "Gaya Bahasa", aturan: "" });
   const [daftarKorpus, setDaftarKorpus] = useState<any[]>([]);
-  
-  // State Form Tambah Korpus (Dioptimalkan untuk Prompt Engineering)
-  const [formData, setFormData] = useState({
-    frasaLokal: "",
-    bentukStandar: "",
-    kategori: "Dialek/Slang Lokal",
-    instruksiAi: "Jika pengguna menggunakan kata ini, sistem harus...",
-  });
+  const handleHapusBatasan = async (id: string) => { if (!confirm("Hapus batasan ini dari sistem?")) return; try {  await deleteDoc(doc(db, "ai_constraints", id)); } catch (error) { console.error("Gagal menghapus batasan:", error); alert("Gagal menghapus aturan."); }};
+  const [daftarBatasan, setDaftarBatasan] = useState<any[]>([]);
+  const [formData, setFormData] = useState({ frasaLokal: "", bentukStandar: "", kategori: "Dialek/Slang Lokal", instruksiAi: "Jika pengguna menggunakan kata ini, sistem harus...", });
 
   useEffect(() => {
     const qKorpus = query(collection(db, "korpus_budaya"), orderBy("timestamp", "desc"));
-    
+    const qBatasan = query(collection(db, "ai_constraints"), orderBy("timestamp", "desc"));
+    const unsub = onSnapshot(qBatasan, (snapshot) => {setDaftarBatasan(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));});
     const unsubKorpus = onSnapshot(
       qKorpus, 
       (snapshot) => {
@@ -60,6 +55,16 @@ export default function KorpusStandarAdmin() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+  
+  const handleTambahBatasan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!batasanForm.aturan) return;
+    await addDoc(collection(db, "ai_constraints"), {
+      ...batasanForm,
+      timestamp: serverTimestamp()
+    });
+    setBatasanForm({ kategori: "Gaya Bahasa", aturan: "" });
   };
 
   const handleTambahKorpus = async (e: React.FormEvent) => {
@@ -146,6 +151,7 @@ export default function KorpusStandarAdmin() {
           Standar Kurikulum Nasional
           {activeTab === "standar" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-indigo-600 rounded-t-full"></span>}
         </button>
+        <button onClick={() => setActiveTab("batasan")} className={`pb-3 text-sm font-bold ${activeTab === "batasan" ? "text-indigo-700" : "text-slate-500"}`}>Batasan AI</button>
       </div>
 
       <div className="pt-2">
@@ -364,6 +370,48 @@ export default function KorpusStandarAdmin() {
             </div>
           </motion.div>
         )}
+
+        {activeTab === "batasan" && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <MessageSquareWarning size={18} className="text-amber-600" /> Tambah Aturan Pembatas AI
+            </h2>
+            <form onSubmit={handleTambahBatasan} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <select value={batasanForm.kategori} onChange={(e) => setBatasanForm({...batasanForm, kategori: e.target.value})} className="bg-slate-50 border p-2.5 rounded-lg text-sm text-slate-700">
+                <option>Gaya Bahasa</option>
+                <option>Topik Terlarang</option>
+                <option>Cakupan Materi</option>
+              </select>
+              <input value={batasanForm.aturan} onChange={(e) => setBatasanForm({...batasanForm, aturan: e.target.value})} className="md:col-span-1 flex-1 bg-slate-50 border p-2.5 rounded-lg text-sm text-slate-700" placeholder="Contoh: Dilarang menyebutkan politik..." />
+              <button type="submit" className="bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-indigo-700">
+                <Plus size={16} /> Simpan Aturan
+              </button>
+            </form>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold">
+                <tr><th className="px-6 py-4">Kategori</th><th className="px-6 py-4">Detail Aturan</th><th className="px-6 py-4">Aksi</th></tr>
+              </thead>
+              <tbody className="divide-y">
+                {daftarBatasan.map((item) => ( // Gunakan 'item' atau 'b' secara konsisten
+                  <tr key={item.id} className="hover:bg-slate-50">
+                    <td className="px-6 py-4 font-bold text-indigo-700">{item.kategori}</td>
+                    <td className="px-6 py-4 text-slate-700">{item.aturan}</td>
+                    <td className="px-6 py-4">
+                      <button onClick={() => handleHapusBatasan(item.id)} className="text-red-500 hover:text-red-700">
+                         <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
+      )}
 
       </div>
     </motion.div>

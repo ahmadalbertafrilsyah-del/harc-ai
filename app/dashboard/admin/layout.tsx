@@ -4,20 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Teachers, Lato } from "next/font/google";
-import { 
-  LayoutDashboard, 
-  Users, 
-  Database, 
-  Activity, 
-  Settings, 
-  LogOut, 
-  ShieldCheck,
-  Bell,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  UserCog // <-- Ikon baru untuk profil admin
-} from "lucide-react";
+import { LayoutDashboard, Users, Database, Activity, Settings, LogOut, ShieldCheck, Bell, ChevronLeft, ChevronRight, Clock, UserCog, Bot } from "lucide-react";
 
 // IMPORT FIREBASE UNTUK NOTIFIKASI
 import { db } from "@/lib/firebase"; 
@@ -37,10 +24,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [currentTime, setCurrentTime] = useState(new Date());
   const [pendingCount, setPendingCount] = useState(0);
 
+  // Penambahan Menu Asisten AI di sini
   const menuItems = [
     { name: "Beranda", icon: LayoutDashboard, path: "/dashboard/admin/beranda" },
     { name: "Pengguna", icon: Users, path: "/dashboard/admin/pengguna" },
     { name: "Korpus", icon: Database, path: "/dashboard/admin/korpus" },
+    { name: "Asisten AI", icon: Bot, path: "/dashboard/admin/chat" },
     { name: "Monitoring", icon: Activity, path: "/dashboard/admin/monitoring" },
     { name: "Pengaturan", icon: Settings, path: "/dashboard/admin/pengaturan" },
   ];
