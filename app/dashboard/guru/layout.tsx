@@ -4,12 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Teachers, Lato } from "next/font/google";
-import { 
-  LayoutDashboard, Users, CheckCircle, BarChart3, LogOut, Menu, X,
-  GraduationCap, Bell, BookOpen, UserCircle, Settings, Clock, ChevronLeft, ChevronRight, Bot
-} from "lucide-react";
-
-// IMPORT FIREBASE UNTUK PROFIL DINAMIS & AUTH
+import { LayoutDashboard, Users, CheckCircle, BarChart3, LogOut, Menu, X, GraduationCap, Bell, BookOpen, UserCircle, Settings, Clock, ChevronLeft, ChevronRight, Bot } from "lucide-react";
 import { db } from "@/lib/firebase"; 
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { collection, onSnapshot, query, doc } from "firebase/firestore";
