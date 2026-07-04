@@ -43,7 +43,12 @@ export default function MonitoringAI() {
     const unsubConfig = onSnapshot(doc(db, "ai_monitoring", "api_config"), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        setAiConfig(prev => ({...prev, modelName: data.modelName || prev.modelName, availableModels: data.availableModels || prev.availableModels, costPerMillion: data.costPerMillion || prev.costPerMillion}));
+        setAiConfig(prev => ({
+          ...prev, 
+          modelName: data.modelName || prev.modelName, 
+          availableModels: data.availableModels || prev.availableModels, 
+          costPerMillion: data.costPerMillion || prev.costPerMillion
+        }));
       }
     });
 

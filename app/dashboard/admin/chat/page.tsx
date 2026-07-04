@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Loader2, Sparkles, ChevronUp, Paperclip, CheckCircle2, User, AlertCircle } from "lucide-react";
+import { Send, Loader2, Sparkles, ChevronUp, Paperclip, CheckCircle2, User } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect, useRef } from "react";
 
@@ -20,7 +20,6 @@ export default function ChatbotAdminGeminiStyle() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [setupError, setSetupError] = useState<string | null>(null);
   
   // Konfigurasi Model
   const [availableModels, setAvailableModels] = useState<string[]>([]);
@@ -32,9 +31,6 @@ export default function ChatbotAdminGeminiStyle() {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Cek Keberadaan API Key di Environment Variables
-  const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -51,11 +47,6 @@ export default function ChatbotAdminGeminiStyle() {
   }, []);
 
   useEffect(() => {
-    if (!API_KEY) {
-      setSetupError("API Key tidak ditemukan! Pastikan Anda telah menambahkan NEXT_PUBLIC_GEMINI_API_KEY di file .env.local");
-      return;
-    }
-
     const fetchConfig = async () => {
       try {
         const configSnap = await getDoc(doc(db, "ai_monitoring", "api_config"));
@@ -70,27 +61,23 @@ export default function ChatbotAdminGeminiStyle() {
       }
     };
     fetchConfig();
-  }, [API_KEY]);
+  }, []);
 
-  // Gabungkan semua pengambilan data (Korpus + Batasan) ke satu useEffect
   useEffect(() => {
     const fetchMasterContext = async () => {
       try {
-        // 1. Ambil Korpus
         const snapKorpus = await getDocs(collection(db, "korpus_budaya"));
         const korpusRules = snapKorpus.docs.map((d, index) => {
           const data = d.data();
           return `${index + 1}. Jika menemukan kata/frasa lokal "${data.frasaLokal}", bentuk bakunya adalah "${data.bentukStandar}". Instruksi: ${data.instruksiAi}`;
         }).join("\n");
 
-        // 2. Ambil Batasan (Constraints)
         const snapConstraints = await getDocs(collection(db, "ai_constraints"));
         const constraints = snapConstraints.docs.map(d => {
           const data = d.data();
           return `- [${data.kategori}]: ${data.aturan}`;
         }).join("\n");
 
-        // 3. Gabungkan ke Master Prompt
         const masterPrompt = `
         Anda adalah HARC-AI, asisten pendidikan canggih.
         ATURAN MUTLAK: Anda HANYA boleh menjawab pertanyaan seputar pendidikan, kurikulum, pedagogi, dan kebudayaan.
@@ -113,7 +100,7 @@ export default function ChatbotAdminGeminiStyle() {
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!input.trim() || !API_KEY) return;
+    if (!input.trim()) return;
 
     const userMessage: Message = { role: "user", content: input };
     const newChatHistory = [...messages, userMessage];
@@ -131,11 +118,10 @@ export default function ChatbotAdminGeminiStyle() {
         ...newChatHistory
       ];
 
-      // ENDPOINT GOOGLE AI STUDIO (Format OpenAI Compatible)
-      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+      // Arahkan pemanggilan ke endpoint lokal yang baru dibuat
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -161,10 +147,10 @@ export default function ChatbotAdminGeminiStyle() {
           });
         }
       } else {
-        throw new Error(data.error?.message || "Respons AI kosong atau Model tidak didukung.");
+        throw new Error(data.error?.message || data.error || "Respons AI kosong atau Model tidak didukung.");
       }
     } catch (error: any) {
-      setMessages(prev => [...prev, { role: "assistant", content: `Maaf, terjadi gangguan koneksi ke Google AI Studio. (${error.message})` }]);
+      setMessages(prev => [...prev, { role: "assistant", content: `Maaf, terjadi gangguan koneksi ke sistem AI. (${error.message})` }]);
     } finally {
       setIsTyping(false);
     }
@@ -182,17 +168,8 @@ export default function ChatbotAdminGeminiStyle() {
       
       <div className="flex-1 overflow-y-auto px-4 md:px-8 pt-8 pb-40">
         <div className="max-w-3xl mx-auto">
-          
-          {setupError && (
-            <div className="mb-8 p-4 bg-rose-50 text-rose-700 rounded-2xl text-sm font-medium flex items-center gap-3 border border-rose-100">
-              <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
-                <AlertCircle size={16} />
-              </div>
-              <p>{setupError}</p>
-            </div>
-          )}
 
-          {messages.length === 0 && !setupError ? (
+          {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center mt-10 md:mt-20 animate-in fade-in duration-700">
               <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-3xl flex items-center justify-center shadow-lg mb-6">
                 <Sparkles className="text-white w-8 h-8" />
@@ -256,7 +233,7 @@ export default function ChatbotAdminGeminiStyle() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              disabled={isTyping || !!setupError}
+              disabled={isTyping}
               placeholder="Tanyakan seputar kurikulum, evaluasi, atau korpus budaya..." 
               className="w-full bg-transparent max-h-40 px-4 py-3 text-[15px] text-slate-800 placeholder:text-slate-400 focus:outline-none resize-none disabled:opacity-50 scrollbar-thin scrollbar-thumb-slate-200"
               rows={1}
@@ -313,7 +290,7 @@ export default function ChatbotAdminGeminiStyle() {
                 <button 
                   type="button" 
                   onClick={() => handleSendMessage()}
-                  disabled={isTyping || !input.trim() || !!setupError}
+                  disabled={isTyping || !input.trim()}
                   className={`p-2 rounded-full transition-colors flex items-center justify-center ${input.trim() && !isTyping ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-300'}`}
                 >
                   {isTyping ? <Loader2 size={18} className="animate-spin text-indigo-400" /> : <Send size={18} className="ml-0.5" />}

@@ -19,18 +19,31 @@ export default function KorpusStandarAdmin() {
   const [activeTab, setActiveTab] = useState("korpus"); 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingBatasan, setIsSubmittingBatasan] = useState(false); // State baru untuk loading form Batasan
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  
   const [batasanForm, setBatasanForm] = useState({ kategori: "Gaya Bahasa", aturan: "" });
-  const [daftarKorpus, setDaftarKorpus] = useState<any[]>([]);
-  const handleHapusBatasan = async (id: string) => { if (!confirm("Hapus batasan ini dari sistem?")) return; try {  await deleteDoc(doc(db, "ai_constraints", id)); } catch (error) { console.error("Gagal menghapus batasan:", error); alert("Gagal menghapus aturan."); }};
   const [daftarBatasan, setDaftarBatasan] = useState<any[]>([]);
+  
   const [formData, setFormData] = useState({ frasaLokal: "", bentukStandar: "", kategori: "Dialek/Slang Lokal", instruksiAi: "Jika pengguna menggunakan kata ini, sistem harus...", });
+  const [daftarKorpus, setDaftarKorpus] = useState<any[]>([]);
 
+  // Mengambil Data Korpus dan Batasan secara Real-Time
   useEffect(() => {
     const qKorpus = query(collection(db, "korpus_budaya"), orderBy("timestamp", "desc"));
     const qBatasan = query(collection(db, "ai_constraints"), orderBy("timestamp", "desc"));
-    const unsub = onSnapshot(qBatasan, (snapshot) => {setDaftarBatasan(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));});
+    
+    const unsubBatasan = onSnapshot(
+      qBatasan, 
+      (snapshot) => {
+        setDaftarBatasan(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      },
+      (error) => {
+        console.error("Gagal menarik data Batasan AI:", error);
+      }
+    );
+
     const unsubKorpus = onSnapshot(
       qKorpus, 
       (snapshot) => {
@@ -50,21 +63,45 @@ export default function KorpusStandarAdmin() {
       }
     );
 
-    return () => unsubKorpus();
+    return () => {
+      unsubKorpus();
+      unsubBatasan(); // Membersihkan memory leak pada listener Batasan
+    };
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
   
+  // LOGIKA TAMBAH BATASAN YANG TELAH DIPERBAIKI
   const handleTambahBatasan = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!batasanForm.aturan) return;
-    await addDoc(collection(db, "ai_constraints"), {
-      ...batasanForm,
-      timestamp: serverTimestamp()
-    });
-    setBatasanForm({ kategori: "Gaya Bahasa", aturan: "" });
+    if (!batasanForm.aturan.trim()) return;
+
+    setIsSubmittingBatasan(true);
+    try {
+      await addDoc(collection(db, "ai_constraints"), {
+        kategori: batasanForm.kategori,
+        aturan: batasanForm.aturan,
+        timestamp: serverTimestamp()
+      });
+      setBatasanForm({ kategori: "Gaya Bahasa", aturan: "" });
+    } catch (error: any) {
+      console.error("Gagal menambah batasan:", error);
+      alert(`Gagal menyimpan aturan: ${error.message}. Pastikan izin Firestore Anda sudah benar.`);
+    } finally {
+      setIsSubmittingBatasan(false);
+    }
+  };
+
+  const handleHapusBatasan = async (id: string) => { 
+    if (!confirm("Hapus batasan ini dari sistem?")) return; 
+    try {  
+      await deleteDoc(doc(db, "ai_constraints", id)); 
+    } catch (error) { 
+      console.error("Gagal menghapus batasan:", error); 
+      alert("Gagal menghapus aturan."); 
+    }
   };
 
   const handleTambahKorpus = async (e: React.FormEvent) => {
@@ -100,7 +137,6 @@ export default function KorpusStandarAdmin() {
     }
   };
 
-  // Logika Pencarian
   const filteredKorpus = daftarKorpus.filter((item) => {
     const keyword = searchQuery.toLowerCase();
     return (
@@ -123,7 +159,6 @@ export default function KorpusStandarAdmin() {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="max-w-7xl mx-auto space-y-6 pb-10">
       
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-6">
         <div>
           <h1 className={`text-2xl font-bold text-slate-900 ${teachersFont.className}`}>Korpus & Standar Kurikulum</h1>
@@ -141,24 +176,25 @@ export default function KorpusStandarAdmin() {
         </div>
       )}
 
-      {/* TABS */}
-      <div className="flex flex-wrap gap-4 md:gap-6 border-b border-slate-200">
+      {/* TABS DENGAN CLASS CAPITALIZE */}
+      <div className="flex flex-wrap gap-4 md:gap-6 border-b border-slate-200 capitalize">
         <button onClick={() => setActiveTab("korpus")} className={`pb-3 text-sm font-bold transition-all relative ${activeTab === "korpus" ? "text-indigo-700" : "text-slate-500 hover:text-slate-700"}`}>
-          Konfigurasi Korpus AI ({filteredKorpus.length})
+          konfigurasi korpus AI ({filteredKorpus.length})
           {activeTab === "korpus" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-indigo-600 rounded-t-full"></span>}
         </button>
         <button onClick={() => setActiveTab("standar")} className={`pb-3 text-sm font-bold transition-all relative ${activeTab === "standar" ? "text-indigo-700" : "text-slate-500 hover:text-slate-700"}`}>
-          Standar Kurikulum Nasional
+          standar kurikulum nasional
           {activeTab === "standar" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-indigo-600 rounded-t-full"></span>}
         </button>
-        <button onClick={() => setActiveTab("batasan")} className={`pb-3 text-sm font-bold ${activeTab === "batasan" ? "text-indigo-700" : "text-slate-500"}`}>Batasan AI</button>
+        <button onClick={() => setActiveTab("batasan")} className={`pb-3 text-sm font-bold ${activeTab === "batasan" ? "text-indigo-700" : "text-slate-500"}`}>
+          batasan AI
+        </button>
       </div>
 
       <div className="pt-2">
         {activeTab === "korpus" && (
           <div className="space-y-6">
             
-            {/* BAGIAN ATAS: FORM ENTRI (Desain Horizontal untuk Desktop) */}
             <div className="bg-white p-5 md:p-6 rounded-xl shadow-sm border border-slate-200/80">
               <div className="flex items-center gap-2 mb-5 pb-4 border-b border-slate-100">
                 <Bot size={20} className="text-indigo-600" />
@@ -205,7 +241,6 @@ export default function KorpusStandarAdmin() {
               </form>
             </div>
 
-            {/* BAGIAN BAWAH: DATABASE KORPUS */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200/80 overflow-hidden">
               <div className="px-4 md:px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
                 <h3 className={`text-base font-bold text-slate-800 flex items-center gap-2 ${teachersFont.className}`}>
@@ -218,10 +253,8 @@ export default function KorpusStandarAdmin() {
                 </div>
               </div>
               
-              {/* TAMPILAN HYBRID: Cards untuk HP, Tabel untuk Laptop */}
               <div className="w-full">
                 
-                {/* TAMPILAN MOBILE (Cards) */}
                 <div className="block md:hidden p-4 space-y-4 bg-slate-50/30">
                   <AnimatePresence>
                     {filteredKorpus.length > 0 ? filteredKorpus.map((item) => (
@@ -246,7 +279,6 @@ export default function KorpusStandarAdmin() {
                   </AnimatePresence>
                 </div>
 
-                {/* TAMPILAN DESKTOP (Tabel Spesifik) */}
                 <div className="hidden md:block overflow-x-auto min-h-[300px]">
                   <table className="w-full text-left border-collapse">
                     <thead>
@@ -284,7 +316,6 @@ export default function KorpusStandarAdmin() {
           </div>
         )}
 
-        {/* TAB 2: STANDAR NASIONAL */}
         {activeTab === "standar" && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="w-full">
             <div className="bg-white p-6 md:p-8 rounded-xl shadow-sm border border-slate-200/80">
@@ -300,7 +331,6 @@ export default function KorpusStandarAdmin() {
                 </div>
               </div>
 
-              {/* Grid Fase Pendidikan */}
               <div className="mb-10">
                 <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-l-4 border-indigo-500 pl-3">Integrasi Fase Pembelajaran</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -322,7 +352,6 @@ export default function KorpusStandarAdmin() {
                 </div>
               </div>
 
-              {/* Grid Kementerian Terkait */}
               <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 border-l-4 border-indigo-500 pl-3">Asesmen Berbasis Kementerian</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                 
@@ -371,6 +400,7 @@ export default function KorpusStandarAdmin() {
           </motion.div>
         )}
 
+        {/* TAB BATASAN AI */}
         {activeTab === "batasan" && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
           <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -378,14 +408,32 @@ export default function KorpusStandarAdmin() {
               <MessageSquareWarning size={18} className="text-amber-600" /> Tambah Aturan Pembatas AI
             </h2>
             <form onSubmit={handleTambahBatasan} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <select value={batasanForm.kategori} onChange={(e) => setBatasanForm({...batasanForm, kategori: e.target.value})} className="bg-slate-50 border p-2.5 rounded-lg text-sm text-slate-700">
-                <option>Gaya Bahasa</option>
-                <option>Topik Terlarang</option>
-                <option>Cakupan Materi</option>
+              <select 
+                value={batasanForm.kategori} 
+                onChange={(e) => setBatasanForm({...batasanForm, kategori: e.target.value})} 
+                className="bg-slate-50 border p-2.5 rounded-lg text-sm text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="Gaya Bahasa">Gaya Bahasa</option>
+                <option value="Topik Terlarang">Topik Terlarang</option>
+                <option value="Cakupan Materi">Cakupan Materi</option>
               </select>
-              <input value={batasanForm.aturan} onChange={(e) => setBatasanForm({...batasanForm, aturan: e.target.value})} className="md:col-span-1 flex-1 bg-slate-50 border p-2.5 rounded-lg text-sm text-slate-700" placeholder="Contoh: Dilarang menyebutkan politik..." />
-              <button type="submit" className="bg-indigo-600 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-indigo-700">
-                <Plus size={16} /> Simpan Aturan
+              
+              <input 
+                type="text"
+                value={batasanForm.aturan} 
+                onChange={(e) => setBatasanForm({...batasanForm, aturan: e.target.value})} 
+                className="md:col-span-1 flex-1 bg-slate-50 border p-2.5 rounded-lg text-sm text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" 
+                placeholder="Contoh: Dilarang menyebutkan politik..." 
+                disabled={isSubmittingBatasan}
+              />
+              
+              <button 
+                type="submit" 
+                disabled={isSubmittingBatasan || !batasanForm.aturan.trim()}
+                className={`text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors ${isSubmittingBatasan || !batasanForm.aturan.trim() ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+              >
+                {isSubmittingBatasan ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} 
+                {isSubmittingBatasan ? "Menyimpan..." : "Simpan Aturan"}
               </button>
             </form>
           </div>
@@ -393,20 +441,30 @@ export default function KorpusStandarAdmin() {
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold">
-                <tr><th className="px-6 py-4">Kategori</th><th className="px-6 py-4">Detail Aturan</th><th className="px-6 py-4">Aksi</th></tr>
+                <tr>
+                  <th className="px-6 py-4 text-left">Kategori</th>
+                  <th className="px-6 py-4 text-left">Detail Aturan</th>
+                  <th className="px-6 py-4 text-center">Aksi</th>
+                </tr>
               </thead>
-              <tbody className="divide-y">
-                {daftarBatasan.map((item) => ( // Gunakan 'item' atau 'b' secara konsisten
-                  <tr key={item.id} className="hover:bg-slate-50">
+              <tbody className="divide-y divide-slate-100">
+                {daftarBatasan.length > 0 ? daftarBatasan.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 font-bold text-indigo-700">{item.kategori}</td>
                     <td className="px-6 py-4 text-slate-700">{item.aturan}</td>
-                    <td className="px-6 py-4">
-                      <button onClick={() => handleHapusBatasan(item.id)} className="text-red-500 hover:text-red-700">
+                    <td className="px-6 py-4 text-center">
+                      <button onClick={() => handleHapusBatasan(item.id)} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all inline-flex items-center justify-center">
                          <Trash2 size={16} />
                       </button>
                     </td>
                   </tr>
-                ))}
+                )) : (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-8 text-center text-slate-500 text-sm">
+                      Belum ada aturan batasan AI yang tersimpan.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
