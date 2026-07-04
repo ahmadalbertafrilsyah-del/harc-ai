@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   User, BookOpen, ShieldCheck, ArrowLeft, ArrowRight, 
-  GraduationCap, Mail, Lock, Eye, EyeOff, Building, Send, Loader2, AlertCircle
+  GraduationCap, Mail, Lock, Eye, EyeOff, Building, Send, Loader2, AlertCircle, Wrench
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -25,6 +25,7 @@ export default function LoginPage() {
   // State Pengaturan Global dari Firestore
   const [adminPhone, setAdminPhone] = useState("6281234567890"); 
   const [isRegOpen, setIsRegOpen] = useState(true);
+  const [isMaintenance, setIsMaintenance] = useState(false);
 
   // State Login & Register
   const [email, setEmail] = useState("");
@@ -49,6 +50,7 @@ export default function LoginPage() {
         const data = docSnap.data();
         if (data.adminWhatsApp) setAdminPhone(data.adminWhatsApp);
         if (data.bukaPendaftaran !== undefined) setIsRegOpen(data.bukaPendaftaran);
+        if (data.maintenanceMode !== undefined) setIsMaintenance(data.maintenanceMode);
       }
     });
     return () => unsub();
@@ -68,6 +70,24 @@ export default function LoginPage() {
 
       if (userDocSnap.exists()) {
         const userData = userDocSnap.data();
+        
+        // 1. PENGECEKAN AKUN DIBEKUKAN (BLOKIR)
+        if (userData.status === "Dibekukan" || userData.status === "dibekukan") {
+          await signOut(auth); // Langsung tendang keluar
+          alert("Akses Ditolak! Akun Anda sedang DIBEKUKAN oleh Administrator. Silakan hubungi Admin untuk info lebih lanjut.");
+          setIsLoading(false);
+          return;
+        }
+
+        // 2. PENGECEKAN MAINTENANCE MODE (Kecuali Admin)
+        if (isMaintenance && userData.role !== "admin") {
+          await signOut(auth);
+          alert("Sistem sedang dalam mode pemeliharaan (Maintenance). Akses ditutup sementara, silakan coba beberapa saat lagi.");
+          setIsLoading(false);
+          return;
+        }
+
+        // 3. PENGECEKAN KECOCOKAN ROLE
         if (userData.role === selectedRole) {
           window.location.href = `/dashboard/${selectedRole}/beranda`;
         } else {
@@ -92,15 +112,11 @@ export default function LoginPage() {
     
     try {
       const auth = getAuth();
-      
-      // 1. Buat Akun Kredensial di Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, regEmail, regPassword);
       const newUser = userCredential.user;
       
-      // 2. Logout segera agar tidak masuk sistem sebelum di ACC
       await signOut(auth);
 
-      // 3. Simpan data pengajuan menggunakan UID dari Firebase Auth
       await setDoc(doc(db, "pengajuan_akun", newUser.uid), {
         uid: newUser.uid,
         nama: regNama,
@@ -111,7 +127,6 @@ export default function LoginPage() {
         timestamp: serverTimestamp()
       });
 
-      // 4. Integrasi WhatsApp
       const message = `Halo Admin Syntax LMS,%0A%0ASaya ingin mengajukan pembuatan akun Pendidik. Berikut data saya:%0A- Nama: *${regNama}*%0A- Email: *${regEmail}*%0A- Instansi: *${regInstansi}*%0A%0AStatus pendaftaran saya ada di Dasbor Admin. Mohon persetujuannya (ACC) agar saya dapat mengakses sistem. Terima kasih.`;
       const waUrl = `https://wa.me/${adminPhone}?text=${message}`;
 
@@ -120,7 +135,7 @@ export default function LoginPage() {
       
       setStep(1);
       setSelectedRole(null);
-      setRegPassword(""); // Kosongkan password demi keamanan
+      setRegPassword(""); 
     } catch (error: any) {
       console.error("Gagal mengajukan akun:", error);
       if (error.code === 'auth/email-already-in-use') {
@@ -178,6 +193,20 @@ export default function LoginPage() {
         )}
 
         <div className="w-full max-w-[380px] my-auto">
+          
+          {/* BANNER MAINTENANCE UNTUK STEP 1 */}
+          <AnimatePresence>
+            {isMaintenance && step === 1 && (
+              <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 shadow-sm">
+                <Wrench className="text-amber-600 shrink-0 mt-0.5" size={20} />
+                <div>
+                  <h3 className="text-sm font-bold text-amber-900 mb-1">Mode Pemeliharaan Aktif</h3>
+                  <p className="text-xs text-amber-700 leading-relaxed">Sistem saat ini hanya dapat diakses oleh Administrator. Proses evaluasi ditutup sementara.</p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <AnimatePresence mode="wait">
             
             {/* STEP 1: Pilih Peran */}
@@ -254,7 +283,7 @@ export default function LoginPage() {
               </motion.div>
             )}
 
-            {/* STEP 3: Form Pengajuan (Dengan Password) */}
+            {/* STEP 3: Form Pengajuan */}
             {step === 3 && (
               <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                 <div className="text-center md:text-left mb-5">
@@ -285,8 +314,6 @@ export default function LoginPage() {
                       <input type="text" value={regInstansi} onChange={(e) => setRegInstansi(e.target.value)} required className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none text-sm shadow-sm" />
                     </div>
                   </div>
-                  
-                  {/* KOLOM PASSWORD YANG DITAMBAHKAN KEMBALI */}
                   <div>
                     <label className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">Buat Kata Sandi</label>
                     <div className="relative">
@@ -297,7 +324,6 @@ export default function LoginPage() {
                       </button>
                     </div>
                   </div>
-
                   <button type="submit" disabled={isLoading} className="w-full mt-3 py-2.5 rounded-xl font-bold text-sm text-white bg-amber-600 hover:bg-amber-700 shadow-md transition-all flex justify-center items-center gap-2">
                     {isLoading ? <Loader2 size={16} className="animate-spin" /> : <>Kirim & Hubungi Admin <Send size={14} /></>}
                   </button>

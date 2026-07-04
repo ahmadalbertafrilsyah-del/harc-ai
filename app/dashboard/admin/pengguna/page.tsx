@@ -161,7 +161,7 @@ export default function ManajemenPenggunaAdmin() {
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="max-w-7xl mx-auto space-y-6 pb-10 relative">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="max-w-7xl mx-auto space-y-6 pb-24 md:pb-10 relative">
       
       {/* Header Halaman */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-6">
@@ -209,7 +209,7 @@ export default function ManajemenPenggunaAdmin() {
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
                   <th className="px-5 py-4">Identitas Pendidik</th>
-                  <th className="px-5 py-4">Status Akun</th>
+                  <th className="px-5 py-4 text-center">Status Akun</th>
                   <th className="px-5 py-4 text-center">Kuota AI</th>
                   <th className="px-5 py-4 text-center">Panel Kendali</th>
                 </tr>
@@ -230,8 +230,8 @@ export default function ManajemenPenggunaAdmin() {
                         </div>
                       </td>
                       
-                      <td className="px-5 py-4">
-                        <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border flex items-center gap-1 w-fit ${
+                      <td className="px-5 py-4 text-center">
+                        <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border items-center gap-1 ${
                           guru.status === 'Dibekukan' 
                             ? 'bg-rose-50 text-rose-700 border-rose-200' 
                             : 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -248,7 +248,7 @@ export default function ManajemenPenggunaAdmin() {
                         </div>
                       </td>
                       
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
                           <button onClick={() => setDetailGuru(guru)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100" title="Lihat Detail Database">
                             <Eye size={16} />
@@ -287,7 +287,7 @@ export default function ManajemenPenggunaAdmin() {
               <thead>
                 <tr className="bg-amber-50/50 border-b border-amber-100 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
                   <th className="px-6 py-4">Data Pemohon</th>
-                  <th className="px-6 py-4">Asal Instansi</th>
+                  <th className="px-6 py-4 text-center">Asal Instansi</th>
                   <th className="px-6 py-4 text-center">Waktu Pengajuan</th>
                   <th className="px-6 py-4 text-right">Tindakan Persetujuan</th>
                 </tr>
@@ -307,7 +307,7 @@ export default function ManajemenPenggunaAdmin() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 text-center">
                         <p className="text-sm font-medium text-slate-700">{pengajuan.instansi}</p>
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -353,54 +353,74 @@ export default function ManajemenPenggunaAdmin() {
               initial={{ opacity: 0, scale: 0.95 }} 
               animate={{ opacity: 1, scale: 1 }} 
               exit={{ opacity: 0, scale: 0.95 }} 
-              className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col"
+              className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
             >
               {/* Header Modal */}
-              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h3 className={`text-lg font-bold text-slate-800 ${teachersFont.className}`}>Detail Database Pendidik</h3>
+              <div className="px-5 md:px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                <h3 className={`text-base md:text-lg font-bold text-slate-800 ${teachersFont.className}`}>Profil & Database Pendidik</h3>
                 <button onClick={() => setDetailGuru(null)} className="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-200 transition-colors">
                   <X size={20} />
                 </button>
               </div>
               
-              {/* Body Modal */}
-              <div className="p-6 space-y-5">
+              {/* Body Modal (Memungkinkan Scroll pada HP) */}
+              <div className="p-5 md:p-6 space-y-5 overflow-y-auto">
+                
                 <div className="flex items-center gap-4 border-b border-slate-100 pb-5">
-                  <div className="w-16 h-16 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-2xl shrink-0">
-                    {detailGuru.nama.charAt(0)}
+                  <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xl md:text-2xl shrink-0">
+                    {detailGuru.nama.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <h4 className="text-xl font-bold text-slate-900">{detailGuru.nama}</h4>
-                    <p className="text-sm text-blue-600 font-medium">{detailGuru.email}</p>
+                    <h4 className="text-lg md:text-xl font-bold text-slate-900 leading-tight">{detailGuru.nama}</h4>
+                    <p className="text-xs md:text-sm text-blue-600 font-medium mt-0.5">{detailGuru.email}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">ID Firestore</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">ID Data Akun</p>
                     <p className="text-xs font-mono text-slate-700 truncate" title={detailGuru.id}>{detailGuru.id}</p>
                   </div>
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Status Akun</p>
+                  
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Status Akun</p>
                     <p className={`text-xs font-bold ${detailGuru.status === 'Dibekukan' ? 'text-rose-600' : 'text-emerald-600'}`}>{detailGuru.status || 'Aktif'}</p>
                   </div>
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Instansi</p>
-                    <p className="text-xs font-medium text-slate-700 truncate">{detailGuru.instansi || '-'}</p>
+                  
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Instansi / Sekolah</p>
+                    <p className="text-xs font-medium text-slate-700 truncate">{detailGuru.instansi || 'Belum diatur'}</p>
                   </div>
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Spesialisasi</p>
-                    <p className="text-xs font-medium text-slate-700">{detailGuru.spesialisasi || 'Bahasa Daerah'}</p>
+                  
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Nomor Induk (NIP/NUPTK)</p>
+                    <p className="text-xs font-medium text-slate-700 truncate">{detailGuru.nip || 'Belum diatur'}</p>
+                  </div>
+                  
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Spesialisasi</p>
+                    <p className="text-xs font-medium text-slate-700">{detailGuru.spesialisasi || 'Belum diatur'}</p>
+                  </div>
+                  
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Telepon / WhatsApp</p>
+                    <p className="text-xs font-medium text-slate-700">{detailGuru.telepon || 'Belum diatur'}</p>
                   </div>
                 </div>
 
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Lokasi / Alamat Domisili</p>
+                  <p className="text-xs font-medium text-slate-700">{detailGuru.lokasi || 'Belum diatur'}</p>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between shrink-0">
                   <div>
                     <p className="text-xs font-bold text-amber-800 uppercase tracking-wide">Sisa Token AI</p>
                     <p className="text-2xl font-bold text-amber-600 mt-0.5">{(detailGuru.aiTokens || 0).toLocaleString('id-ID')}</p>
                   </div>
                   <Coins size={32} className="text-amber-300 opacity-50" />
                 </div>
+                
               </div>
             </motion.div>
           </div>

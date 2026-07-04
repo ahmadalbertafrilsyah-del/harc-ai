@@ -15,7 +15,8 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
-  Clock
+  Clock,
+  UserCog // <-- Ikon baru untuk profil admin
 } from "lucide-react";
 
 // IMPORT FIREBASE UNTUK NOTIFIKASI
@@ -133,8 +134,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </div>
 
-          {/* BAGIAN KANAN: Jam, Notifikasi, & Profil */}
-          <div className="flex items-center justify-end gap-3 md:gap-5 w-full md:w-auto">
+          {/* BAGIAN KANAN: Jam, Notifikasi, Profil, & Logout (Mobile) */}
+          <div className="flex items-center justify-end gap-3 md:gap-4 w-full md:w-auto">
             
             {/* Jam Real-time (Untuk Desktop) */}
             <div className="hidden md:flex items-center gap-2 text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
@@ -149,7 +150,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="relative">
               <button 
                 onClick={() => setShowNotif(!showNotif)}
-                className={`relative p-2 rounded-full transition-colors ${showNotif ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`relative p-2 rounded-full transition-colors ${showNotif ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`}
               >
                 <Bell size={18} />
                 {pendingCount > 0 && (
@@ -186,7 +187,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               )}
             </div>
 
-            <div className="hidden md:block w-px h-5 bg-slate-200"></div>
+            <div className="hidden md:block w-px h-5 bg-slate-200 mx-1"></div>
             
             {/* Profil Admin */}
             <div className="flex items-center gap-3 group cursor-pointer">
@@ -194,10 +195,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <p className="font-bold text-slate-700 text-sm">Super Admin</p>
                 <p className="text-slate-400 text-[11px] font-medium">Sistem Utama</p>
               </div>
-              <div className="w-8 h-8 bg-indigo-900 text-white rounded-md flex items-center justify-center text-xs font-bold shadow-sm">
-                SA
+              <div className="w-8 h-8 bg-indigo-900 text-white rounded-md flex items-center justify-center shadow-sm">
+                <UserCog size={16} />
               </div>
             </div>
+
+            {/* Tombol Logout Khusus Mobile (Merespons tampilan HP) */}
+            <Link href="/login" className="md:hidden flex items-center">
+              <button className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-full transition-colors" title="Keluar Sistem">
+                <LogOut size={18} />
+              </button>
+            </Link>
+
           </div>
         </header>
 
