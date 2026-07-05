@@ -381,8 +381,8 @@ export default function ChatbotAdminGeminiStyle() {
             <form className="bg-white border border-slate-200/80 shadow-[0_4px_25px_-5px_rgba(0,0,0,0.05)] rounded-3xl flex flex-col p-2 transition-all focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-300">
               <textarea 
                 value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} disabled={isTyping}
-                placeholder="Tanyakan sesuatu atau unggah dokumen referensi..." 
-                className="w-full bg-transparent max-h-40 px-4 py-3 text-[15px] text-slate-800 placeholder:text-slate-400 focus:outline-none resize-none disabled:opacity-50 scrollbar-thin scrollbar-thumb-slate-200"
+                placeholder="Menapa wonten ingkang saged kula biyantu?" 
+                className="w-full bg-transparent max-h-40 px-4 py-3 text-[15px] text-slate-800 placeholder:text-slate-400 focus:outline-none resize-none disabled:opacity-50 scrollbar-thin scrollbar-thumb-slate-200 text-center"
                 rows={1} style={{ minHeight: '60px' }}
               />
               <div className="flex items-center justify-between px-2 pb-1 pt-2">
