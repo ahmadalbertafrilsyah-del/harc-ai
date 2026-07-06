@@ -374,7 +374,7 @@ export default function ChatbotGuruGeminiStyle() {
               <textarea 
                 value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} disabled={isTyping}
                 placeholder="Menapa wonten ingkang saged kula biyantu?" 
-                className="w-full bg-transparent max-h-40 px-4 py-3 text-[15px] text-slate-800 placeholder:text-slate-400 focus:outline-none resize-none disabled:opacity-50 scrollbar-thin scrollbar-thumb-slate-200 text-center"
+                className="w-full bg-transparent max-h-40 px-4 py-3 text-[15px] text-slate-800 placeholder:text-slate-400 focus:outline-none resize-none disabled:opacity-50 scrollbar-thin scrollbar-thumb-slate-200"
                 rows={1} style={{ minHeight: '60px' }}
               />
               <div className="flex items-center justify-between px-2 pb-1 pt-2">

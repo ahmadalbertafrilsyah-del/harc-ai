@@ -1,10 +1,10 @@
 "use client";
 
-export const maxDuration = 60;
+export const maxDuration = 240;
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, BookOpen, Settings, FileText, CheckCircle, Bot, Loader2, Save, History, FileDown, Printer, Coins, Target, Link2, Trash2 } from "lucide-react";
+import { Sparkles, BookOpen, Settings, FileText, Bot, Loader2, Save, History, FileDown, Printer, Coins, Target, Link2, Trash2, CalendarDays, CheckCircle, X } from "lucide-react";
 import { Teachers } from "next/font/google";
 
 import { db } from "@/lib/firebase"; 
@@ -13,7 +13,6 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import rehypeRaw from "rehype-raw";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -25,12 +24,12 @@ export default function GeneratorBahanAjar() {
 
   // State Form Input (Kurikulum & Identitas)
   const [sumber, setSumber] = useState("Kemendikdasmen (SK BSKAP 32/2024)"); 
-  const [tipe, setTipe] = useState("Modul Ajar (PPM)");
+  const [tipe, setTipe] = useState("Modul Ajar");
   const [fase, setFase] = useState("");
   const [kelas, setKelas] = useState("");
   const [mapel, setMapel] = useState("");
-  const [topik, setTopik] = useState(""); // Elemen / Topik Utama
-  const [materi, setMateri] = useState(""); // Materi Spesifik
+  const [topik, setTopik] = useState(""); 
+  const [materi, setMateri] = useState(""); 
 
   const [namaSekolah, setNamaSekolah] = useState("");
   const [kotaSekolah, setKotaSekolah] = useState(""); 
@@ -45,6 +44,16 @@ export default function GeneratorBahanAjar() {
   const [metode, setMetode] = useState("");
   const [alokasiWaktu, setAlokasiWaktu] = useState("");
   const [profilPelajar, setProfilPelajar] = useState("");
+  
+  // State Parameter Bank Soal (DIPERLUAS)
+  const [jenisUjian, setJenisUjian] = useState("Ulangan Harian");
+  const [tingkatKesulitan, setTingkatKesulitan] = useState("Campuran (Proporsional)");
+  const [opsiPG, setOpsiPG] = useState("A - D (4 Opsi)");
+  const [jmlPG, setJmlPG] = useState("10"); 
+  const [jmlBenarSalah, setJmlBenarSalah] = useState("0"); 
+  const [jmlMenjodohkan, setJmlMenjodohkan] = useState("0"); 
+  const [jmlIsianSingkat, setJmlIsianSingkat] = useState("0"); 
+  const [jmlUraian, setJmlUraian] = useState("5"); 
 
   // State UI, AI & Dokumen Terakhir
   const [isGenerating, setIsGenerating] = useState(false);
@@ -53,15 +62,17 @@ export default function GeneratorBahanAjar() {
   const [docId, setDocId] = useState(""); 
   const [dokumenTerakhir, setDokumenTerakhir] = useState(""); 
   const [gunakanKonteks, setGunakanKonteks] = useState(false); 
+  
+  // State Modal Riwayat
+  const [showKoleksi, setShowKoleksi] = useState(false);
   const [riwayatModul, setRiwayatModul] = useState<any[]>([]);
 
   const pdfRef = useRef<HTMLDivElement>(null);
 
-  const p5Kemendikbud = ["Semua Dimensi P5", "Beriman, Bertakwa & Berakhlak Mulia", "Berkebinekaan Global", "Bergotong Royong", "Mandiri", "Bernalar Kritis", "Kreatif"];
-  const p5Kemenag = ["Semua Nilai P5 & PPRA", "Berkeadaban (Ta'addub)", "Keteladanan (Qudwah)", "Kewarganegaraan (Muwatana)", "Mengambil jalan tengah (Tawassut)", "Berimbang (Tawazun)", "Lurus dan tegas (I'tidal)", "Kesetaraan (Musawa)"];
+  const p5Kemendikbud: string[] = ["Semua Dimensi P5", "Beriman, Bertakwa & Berakhlak Mulia", "Berkebinekaan Global", "Bergotong Royong", "Mandiri", "Bernalar Kritis", "Kreatif"];
+  const p5Kemenag: string[] = ["Semua Nilai P5 & PPRA", "Berkeadaban (Ta'addub)", "Keteladanan (Qudwah)", "Kewarganegaraan (Muwatana)", "Mengambil jalan tengah (Tawassut)", "Berimbang (Tawazun)", "Lurus dan tegas (I'tidal)", "Kesetaraan (Musawa)"];
 
-  // Mapping Fase ke Kelas
-  const opsiKelas: any = {
+  const opsiKelas: Record<string, string[]> = {
     "Fase PAUD": ["TK A", "TK B"],
     "Fase A": ["Kelas 1", "Kelas 2"],
     "Fase B": ["Kelas 3", "Kelas 4"],
@@ -71,10 +82,7 @@ export default function GeneratorBahanAjar() {
     "Fase F": ["Kelas 11", "Kelas 12"],
   };
 
-  const opsiTipeDokumen = [
-    "Modul Ajar", "RPP", "ATP", "PROMES", "PROTA", 
-    "LKPD", "Bahan Bacaan Siswa", "Kisi-kisi Ujian", "Rubrik Penilaian", "Bank Soal"
-  ];
+  const opsiTipeDokumen = ["Modul Ajar", "RPP", "ATP", "PROMES", "PROTA", "LKPD", "Bahan Bacaan Siswa", "Kisi-kisi Ujian", "Rubrik Penilaian", "Bank Soal"];
 
   useEffect(() => {
     const auth = getAuth();
@@ -89,9 +97,7 @@ export default function GeneratorBahanAjar() {
         });
         const qRiwayat = query(collection(db, "modul_ajar"), orderBy("createdAt", "desc"));
         const unsubRiwayat = onSnapshot(qRiwayat, (snapshot) => {
-          const data = snapshot.docs
-            .map(d => ({ id: d.id, ...d.data() }))
-            .filter((d: any) => d.userId === user.uid);
+          const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter((d: any) => d.userId === user.uid);
           setRiwayatModul(data);
         });
         return () => { unsubProfil(); unsubRiwayat(); };
@@ -103,57 +109,86 @@ export default function GeneratorBahanAjar() {
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userUid) { alert("Sesi Anda tidak valid. Silakan login ulang."); return; }
-    if (!topik || !materi || !fase || !kelas) { alert("Mohon lengkapi Fase, Kelas, Topik, dan Materi Spesifik."); return; }
-    if (aiTokens <= 0) { alert("Sisa Token AI Anda habis. Silakan hubungi Admin."); return; }
+    if (!materi || !fase || !kelas || !mapel) { alert("Mohon lengkapi Fase, Kelas, Mata Pelajaran, dan Materi."); return; }
+    if (aiTokens <= 0) { alert("Sisa Token AI Anda habis."); return; }
 
     setIsGenerating(true);
     setHasil("");
-    setDocId(""); // Reset doc id karena ini dokumen baru
+    setDocId(""); 
     const startTime = Date.now();
     
-    // --- BUILD SYSTEM PROMPT BERDASARKAN REGULASI ---
-    let sistemPrompt = `Anda adalah Ahli Penyusun Kurikulum Pendidikan Nasional Indonesia. Buatlah dokumen menggunakan format Markdown (tabel, bold, list) yang sangat rapi dan formal.\n`;
+    let sistemPrompt = `Anda adalah Ahli Penyusun Kurikulum Pendidikan Nasional Indonesia. Buatlah dokumen menggunakan format Markdown (tabel, bold, list) yang sangat rapi dan terstruktur secara formal.\n`;
+    sistemPrompt += `ATURAN FORMAT JARAK: Setiap Sub-bab atau Judul Poin WAJIB diberi baris baru (ENTER) dua kali sebelum menuliskan isinya, agar judul dan isi kalimat tidak menyatu/menempel.\n`;
+    
     if (sumber.includes("BSKAP")) {
-      sistemPrompt += `PENTING: Rujuk pada SK BSKAP No. 32 Tahun 2024 tentang Capaian Pembelajaran (CP) pada Kurikulum Merdeka. Jabarkan CP menjadi Tujuan Pembelajaran (TP) yang logis.\n`;
+      sistemPrompt += `PENTING: Rujuk pada SK BSKAP No. 32 Tahun 2024 tentang Capaian Pembelajaran (CP) Kurikulum Merdeka.\n`;
     } else {
-      sistemPrompt += `PENTING: Rujuk pada regulasi KMA No. 1503 Tahun 2025 (Kementerian Agama) terbaru terkait Capaian Pembelajaran dan integrasi nilai-nilai Madrasah (PPRA).\n`;
+      sistemPrompt += `PENTING: Rujuk pada regulasi KMA No. 1503 Tahun 2025 terbaru terkait Capaian Pembelajaran dan integrasi PPRA Madrasah.\n`;
     }
 
     let topikKirim = `Buatlah dokumen **${tipe}**.\n\n`;
-    topikKirim += `**IDENTITAS DOKUMEN**\n- Sekolah/Madrasah: ${namaSekolah || '[Nama Institusi]'}\n- Mata Pelajaran: ${mapel}\n- Fase / Kelas: ${fase} / ${kelas}\n- Tahun Pelajaran: ${tahunPelajaran} (Semester ${semester})\n- Topik/Elemen CP: ${topik}\n- Materi Spesifik: ${materi}\n\n`;
 
-    if (tipe === "Modul Ajar (PPM)" || tipe === "RPP") {
-        if (metode) topikKirim += `- Strategi/Model Pembelajaran: ${metode}\n`;
-        if (alokasiWaktu) topikKirim += `- Alokasi Waktu: ${alokasiWaktu}\n`;
-        if (profilPelajar) topikKirim += `- Fokus Profil Pelajar (P5/PPRA): Integrasikan nilai "${profilPelajar}" dalam skenario pembelajaran.\n`;
-        topikKirim += `Struktur Wajib: Identitas, Capaian Pembelajaran (SK BSKAP 32/2024), Tujuan Pembelajaran, Pemahaman Bermakna, Pertanyaan Pemantik, Skenario Kegiatan (Pendahuluan, Inti, Penutup), dan Asesmen Singkat.\n`;
-    } else if (tipe === "PROMES") {
-        topikKirim += `Struktur Wajib: Buatlah tabel Program Semester (PROSEM) yang memuat Alokasi Waktu (JP), Bulan (Juli s.d Desember atau Januari s.d Juni sesuai semester), dan matriks/ceklis Minggu Efektif layaknya Kalender Pendidikan (Kaldik).\n`;
-    } else if (tipe === "Lembar Kerja Peserta Didik (LKPD)") {
-        topikKirim += `Struktur Wajib: Judul LKPD, Tujuan, Alat/Bahan (jika ada), Langkah Kegiatan/Instruksi Pengerjaan, dan Soal/Tabel Pengamatan untuk diisi siswa.\n`;
-    } else if (tipe === "Kisi-kisi Ujian") {
-        topikKirim += `Struktur Wajib: Tabel yang memuat CP/TP, Materi, Indikator Soal, Level Kognitif (C1-C6), Bentuk Soal (PG/Esai), dan Nomor Soal.\n`;
+    if (tipe === "Modul Ajar") {
+        topikKirim += `STRUKTUR WAJIB MODUL AJAR:\n`;
+        topikKirim += `1. INFORMASI UMUM. Buatlah TABEL Informasi Umum yang WAJIB berisi kolom Komponen dan Keterangan dengan data berikut:\n`;
+        topikKirim += `   - Penyusun: ${namaGuru || "(Nama Guru Penyusun)"}\n`;
+        topikKirim += `   - Institusi: ${namaSekolah || "(Nama Sekolah)"}\n`;
+        topikKirim += `   - Tahun Pelajaran: ${tahunPelajaran || "(Tahun Pelajaran)"}\n`;
+        topikKirim += `   - Jenjang Sekolah: (Isi sesuai fase)\n`;
+        topikKirim += `   - Mata Pelajaran: ${mapel}\n`;
+        topikKirim += `   - Fase / Kelas: ${fase} / ${kelas} (Semester ${semester})\n`;
+        topikKirim += `   - Materi Pokok: ${materi}\n`;
+        topikKirim += `   - Alokasi Waktu: ${alokasiWaktu || "(Isi alokasi waktu yang sesuai)"}\n\n`;
+        topikKirim += `Setelah tabel identitas di atas, lanjutkan poin Informasi Umum dengan sub-judul: Kompetensi Awal, P5/PPRA (${profilPelajar || 'Sesuaikan'}), Sarpras, Target Peserta Didik, dan Model Pembelajaran (${metode || 'Sesuaikan'}).\n`;
+        topikKirim += `2. KOMPONEN INTI (Tujuan Pembelajaran, Pemahaman Bermakna, Pertanyaan Pemantik, Tabel Kegiatan Pembelajaran [Pendahuluan, Inti, Penutup], Asesmen, Pengayaan & Remedial)\n`;
+        topikKirim += `3. LAMPIRAN (Lembar Kerja Peserta Didik, Rubrik, Bahan Bacaan, Daftar Pustaka).\n`;
+    } else if (tipe === "Bank Soal") {
+        topikKirim += `IDENTITAS: Mata Pelajaran ${mapel}, Fase/Kelas ${fase}/${kelas}, Materi: ${materi}\n\n`;
+        topikKirim += `STRUKTUR WAJIB:\nBuatlah instrumen ${jenisUjian} dengan tingkat kesulitan soal rata-rata: ${tingkatKesulitan}.\n`;
+        topikKirim += `Komposisi soal terdiri dari:\n`;
+        if (Number(jmlPG) > 0) topikKirim += `- Pilihan Ganda (Opsi ${opsiPG}): ${jmlPG} butir.\n`;
+        if (Number(jmlBenarSalah) > 0) topikKirim += `- Benar/Salah: ${jmlBenarSalah} butir.\n`;
+        if (Number(jmlMenjodohkan) > 0) topikKirim += `- Menjodohkan: ${jmlMenjodohkan} butir.\n`;
+        if (Number(jmlIsianSingkat) > 0) topikKirim += `- Isian Singkat: ${jmlIsianSingkat} butir.\n`;
+        if (Number(jmlUraian) > 0) topikKirim += `- Uraian/Essay: ${jmlUraian} butir.\n`;
+        topikKirim += `ATURAN FORMAT OPSI JAWABAN: WAJIB pisahkan setiap pilihan ganda (A, B, C, D, E) ke baris baru yang menurun ke bawah (dengan list). JANGAN MENGGABUNGKAN opsi dalam satu baris paragraf.\n`;
+        topikKirim += `Buat Tabel Kunci Jawaban & Rubrik Penskoran di bagian paling bawah dokumen secara lengkap sesuai dengan komposisi soal di atas.\n`;
     } else {
-        topikKirim += `Buatlah struktur yang komprehensif dan sesuai standar akademik untuk ${tipe}.\n`;
+        topikKirim += `**IDENTITAS DOKUMEN**\n- Mata Pelajaran: ${mapel}\n- Fase / Kelas: ${fase} / ${kelas}\n- Tahun Pelajaran: ${tahunPelajaran} (Semester ${semester})\n- Materi Pokok: ${materi}\n\n`;
+        
+        if (tipe === "RPP") {
+            topikKirim += `STRUKTUR WAJIB:\n1. Identitas\n2. Tujuan Pembelajaran\n3. Tabel Langkah Pembelajaran (Tahap, Deskripsi Kegiatan Guru & Siswa, Alokasi Waktu)\n4. Penilaian.\n`;
+        } else if (tipe === "ATP") {
+            topikKirim += `STRUKTUR WAJIB:\nBuatlah TABEL Alur Tujuan Pembelajaran dengan kolom: Elemen | Tujuan Pembelajaran | Alokasi Waktu | Profil Pelajar Pancasila.\n`;
+        } else if (tipe === "PROTA") {
+            topikKirim += `STRUKTUR WAJIB:\nBuatlah TABEL Program Tahunan dengan kolom: Semester | No | Tema/Materi Pokok | Sub Tema | Alokasi Waktu (JP) | Keterangan.\n`;
+        } else if (tipe === "PROMES") {
+            const bulanGanjil = "Jul M1 | Jul M2 | Jul M3 | Jul M4 | Agu M1 | Agu M2 | Agu M3 | Agu M4 | Sep M1 | Sep M2 | Sep M3 | Sep M4 | Okt M1 | Okt M2 | Okt M3 | Okt M4 | Nov M1 | Nov M2 | Nov M3 | Nov M4 | Des M1 | Des M2 | Des M3 | Des M4";
+            const bulanGenap = "Jan M1 | Jan M2 | Jan M3 | Jan M4 | Feb M1 | Feb M2 | Feb M3 | Feb M4 | Mar M1 | Mar M2 | Mar M3 | Mar M4 | Apr M1 | Apr M2 | Apr M3 | Apr M4 | Mei M1 | Mei M2 | Mei M3 | Mei M4 | Jun M1 | Jun M2 | Jun M3 | Jun M4";
+            const kalender = semester === "Ganjil" ? bulanGanjil : bulanGenap;
+            topikKirim += `STRUKTUR WAJIB:\nBuatlah TABEL MATRIKS Program Semester (PROSEM). Kolom tabel WAJIB terdiri dari:\nNo | Tema/Materi | JP | ${kalender}\nIsi sel matriks kalender dengan tanda centang (✓) pada minggu efektif pelaksanaannya.\n`;
+        } else if (tipe === "LKPD") {
+            topikKirim += `STRUKTUR WAJIB:\nJudul LKPD, Tujuan Kegiatan, Alat & Bahan, Langkah Kerja (Sistematis), TABEL Pengamatan (No | Aspek | Hasil [Biarkan Kosong]), Pertanyaan Analisis.\n`;
+        } else if (tipe === "Bahan Bacaan Siswa") {
+            topikKirim += `STRUKTUR WAJIB:\nJudul Materi, Tujuan, Peta Konsep (Bulleted List), Uraian Materi (Lengkap dan menarik), Rangkuman, Latihan Mandiri.\n`;
+        } else if (tipe === "Kisi-kisi Ujian") {
+            topikKirim += `STRUKTUR WAJIB:\nBuatlah TABEL Kisi-kisi Ujian dengan kolom: Capaian Pembelajaran | Materi | Indikator Soal | Level Kognitif (C1-C6) | Bentuk Soal | Nomor Soal.\n`;
+        } else if (tipe === "Rubrik Penilaian") {
+            topikKirim += `STRUKTUR WAJIB:\nBuatlah TABEL Rubrik Penilaian dengan kolom: Aspek Penilaian | Skor 4 (Sangat Baik) | Skor 3 (Baik) | Skor 2 (Cukup) | Skor 1 (Kurang).\n`;
+        }
     }
 
-    // Integrasi Konteks Jika Dicentang
     if (gunakanKonteks && dokumenTerakhir) {
-      topikKirim += `\n\n[KONTEKS DOKUMEN SEBELUMNYA]:\nUntuk memastikan kesinambungan, selaraskan dokumen baru ini dengan data dari dokumen yang baru saja saya buat sebelumnya berikut ini:\n"""\n${dokumenTerakhir.substring(0, 3000)}\n"""\n`;
+      topikKirim += `\n\n[KONTEKS SINKRONISASI]:\nSelaraskan materi pada dokumen ini dengan referensi dokumen berikut agar nyambung:\n"""\n${dokumenTerakhir.substring(0, 2000)}\n"""\n`;
     }
 
     try {
-      const apiMessages = [
-        { role: "system", content: sistemPrompt },
-        { role: "user", content: topikKirim }
-      ];
-
+      const apiMessages = [{ role: "system", content: sistemPrompt }, { role: "user", content: topikKirim }];
       const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "gemini-1.5-flash", messages: apiMessages })
+        method: "POST", headers: { "Content-Type": "application/json" },
+        // Mengunci model ke Gemini 2.5 Pro untuk hasil maksimal di generator bahan ajar
+        body: JSON.stringify({ model: "gemini-2.5-pro", messages: apiMessages })
       });
-
       const data = await response.json();
       
       if (data.choices && data.choices.length > 0) {
@@ -161,24 +196,15 @@ export default function GeneratorBahanAjar() {
         const tokenUsed = data.usage?.total_tokens || 0;
 
         setHasil(aiResponseContent);
-        setDokumenTerakhir(aiResponseContent); // Simpan untuk konteks selanjutnya
+        setDokumenTerakhir(aiResponseContent);
 
         if (tokenUsed > 0) {
           await updateDoc(doc(db, "users", userUid), { aiTokens: increment(-tokenUsed) });
           await updateDoc(doc(db, "ai_monitoring", "token_stats"), { tokenTerpakai: increment(tokenUsed) });
-          await addDoc(collection(db, "ai_logs"), {
-            aksi: `Generate ${tipe}`, pengguna: userName, role: "guru", status: "Sukses",
-            latensi: Date.now() - startTime, tokenDipakai: tokenUsed, timestamp: serverTimestamp()
-          });
+          await addDoc(collection(db, "ai_logs"), { aksi: `Generate ${tipe}`, pengguna: userName, role: "guru", status: "Sukses", latensi: Date.now() - startTime, tokenDipakai: tokenUsed, timestamp: serverTimestamp() });
         }
-      } else {
-        throw new Error("Respons AI kosong.");
-      }
-    } catch (error: any) {
-      alert("Gagal memproses AI: " + error.message);
-    } finally { 
-      setIsGenerating(false); 
-    }
+      } else { throw new Error(data.error || "Respons AI kosong atau API Key belum diset."); }
+    } catch (error: any) { alert("Gagal memproses AI: " + error.message); } finally { setIsGenerating(false); }
   };
 
   const handleSaveToDatabase = async () => {
@@ -186,303 +212,449 @@ export default function GeneratorBahanAjar() {
     setIsSaving(true);
     try {
       if (docId) {
-        // Update dokumen jika sudah pernah disave
         await updateDoc(doc(db, "modul_ajar", docId), { konten: hasil });
         alert("Perubahan dokumen berhasil diperbarui!");
       } else {
-        // Simpan baru
         const docRef = await addDoc(collection(db, "modul_ajar"), {
-          userId: userUid,
-          sumber, tipe, fase, kelas, mapel, topik, materi, konten: hasil,
-          namaSekolah, kotaSekolah, namaKepsek, nipKepsek, namaGuru, nipGuru,
-          createdAt: serverTimestamp()
+          userId: userUid, sumber, tipe, fase, kelas, mapel, topik, materi, konten: hasil,
+          namaSekolah, kotaSekolah, namaKepsek, nipKepsek, namaGuru, nipGuru, createdAt: serverTimestamp()
         });
         setDocId(docRef.id);
         alert("Dokumen baru berhasil disimpan ke Koleksi Sistem!");
       }
-    } catch (error) {
-      alert("Gagal menyimpan dokumen.");
-    } finally {
-      setIsSaving(false);
-    }
+    } catch (error) { alert("Gagal menyimpan dokumen."); } finally { setIsSaving(false); }
   };
 
   const handleOpenRiwayat = (riwayat: any) => {
-    setTipe(riwayat.tipe);
-    setTopik(riwayat.topik);
-    setMateri(riwayat.materi || "");
-    setMapel(riwayat.mapel);
-    setFase(riwayat.fase);
-    setKelas(riwayat.kelas || "");
-    setHasil(riwayat.konten);
-    setDocId(riwayat.id);
-    setDokumenTerakhir(riwayat.konten);
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); // Scroll ke bawah (Kanvas)
+    setTipe(riwayat.tipe); setTopik(riwayat.topik || ""); setMateri(riwayat.materi || ""); setMapel(riwayat.mapel);
+    setFase(riwayat.fase); setKelas(riwayat.kelas || ""); setHasil(riwayat.konten); setDocId(riwayat.id);
+    setDokumenTerakhir(riwayat.konten); 
+    setShowKoleksi(false);
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
   };
 
   const hapusRiwayat = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation(); // Mencegah ter-trigger handleOpenRiwayat
+    e.stopPropagation();
     if(confirm("Yakin ingin menghapus dokumen ini dari koleksi?")) {
       await deleteDoc(doc(db, "modul_ajar", id));
-      if (docId === id) { setHasil(""); setDocId(""); } // Bersihkan kanvas jika yg dihapus sedang dibuka
+      if (docId === id) { setHasil(""); setDocId(""); }
     }
   };
 
   const handleDownloadWord = () => {
     if (!pdfRef.current) return;
-    let printHtml = pdfRef.current.innerHTML.replace(/class="markdown-body"/g, '');
-    const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Dokumen</title><style>@page WordSection1 { size: 21cm 29.7cm; margin: 2.54cm; } div.WordSection1 { page: WordSection1; } body, p, li, td, th, h1, h2, h3, h4, div { font-family: 'Times New Roman', serif !important; font-size: 12pt !important; color: black !important; line-height: 1.5; } h1 { font-size: 14pt !important; font-weight: bold !important; margin-bottom: 12pt; text-align: center; text-transform: uppercase; } h2, h3 { font-size: 12pt !important; font-weight: bold !important; margin-top: 12pt; margin-bottom: 6pt; } table { width: 100%; border-collapse: collapse; margin-top: 15pt; margin-bottom: 15pt; border: 1pt solid black !important; } td, th { border: 1pt solid black !important; padding: 5pt 8pt; vertical-align: top; text-align: left; } th { background-color: #f2f2f2; font-weight: bold !important; text-align: center; } .sig-table, .sig-table td, .sig-table th, .sig-table tr { border: none !important; }</style></head><body><div class="WordSection1">${printHtml}</div></body></html>`;
+    
+    // Klona DOM untuk manipulasi kolom
+    const printNode = pdfRef.current.cloneNode(true) as HTMLElement;
+    const tables = printNode.querySelectorAll('table');
+    tables.forEach(table => {
+      if (table.classList.contains('sig-table')) return; 
+      const ths = table.querySelectorAll('th');
+      ths.forEach((th) => {
+        const text = th.innerText.trim().toLowerCase();
+        if (text === 'no' || text === 'no.') {
+          th.style.width = '5%';
+        } else if (text.includes('skor') || text.includes('nilai')) {
+          th.style.width = '15%';
+        }
+      });
+    });
+
+    let printHtml = printNode.innerHTML.replace(/class="markdown-body"/g, '');
+    const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Dokumen</title><style>@page WordSection1 { size: 21cm 29.7cm; margin: 2.54cm; } div.WordSection1 { page: WordSection1; } body, p, li, td, th, h1, h2, h3, h4, div { font-family: 'Times New Roman', serif !important; font-size: 12pt !important; color: black !important; line-height: 1.5; text-align: justify; } h1 { font-size: 14pt !important; font-weight: bold !important; margin-bottom: 12pt; text-align: center; text-transform: uppercase; } h2, h3 { font-size: 12pt !important; font-weight: bold !important; margin-top: 12pt; margin-bottom: 6pt; text-align: left; } table { width: 100%; border-collapse: collapse; margin-top: 10pt; margin-bottom: 15pt; border: 1pt solid black !important; table-layout: fixed; word-wrap: break-word; overflow-wrap: break-word; } td, th { border: 1pt solid black !important; padding: 4pt 8pt; vertical-align: top; text-align: left; overflow-wrap: break-word; word-wrap: break-word; } th { background-color: #f2f2f2; font-weight: bold !important; text-align: center; } p { margin-bottom: 10pt; } li { margin-bottom: 6pt; text-align: justify; } .sig-table, .sig-table td, .sig-table th, .sig-table tr { border: none !important; }</style></head><body><div class="WordSection1">${printHtml}</div></body></html>`;
     const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(header);
     const fileDownload = document.createElement("a"); document.body.appendChild(fileDownload); 
-    fileDownload.href = source; fileDownload.download = `${tipe}_${mapel || 'Dokumen'}.doc`.replace(/[^a-zA-Z0-9.\-_]/g, "_"); 
-    fileDownload.click(); document.body.removeChild(fileDownload);
+    fileDownload.href = source; fileDownload.download = `${tipe}_${mapel || 'Dokumen'}.doc`.replace(/[^a-zA-Z0-9.\-_]/g, "_"); fileDownload.click(); document.body.removeChild(fileDownload);
   };
 
   const handlePrintPDF = () => {
-    const printContent = pdfRef.current?.innerHTML;
-    if (!printContent) return;
-    const iframe = document.createElement("iframe"); iframe.style.display = "none"; document.body.appendChild(iframe);
-    iframe.contentWindow?.document.open();
-    iframe.contentWindow?.document.write(`<html><head><title>Cetak PDF</title><style>@page { size: A4 portrait; margin: 2.54cm; } body { font-family: 'Times New Roman', serif !important; font-size: 12pt !important; line-height: 1.5 !important; color: #000; } h1 { text-align: center; font-size: 14pt; margin-bottom: 2rem; font-weight: bold; text-transform: uppercase; } table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; margin-bottom: 1.5rem; border: 1pt solid #000; } th, td { border: 1pt solid #000; padding: 8px 10px; text-align: left; vertical-align: top; } th { background-color: #f1f5f9; font-weight: bold; text-align: center; } tr { page-break-inside: avoid; } h2, h3, h4 { page-break-after: avoid; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold; } ul, ol { margin-left: 20px; margin-bottom: 10px; } .sig-table, .sig-table td, .sig-table th, .sig-table tr { border: none !important; padding: 4px; vertical-align: top; }</style></head><body>${printContent}</body></html>`);
+    if (!pdfRef.current) return;
+    
+    // Klona DOM untuk manipulasi kolom
+    const printNode = pdfRef.current.cloneNode(true) as HTMLElement;
+    const tables = printNode.querySelectorAll('table');
+    tables.forEach(table => {
+      if (table.classList.contains('sig-table')) return; 
+      const ths = table.querySelectorAll('th');
+      ths.forEach((th) => {
+        const text = th.innerText.trim().toLowerCase();
+        if (text === 'no' || text === 'no.') {
+          th.style.width = '5%';
+        } else if (text.includes('skor') || text.includes('nilai')) {
+          th.style.width = '15%';
+        }
+      });
+    });
+
+    const printContent = printNode.innerHTML;
+    const iframe = document.createElement("iframe"); iframe.style.display = "none"; document.body.appendChild(iframe); iframe.contentWindow?.document.open();
+    iframe.contentWindow?.document.write(`<html><head><title>Cetak PDF</title><style>@page { size: A4 portrait; margin: 2.54cm; } body { font-family: 'Times New Roman', serif !important; font-size: 12pt !important; line-height: 1.6 !important; color: #000; text-align: justify; } h1 { text-align: center; font-size: 14pt; margin-bottom: 2rem; font-weight: bold; text-transform: uppercase; } table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1.5rem; border: 1pt solid #000; table-layout: fixed; word-wrap: break-word; overflow-wrap: break-word; } th, td { border: 1pt solid #000; padding: 6px 8px; text-align: left; vertical-align: top; overflow-wrap: break-word; word-wrap: break-word; } th { background-color: #f1f5f9; font-weight: bold; text-align: center; } tr { page-break-inside: avoid; } h2, h3, h4 { page-break-after: avoid; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold; text-align: left; } ul, ol { margin-left: 20px; margin-bottom: 10px; } li { margin-bottom: 6px; text-align: justify; } p { margin-bottom: 10px; } .sig-table, .sig-table td, .sig-table th, .sig-table tr { border: none !important; padding: 4px; vertical-align: top; }</style></head><body>${printContent}</body></html>`);
     iframe.contentWindow?.document.close();
     setTimeout(() => { iframe.contentWindow?.focus(); iframe.contentWindow?.print(); setTimeout(() => document.body.removeChild(iframe), 1000); }, 500);
   };
 
-  const tanggalSekarang = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="max-w-5xl mx-auto space-y-6 pb-16 px-4 md:px-6 pt-4">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="max-w-6xl mx-auto space-y-6 pb-16 pt-4 px-2">
       
       {/* HEADER HALAMAN */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>Generator Perangkat Ajar Nasional</h1>
           <p className="text-slate-500 text-[13px] md:text-sm mt-1.5 max-w-2xl leading-relaxed">
-            Didukung AI untuk menyusun dokumen akademik yang selaras dengan SK BSKAP 32/2024 dan Regulasi Madrasah Kemenag.
+            Didukung AI untuk menyusun dokumen akademik yang selaras dengan regulasi nasional secara komprehensif.
           </p>
         </div>
-        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2 rounded-xl text-xs font-bold shadow-sm w-fit">
-          <Coins size={14} className="text-amber-500" /> Sisa Token AI: {aiTokens.toLocaleString('id-ID')}
-        </div>
-      </div>
-
-      {/* ==============================================
-          BAGIAN ATAS: FORM INPUT & PARAMETER
-          ============================================== */}
-      <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200/80">
-        <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-100">
-          <Settings size={20} className="text-blue-600" />
-          <h2 className={`text-lg font-bold text-slate-800 ${teachersFont.className}`}>Parameter Penyusunan Dokumen</h2>
-        </div>
-
-        <form onSubmit={handleGenerate} className="space-y-8">
-          
-          {/* 1. JENIS DOKUMEN */}
-          <div>
-            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">1. Pilih Jenis Dokumen</label>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {opsiTipeDokumen.map((item) => (
-                <button key={item} type="button" onClick={() => setTipe(item)} className={`py-2 px-3 text-[11px] font-bold rounded-lg transition-all border text-left flex items-center justify-between shadow-sm ${tipe === item ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-white'}`}>
-                  <span className="truncate">{item}</span>
-                  {tipe === item && <CheckCircle size={14} className="shrink-0" />}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 2. KURIKULUM & MATERI */}
-          <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-200">
-             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-4">2. Kurikulum & Ruang Lingkup Materi</label>
-             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Standar Kurikulum Nasional</label>
-                  <select value={sumber} onChange={(e) => setSumber(e.target.value)} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 shadow-sm">
-                    <option value="Kemendikdasmen (SK BSKAP 32/2024)">Kemendikdasmen (SK BSKAP 32/2024)</option>
-                    <option value="Kementerian Agama (KMA)">Kementerian Agama (KMA 1503/2025)</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Fase Pembelajaran</label>
-                  <select value={fase} onChange={(e) => { setFase(e.target.value); setKelas(""); }} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 shadow-sm" required>
-                    <option value="">Pilih Fase</option>
-                    {Object.keys(opsiKelas).map(f => <option key={f} value={f}>{f}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Spesifik Kelas</label>
-                  <select value={kelas} onChange={(e) => setKelas(e.target.value)} disabled={!fase} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 shadow-sm disabled:bg-slate-100 disabled:text-slate-400" required>
-                    <option value="">Pilih Kelas</option>
-                    {fase && opsiKelas[fase]?.map((kls: string) => <option key={kls} value={kls}>{kls}</option>)}
-                  </select>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Mata Pelajaran</label>
-                  <input type="text" value={mapel} onChange={(e) => setMapel(e.target.value)} placeholder="Contoh: Pendidikan Pancasila / Biologi / SKI" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 shadow-sm" required />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Elemen CP / Topik Utama</label>
-                  <input type="text" value={topik} onChange={(e) => setTopik(e.target.value)} placeholder="Contoh: Menyimak / Pancasila sebagai Dasar Negara" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-xl text-sm font-medium text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 shadow-sm" required />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Materi Pembelajaran Spesifik</label>
-                  <input type="text" value={materi} onChange={(e) => setMateri(e.target.value)} placeholder="Contoh: Proses perumusan Pancasila pada sidang BPUPKI" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-xl text-sm font-medium text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 shadow-sm" required />
-                </div>
-             </div>
-          </div>
-
-          {/* 3. IDENTITAS SEKOLAH & PENGATURAN TAMBAHAN */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-             <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">3. Kop Identitas & Cetak</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <input type="text" value={namaSekolah} onChange={(e) => setNamaSekolah(e.target.value)} placeholder="Nama Sekolah" className="col-span-2 w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-400" />
-                  <input type="text" value={kotaSekolah} onChange={(e) => setKotaSekolah(e.target.value)} placeholder="Kabupaten/Kota" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-400" />
-                  <input type="text" value={tahunPelajaran} onChange={(e) => setTahunPelajaran(e.target.value)} placeholder="Thn Ajaran (2025/2026)" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-400" />
-                  <input type="text" value={namaGuru} onChange={(e) => setNamaGuru(e.target.value)} placeholder="Nama Guru" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-400" />
-                  <input type="text" value={namaKepsek} onChange={(e) => setNamaKepsek(e.target.value)} placeholder="Nama Kepsek" className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-blue-400" />
-                </div>
-             </div>
-
-             <div className="p-5 bg-emerald-50/50 border border-emerald-100 rounded-2xl shadow-sm space-y-4">
-                <h4 className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider mb-2 border-b border-emerald-100 pb-2">4. Pengaturan Spesifik Modul</h4>
-                <div>
-                  <label className="block text-[11px] font-bold text-emerald-700 mb-1">Model Pendekatan</label>
-                  <select value={metode} onChange={(e) => setMetode(e.target.value)} className="w-full p-2 bg-white border border-emerald-200 rounded-lg text-xs outline-none focus:border-emerald-500">
-                    <option value="">Rekomendasi AI Bebas</option><option value="Problem Based Learning (PBL)">PBL</option><option value="Project Based Learning (PjBL)">PjBL</option><option value="Discovery Learning">Discovery Learning</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-emerald-700 mb-1">Fokus Karakter (P5 / PPRA)</label>
-                  <select value={profilPelajar} onChange={(e) => setProfilPelajar(e.target.value)} className="w-full p-2 bg-white border border-emerald-200 rounded-lg text-xs outline-none focus:border-emerald-500">
-                    <option value="">Pilih Fokus...</option>
-                    {(sumber.includes("Agama") ? p5Kemenag : p5Kemendikbud).map((opt: string) => (<option key={opt} value={opt}>{opt}</option>))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-emerald-700 mb-1">Alokasi Waktu Utama</label>
-                  <input type="text" value={alokasiWaktu} onChange={(e) => setAlokasiWaktu(e.target.value)} placeholder="Contoh: 2 JP x 45 Menit" className="w-full p-2 bg-white border border-emerald-200 rounded-lg text-xs outline-none focus:border-emerald-500" />
-                </div>
-             </div>
-          </div>
-
-          {/* Checkbox Konteks Lanjutan */}
-          {dokumenTerakhir && (
-            <label className="flex items-start gap-3 p-4 bg-indigo-50/50 rounded-xl border border-indigo-200 cursor-pointer hover:bg-indigo-50 transition-colors shadow-sm">
-              <input type="checkbox" checked={gunakanKonteks} onChange={(e) => setGunakanKonteks(e.target.checked)} className="mt-0.5 w-5 h-5 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-500 cursor-pointer" />
-              <div>
-                <p className="text-sm font-bold text-indigo-900 flex items-center gap-2"><Link2 size={16}/> Selaraskan dengan Dokumen Sebelumnya</p>
-                <p className="text-[11px] text-indigo-700/80 mt-1">Centang ini jika Anda ingin dokumen yang dibuat sekarang menyambung secara materi dan konteks dengan dokumen yang baru saja Anda hasilkan (Cocok untuk membuat LKPD atau Kisi-kisi setelah Modul Ajar jadi).</p>
-              </div>
-            </label>
-          )}
-
-          {/* TOMBOL GENERATE */}
-          <button type="submit" disabled={isGenerating} className={`w-full py-4 rounded-xl text-base font-black text-white transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95 ${isGenerating ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/30 hover:shadow-xl'}`}>
-            {isGenerating ? <><Loader2 size={20} className="animate-spin" /> Merajut Kurikulum Nasional...</> : <><Bot size={20} /> Generate Dokumen Sekarang</>}
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowKoleksi(true)} className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-slate-900 px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all">
+            <History size={14} /> Lihat Koleksi Saya
           </button>
-        </form>
-      </div>
-
-      {/* ==============================================
-          BAGIAN BAWAH: KANVAS HASIL AI & KOLEKSI DOKUMEN
-          ============================================== */}
-      <div className="flex flex-col lg:flex-row gap-6 pt-4 border-t border-slate-200">
-        
-        {/* KOLOM KIRI BAWAH: DAFTAR KOLEKSI DOKUMEN SAYA */}
-        <div className="lg:w-1/3 flex flex-col">
-          <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm h-full max-h-[800px] overflow-y-auto custom-scrollbar">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2 pb-3 border-b border-slate-100 sticky top-0 bg-white z-10">
-              <History size={16} className="text-blue-500" /> Koleksi Dokumen Saya
-            </h3>
-            <div className="space-y-3">
-              {riwayatModul.length > 0 ? (
-                riwayatModul.map(riwayat => (
-                  <div key={riwayat.id} onClick={() => handleOpenRiwayat(riwayat)} className={`flex flex-col p-4 rounded-xl border transition-all cursor-pointer group ${docId === riwayat.id ? 'bg-blue-50 border-blue-300 shadow-sm' : 'bg-slate-50 border-slate-100 hover:border-blue-200 hover:bg-white'}`}>
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">{riwayat.tipe}</span>
-                      <button onClick={(e) => hapusRiwayat(e, riwayat.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-1"><Trash2 size={14}/></button>
-                    </div>
-                    <span className="font-bold text-slate-800 text-sm leading-snug group-hover:text-blue-700 transition-colors">{riwayat.materi || riwayat.topik}</span>
-                    <span className="text-[10px] font-medium text-slate-500 mt-2">{riwayat.mapel} • Kelas {riwayat.kelas}</span>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-10 opacity-60">
-                  <FileText size={32} className="mx-auto text-slate-300 mb-2"/>
-                  <p className="text-xs text-slate-400 font-medium">Belum ada dokumen yang disimpan.</p>
-                </div>
-              )}
-            </div>
+          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2 rounded-lg text-xs font-bold shadow-sm">
+            <Coins size={14} className="text-amber-500" /> Sisa Token AI: {aiTokens.toLocaleString('id-ID')}
           </div>
         </div>
+      </div>
 
-        {/* KOLOM KANAN BAWAH: KANVAS HASIL */}
-        <div className="lg:w-2/3 flex flex-col">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm flex-1 flex flex-col relative overflow-hidden min-h-[600px] lg:h-[800px]">
+      {/* MODAL RIWAYAT (KOLEKSI DOKUMEN SAYA) */}
+      <AnimatePresence>
+        {showKoleksi && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
+              <div className="flex justify-between items-center p-5 border-b border-slate-200 bg-slate-50">
+                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <History size={18} className="text-blue-600" /> Koleksi Dokumen Saya
+                </h3>
+                <button onClick={() => setShowKoleksi(false)} className="text-slate-400 hover:text-rose-600 transition-colors bg-white p-1 rounded-md border border-slate-200 shadow-sm"><X size={18}/></button>
+              </div>
+              <div className="p-5 overflow-y-auto custom-scrollbar flex-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {riwayatModul.length > 0 ? (
+                    riwayatModul.map(riwayat => (
+                      <div key={riwayat.id} onClick={() => handleOpenRiwayat(riwayat)} className={`flex flex-col p-4 rounded-lg border transition-all cursor-pointer group ${docId === riwayat.id ? 'bg-blue-50 border-blue-300 shadow-sm' : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-md'}`}>
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{riwayat.tipe}</span>
+                          <button onClick={(e) => hapusRiwayat(e, riwayat.id)} className="text-slate-300 hover:text-rose-500 transition-colors p-1"><Trash2 size={14}/></button>
+                        </div>
+                        <span className="font-bold text-slate-800 text-sm leading-snug group-hover:text-blue-700 transition-colors line-clamp-2">{riwayat.materi || riwayat.topik || "Dokumen Tanpa Judul"}</span>
+                        <span className="text-[11px] font-medium text-slate-500 mt-3 border-t border-slate-100 pt-2">{riwayat.mapel} • Kelas {riwayat.kelas}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-1 sm:col-span-2 text-center py-12 opacity-70">
+                      <FileText size={40} className="mx-auto text-slate-300 mb-3"/>
+                      <p className="text-sm text-slate-500 font-medium">Anda belum menyimpan dokumen apapun.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <div className="flex flex-col gap-8">
+        
+        {/* ==============================================
+            BAGIAN ATAS: FORM PARAMETER AI
+            ============================================== */}
+        <div className="bg-white p-6 md:p-8 rounded-xl shadow-sm border border-slate-200">
+          <div className="flex items-center gap-3 mb-8 border-b border-slate-100 pb-4">
+            <Settings size={22} className="text-slate-800" />
+            <h2 className={`text-lg font-bold text-slate-800 tracking-wide uppercase ${teachersFont.className}`}>Parameter Penyusunan Dokumen</h2>
+          </div>
+
+          <form onSubmit={handleGenerate} className="space-y-8">
+            
+            {/* 1. JENIS DOKUMEN */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">1. Pilih Jenis Dokumen</label>
+              <div className="flex flex-wrap gap-2.5">
+                {opsiTipeDokumen.map((item) => (
+                  <button key={item} type="button" onClick={() => setTipe(item)} className={`py-2 px-4 text-xs font-bold rounded-lg transition-all border shadow-sm ${tipe === item ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-500 hover:bg-slate-50'}`}>
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 2. KURIKULUM & MATERI */}
+            <div className="bg-slate-50/80 p-6 rounded-xl border border-slate-200 space-y-6">
+               <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest">2. Kurikulum & Ruang Lingkup Materi</label>
+               
+               <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-2">Standar Kurikulum Nasional</label>
+                  <select value={sumber} onChange={(e) => setSumber(e.target.value)} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer">
+                    <option value="Kemendikdasmen (SK BSKAP 32/2024)">Kemendikdasmen (SK BSKAP 32/2024)</option>
+                    <option value="Kementerian Agama (KMA)">Kementerian Agama (KMA 1503 2025)</option>
+                  </select>
+               </div>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 border-t border-slate-200 pt-5">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-2">Fase Pembelajaran</label>
+                    <select value={fase} onChange={(e) => { setFase(e.target.value); setKelas(""); }} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer" required>
+                      <option value="">Pilih Fase</option>
+                      {Object.keys(opsiKelas).map(f => <option key={f} value={f}>{f}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-2">Spesifik Kelas</label>
+                    <select value={kelas} onChange={(e) => setKelas(e.target.value)} disabled={!fase} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer disabled:bg-slate-100 disabled:text-slate-400" required>
+                      <option value="">Pilih Kelas</option>
+                      {fase && opsiKelas[fase]?.map((kls: string) => <option key={kls} value={kls}>{kls}</option>)}
+                    </select>
+                  </div>
+               </div>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 border-t border-slate-200 pt-5">
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 mb-2">Mata Pelajaran</label>
+                    <input type="text" value={mapel} onChange={(e) => setMapel(e.target.value)} placeholder="Contoh: Pendidikan Pancasila / Biologi" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm" required />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-2">Elemen CP / Topik Utama <span className="text-slate-400 font-normal italic">(Opsional)</span></label>
+                    <input type="text" value={topik} onChange={(e) => setTopik(e.target.value)} placeholder="Contoh: Menyimak / Sistem Peredaran Darah" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-medium text-slate-800 outline-none focus:border-slate-500 shadow-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-2">Materi Pembelajaran Spesifik</label>
+                    <input type="text" value={materi} onChange={(e) => setMateri(e.target.value)} placeholder="Contoh: Fungsi Jantung dan Pembuluh Darah" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-medium text-slate-800 outline-none focus:border-slate-500 shadow-sm" required />
+                  </div>
+               </div>
+            </div>
+
+            {/* 3. IDENTITAS & SPESIFIKASI */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div className="p-6 bg-slate-50/80 border border-slate-200 rounded-xl">
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">3. Identitas Cetak (Opsional)</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <input type="text" value={namaSekolah} onChange={(e) => setNamaSekolah(e.target.value)} placeholder="Nama Institusi/Sekolah" className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                    <input type="text" value={kotaSekolah} onChange={(e) => setKotaSekolah(e.target.value)} placeholder="Kota" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                    <input type="text" value={tahunPelajaran} onChange={(e) => setTahunPelajaran(e.target.value)} placeholder="Thn Ajaran (2025/2026)" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                    <select value={semester} onChange={(e) => setSemester(e.target.value)} className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-bold text-slate-700 cursor-pointer">
+                      <option value="Ganjil">Semester Ganjil</option><option value="Genap">Semester Genap</option>
+                    </select>
+                    <div className="col-span-2 grid grid-cols-2 gap-4 border-t border-slate-200 pt-3">
+                      <div className="space-y-3">
+                        <input type="text" value={namaGuru} onChange={(e) => setNamaGuru(e.target.value)} placeholder="Nama Guru Penyusun" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                        <input type="text" value={nipGuru} onChange={(e) => setNipGuru(e.target.value)} placeholder="NIP Guru" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                      </div>
+                      <div className="space-y-3">
+                        <input type="text" value={namaKepsek} onChange={(e) => setNamaKepsek(e.target.value)} placeholder="Nama Kepala Sekolah" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                        <input type="text" value={nipKepsek} onChange={(e) => setNipKepsek(e.target.value)} placeholder="NIP Kepala Sekolah" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                      </div>
+                    </div>
+                  </div>
+               </div>
+
+               {/* KONDISIONAL BERDASARKAN TIPE */}
+               <AnimatePresence mode="popLayout">
+                 {(tipe === "Modul Ajar" || tipe === "RPP") && (
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="p-6 bg-slate-50/80 border border-slate-200 rounded-xl space-y-4">
+                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">4. Pengaturan Modul</h4>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">Model Pendekatan</label>
+                        <select value={metode} onChange={(e) => setMetode(e.target.value)} className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm cursor-pointer font-medium text-slate-700">
+                          <option value="">Rekomendasi AI (Otomatis)</option><option value="Problem Based Learning (PBL)">PBL</option><option value="Project Based Learning (PjBL)">PjBL</option><option value="Discovery Learning">Discovery Learning</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">Fokus Karakter (P5 / PPRA)</label>
+                        <select value={profilPelajar} onChange={(e) => setProfilPelajar(e.target.value)} className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm cursor-pointer font-medium text-slate-700">
+                          <option value="">Pilih Fokus (Opsional)</option>
+                          {(sumber.includes("Agama") ? p5Kemenag : p5Kemendikbud).map((opt: string) => (<option key={opt} value={opt}>{opt}</option>))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">Alokasi Waktu</label>
+                        <input type="text" value={alokasiWaktu} onChange={(e) => setAlokasiWaktu(e.target.value)} placeholder="Contoh: 2 JP x 45 Menit" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                      </div>
+                    </motion.div>
+                 )}
+
+                 {tipe === "Bank Soal" && (
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="p-6 bg-slate-50/80 border border-slate-200 rounded-xl space-y-4">
+                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">4. Komposisi & Spesifikasi Soal</h4>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1.5">Jenis Ujian</label>
+                          <select value={jenisUjian} onChange={(e) => setJenisUjian(e.target.value)} className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-slate-500 shadow-sm cursor-pointer">
+                            <option>Ulangan Harian</option>
+                            <option>Asesmen Formatif</option>
+                            <option>Sumatif Lingkup Materi</option>
+                            <option>Sumatif Tengah Semester (STS)</option>
+                            <option>Sumatif Akhir Semester (SAS)</option>
+                            <option>Ujian Sekolah (US)</option>
+                            <option>Try Out</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-1.5">Tingkat Kesulitan</label>
+                          <select value={tingkatKesulitan} onChange={(e) => setTingkatKesulitan(e.target.value)} className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-slate-500 shadow-sm cursor-pointer">
+                            <option>Campuran (Proporsional)</option>
+                            <option>HOTS (High Order Thinking)</option>
+                            <option>MOTS (Medium Order Thinking)</option>
+                            <option>LOTS (Low Order Thinking)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">Opsi Pilihan Ganda (PG)</label>
+                        <select value={opsiPG} onChange={(e) => setOpsiPG(e.target.value)} className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-slate-500 shadow-sm cursor-pointer">
+                          <option>A - D (4 Opsi)</option>
+                          <option>A - E (5 Opsi)</option>
+                        </select>
+                      </div>
+                      
+                      <div className="border-t border-slate-200 pt-3 mt-2">
+                        <label className="block text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-wider">Jumlah Soal Per Kategori</label>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-1 text-center">PG</label>
+                            <input type="number" min="0" value={jmlPG} onChange={(e) => setJmlPG(e.target.value)} className="w-full text-center py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold shadow-sm focus:border-slate-500 outline-none" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-1 text-center">Benar/Salah</label>
+                            <input type="number" min="0" value={jmlBenarSalah} onChange={(e) => setJmlBenarSalah(e.target.value)} className="w-full text-center py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold shadow-sm focus:border-slate-500 outline-none" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-1 text-center">Jodohkan</label>
+                            <input type="number" min="0" value={jmlMenjodohkan} onChange={(e) => setJmlMenjodohkan(e.target.value)} className="w-full text-center py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold shadow-sm focus:border-slate-500 outline-none" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-1 text-center">Isian</label>
+                            <input type="number" min="0" value={jmlIsianSingkat} onChange={(e) => setJmlIsianSingkat(e.target.value)} className="w-full text-center py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold shadow-sm focus:border-slate-500 outline-none" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-1 text-center">Uraian</label>
+                            <input type="number" min="0" value={jmlUraian} onChange={(e) => setJmlUraian(e.target.value)} className="w-full text-center py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold shadow-sm focus:border-slate-500 outline-none" />
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                 )}
+
+                 {(tipe === "PROMES" || tipe === "PROTA") && (
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="p-6 bg-slate-50/80 border border-slate-200 rounded-xl flex flex-col justify-center text-center">
+                      <CalendarDays size={40} className="mx-auto text-slate-400 mb-4" />
+                      <h4 className="text-sm font-bold text-slate-800 mb-2">Format Kaldik Terpadu</h4>
+                      <p className="text-xs text-slate-500 leading-relaxed">Sistem akan menyusun matriks alokasi waktu per minggu efektif secara otomatis untuk format kalender pendidikan.</p>
+                    </motion.div>
+                 )}
+               </AnimatePresence>
+            </div>
+
+            {/* Checkbox Konteks Lanjutan */}
+            {dokumenTerakhir && (
+              <label className="flex items-start gap-3 p-5 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors shadow-sm">
+                <input type="checkbox" checked={gunakanKonteks} onChange={(e) => setGunakanKonteks(e.target.checked)} className="mt-0.5 w-5 h-5 text-slate-800 rounded border-slate-300 focus:ring-slate-800 cursor-pointer" />
+                <div>
+                  <p className="text-sm font-bold text-slate-800 flex items-center gap-2"><Link2 size={16}/> Selaraskan dengan Dokumen Sebelumnya</p>
+                  <p className="text-[11px] text-slate-500 mt-1">Centang opsi ini agar materi nyambung secara kontekstual dengan dokumen yang baru saja Anda buat.</p>
+                </div>
+              </label>
+            )}
+
+            {/* TOMBOL GENERATE */}
+            <button type="submit" disabled={isGenerating} className={`w-full py-4 rounded-xl text-sm font-bold tracking-wider uppercase text-white transition-all shadow-md flex items-center justify-center gap-2 active:scale-95 mt-4 ${isGenerating ? 'bg-slate-400 cursor-not-allowed' : 'bg-slate-900 hover:bg-slate-800 hover:shadow-lg'}`}>
+              {isGenerating ? <><Loader2 size={18} className="animate-spin" /> Menganalisis Parameter Nasional...</> : <><Bot size={18} /> Generate Dokumen AI</>}
+            </button>
+          </form>
+        </div>
+
+        {/* ==============================================
+            BAGIAN BAWAH: KANVAS HASIL AI (FULL WIDTH)
+            ============================================== */}
+        <div className="w-full flex flex-col pt-4 border-t border-slate-200">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col relative overflow-hidden min-h-[600px] lg:min-h-[800px]">
             
             {/* Header Kanvas */}
-            <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="px-4 md:px-6 py-4 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center shadow-sm"><BookOpen size={20} className="text-blue-600"/></div>
+                <div className="w-10 h-10 bg-white border border-slate-300 rounded-lg flex items-center justify-center shadow-sm"><BookOpen size={20} className="text-slate-700"/></div>
                 <div>
-                  <h2 className={`font-bold text-slate-800 text-lg ${teachersFont.className}`}>Kanvas Tinjauan</h2>
+                  <h2 className={`font-bold text-slate-800 text-lg tracking-wide uppercase ${teachersFont.className}`}>Kanvas Tinjauan</h2>
                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">Siap Edit & Ekspor</p>
                 </div>
               </div>
               
               {hasil && (
                 <div className="flex flex-wrap items-center gap-2">
-                  <button onClick={handleDownloadWord} className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-blue-200"><FileDown size={14}/> Word</button>
-                  <button onClick={handlePrintPDF} className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-rose-200"><Printer size={14}/> PDF</button>
-                  <button onClick={handleSaveToDatabase} disabled={isSaving} className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-70 ml-2">
-                    {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14}/>} {docId ? "Perbarui" : "Simpan"}
+                  <button onClick={handleDownloadWord} className="px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-md flex items-center gap-1.5 transition-colors border border-slate-300 shadow-sm"><FileDown size={14}/> Word</button>
+                  <button onClick={handlePrintPDF} className="px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-md flex items-center gap-1.5 transition-colors border border-slate-300 shadow-sm"><Printer size={14}/> PDF</button>
+                  <button onClick={handleSaveToDatabase} disabled={isSaving} className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-md flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-70 ml-2">
+                    {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14}/>} {docId ? "Perbarui" : "Simpan Dokumen"}
                   </button>
                 </div>
               )}
             </div>
 
             {/* Isi Kanvas Markdown */}
-            <div className="flex-1 overflow-y-auto bg-[#F8FAFC] p-6 md:p-10 relative">
+            <div className="flex-1 overflow-y-auto bg-slate-100 p-4 md:p-10 relative">
               {isGenerating ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm z-10">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm z-10">
                   <div className="relative w-16 h-16 flex items-center justify-center mb-5">
-                    <div className="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
-                    <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
-                    <Bot size={24} className="text-blue-600 animate-pulse" />
+                    <div className="absolute inset-0 border-4 border-slate-200 rounded-full"></div>
+                    <div className="absolute inset-0 border-4 border-slate-800 rounded-full border-t-transparent animate-spin"></div>
+                    <Bot size={24} className="text-slate-800 animate-pulse" />
                   </div>
-                  <p className="font-bold text-slate-700">Merajut Kurikulum Nasional...</p>
-                  <p className="text-xs text-slate-500 mt-1">Mengintegrasikan standar {sumber.split(" ")[0]}</p>
+                  <p className="font-bold text-slate-800 text-lg uppercase tracking-wider">Menyusun Draft...</p>
+                  <p className="text-xs text-slate-500 mt-2 font-medium">Mengkalibrasi standar {sumber.split(" ")[0]}</p>
                 </div>
               ) : hasil ? (
-                <div className="bg-white shadow-[0_4px_20px_-10px_rgba(0,0,0,0.1)] border border-slate-200 rounded-lg p-8 md:p-12 mx-auto max-w-3xl min-h-[800px]">
+                <div className="bg-white shadow-lg border border-slate-300 rounded p-6 md:p-14 mx-auto max-w-4xl min-h-[1100px]">
                   <div ref={pdfRef} className="pdf-container">
                     <style>{`
-                      .pdf-container { font-family: 'Times New Roman', serif !important; font-size: 12pt !important; line-height: 1.5 !important; color: #000; } 
-                      .markdown-body table { width: 100%; border-collapse: collapse; margin-top: 1.5rem; margin-bottom: 1.5rem; } 
-                      .markdown-body th, .markdown-body td { border: 1pt solid #000; padding: 8px 12px; text-align: left; vertical-align: top; } 
-                      .markdown-body th { background-color: #f2f2f2; font-weight: bold; text-align: center; } 
+                      /* PENYESUAIAN FONT UNTUK MOBILE & DESKTOP */
+                      .pdf-container { font-family: 'Times New Roman', serif !important; font-size: 14px; line-height: 1.6 !important; color: #000; } 
+                      @media (min-width: 768px) { .pdf-container { font-size: 12pt; } }
+                      
+                      /* PARAGRAF RATA KIRI KANAN */
+                      .markdown-body p { margin-bottom: 0.8rem; text-align: justify; }
+                      
+                      /* FIX TABEL OVERFLOW */
+                      .markdown-body table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1.5rem; table-layout: fixed; word-wrap: break-word; overflow-wrap: break-word; } 
+                      .markdown-body th, .markdown-body td { border: 1pt solid #000; padding: 6px 10px; text-align: left; vertical-align: top; overflow-wrap: break-word; word-wrap: break-word; } 
+                      .markdown-body th { background-color: #f8fafc; font-weight: bold; text-align: center; } 
                       .markdown-body tr { page-break-inside: avoid; } 
-                      .markdown-body h1 { font-size: 14pt; font-weight: bold; text-align: center; margin-bottom: 1.5rem; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 10px; } 
-                      .markdown-body h2 { font-size: 12pt; margin-top: 1.5rem; margin-bottom: 0.5rem; font-weight: bold; text-transform: uppercase; } 
-                      .markdown-body h3 { font-size: 12pt; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold; } 
-                      .markdown-body ul, .markdown-body ol { padding-left: 20px; margin-bottom: 1rem; }
-                      .markdown-body li { margin-bottom: 4px; }
+                      
+                      /* HEADING & LIST */
+                      .markdown-body h1 { font-size: 1.25em; font-weight: bold; text-align: center; margin-bottom: 1.5rem; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 10px; } 
+                      .markdown-body h2 { font-size: 1.1em; margin-top: 1.5rem; margin-bottom: 0.5rem; font-weight: bold; text-transform: uppercase; } 
+                      .markdown-body h3 { font-size: 1em; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold; } 
+                      .markdown-body ul, .markdown-body ol { padding-left: 20px; margin-bottom: 1rem; margin-top: 0.5rem; text-align: justify; }
+                      .markdown-body li { margin-bottom: 0.5rem; text-align: justify; }
+                      .markdown-body li > p { margin-bottom: 0.2rem; }
+                      
+                      /* TABEL TANDA TANGAN */
                       .sig-table, .sig-table td, .sig-table th, .sig-table tr { border: none !important; padding: 4px; vertical-align: top; }
                     `}</style>
                     
                     {/* Kop Surat Dokumen Formal */}
                     {namaSekolah && (
                       <div style={{ textAlign: 'center', borderBottom: '3px solid black', paddingBottom: '12px', marginBottom: '24px', pageBreakAfter: 'avoid' }}>
-                        <h1 style={{ fontSize: '16pt', fontWeight: 'bold', textTransform: 'uppercase', color: 'black', margin: '0 0 5px 0' }}>{namaSekolah}</h1>
-                        <p style={{ fontSize: '12pt', margin: 0 }}>Dokumen Akademik Resmi - Kurikulum {sumber.split("(")[0].trim()}</p>
+                        <h1 style={{ fontSize: '1.25em', fontWeight: 'bold', textTransform: 'uppercase', color: 'black', margin: '0 0 5px 0' }}>{namaSekolah}</h1>
+                        <p style={{ fontSize: '1em', margin: 0 }}>Dokumen Akademik Resmi - Kurikulum {sumber.split("(")[0].trim()}</p>
                       </div>
                     )}
 
                     <div className="markdown-body">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{hasil}</ReactMarkdown>
+                      {/* INTEGRASI REACT MARKDOWN DENGAN KONTROL LEBAR TABEL */}
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          th: ({node, children, ...props}) => {
+                            const text = String(children).toLowerCase().trim();
+                            let width = 'auto';
+                            if (text === 'no' || text === 'no.') width = '5%';
+                            else if (text.includes('skor') || text.includes('nilai')) width = '15%';
+                            else if (text.includes('aspek') || text.includes('kriteria') || text.includes('keterangan')) width = '25%';
+                            return <th style={{ width }} {...props}>{children}</th>;
+                          }
+                        }}
+                      >
+                        {hasil}
+                      </ReactMarkdown>
                     </div>
 
                     {/* Kolom Tanda Tangan */}
@@ -491,17 +663,17 @@ export default function GeneratorBahanAjar() {
                         <tbody>
                           <tr>
                             <td style={{ width: '50%', border: 'none' }}></td>
-                            <td style={{ width: '50%', border: 'none', textAlign: 'center' }}>{kotaSekolah || "........................"}, {tanggalSekarang}</td>
+                            <td style={{ width: '50%', border: 'none', textAlign: 'center' }}>{kotaSekolah || "........................"}, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</td>
                           </tr>
                           <tr><td colSpan={2} style={{ border: 'none', textAlign: 'center', paddingTop: '10px', paddingBottom: '20px' }}>Mengetahui,</td></tr>
                           <tr>
                             <td style={{ width: '50%', border: 'none', textAlign: 'center' }}>Kepala Sekolah</td>
-                            <td style={{ width: '50%', border: 'none', textAlign: 'center' }}>Guru Mata Pelajaran</td>
+                            <td style={{ width: '50%', border: 'none', textAlign: 'center' }}>Guru Penyusun</td>
                           </tr>
                           <tr><td style={{ border: 'none', height: '80px' }}></td><td style={{ border: 'none', height: '80px' }}></td></tr>
                           <tr>
-                            <td style={{ width: '50%', border: 'none', textAlign: 'center' }}><strong><u>{namaKepsek || "..................................................."}</u></strong><br/>NIP. {nipKepsek || "........................"}</td>
-                            <td style={{ width: '50%', border: 'none', textAlign: 'center' }}><strong><u>{namaGuru || "..................................................."}</u></strong><br/>NIP. {nipGuru || "........................"}</td>
+                            <td style={{ width: '50%', border: 'none', textAlign: 'center' }}><strong><u>{namaKepsek || "..................................................."}</u></strong><br/>NIP. {nipKepsek || "...................................."}</td>
+                            <td style={{ width: '50%', border: 'none', textAlign: 'center' }}><strong><u>{namaGuru || "..................................................."}</u></strong><br/>NIP. {nipGuru || "...................................."}</td>
                           </tr>
                         </tbody>
                       </table>
@@ -509,17 +681,15 @@ export default function GeneratorBahanAjar() {
                   </div>
                 </div>
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-slate-400 text-center py-20 opacity-60">
-                  <div className="w-20 h-20 bg-white border-2 border-dashed border-slate-300 rounded-3xl flex items-center justify-center mb-5 text-4xl">📄</div>
-                  <h3 className="font-bold text-slate-600 text-lg mb-2">Area Tinjau Dokumen</h3>
-                  <p className="text-xs max-w-sm text-slate-500">Lengkapi parameter di atas lalu tekan Generate untuk memicu sistem Syntax merakit dokumen Anda.</p>
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 text-center py-20 opacity-70">
+                  <div className="w-20 h-20 bg-white border-2 border-slate-300 rounded-lg flex items-center justify-center mb-5 text-4xl shadow-sm">📄</div>
+                  <h3 className="font-bold text-slate-700 text-lg mb-2 uppercase tracking-widest">Area Tinjau Dokumen</h3>
+                  <p className="text-xs max-w-md text-slate-500 leading-relaxed font-medium">Dokumen yang telah digenerate akan tampil di sini dengan format standar baku nasional dan siap untuk diunduh (Word/PDF).</p>
                 </div>
               )}
             </div>
-
           </div>
         </div>
-
       </div>
     </motion.div>
   );

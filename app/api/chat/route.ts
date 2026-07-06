@@ -1,56 +1,71 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
-import { db } from "@/lib/firebase"; 
-import { doc, getDoc } from "firebase/firestore";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { messages, model } = body;
+    const { messages, model = "gemini-2.5-flash" } = body;
+
+    // Menarik API Key dari file .env atau .env.local
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
     
-    // Keamanan: API Key hanya dipanggil di lingkungan Server
-    const apiKey = process.env.GEMINI_API_KEY;
-
     if (!apiKey) {
-      return NextResponse.json({ error: "API Key tidak dikonfigurasi di server." }, { status: 500 });
+      console.error("API Key tidak ditemukan.");
+      return NextResponse.json(
+        { error: "Kunci API Google Gemini belum diatur di sistem." }, 
+        { status: 500 }
+      );
     }
 
-    let finalModel = model;
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const modelToUse = model || "gemini-2.5-pro";
+    const gemini = genAI.getGenerativeModel({ model: modelToUse });
 
-    // Jika model tidak dikirimkan dalam request, sistem akan mengecek ke Firestore
-    if (!finalModel) {
-      try {
-        const configSnap = await getDoc(doc(db, "ai_monitoring", "api_config"));
-        if (configSnap.exists()) {
-          const configData = configSnap.data();
-          finalModel = configData.modelName;
+    // Memisahkan Instruksi Sistem (dari Admin/Korpus) dan Pesan Pengguna (dari Guru)
+    const systemMsg = messages.find((m: any) => m.role === "system")?.content || "";
+    const userMsgs = messages.filter((m: any) => m.role !== "system");
+    
+    // Menggabungkan pesan menjadi satu Prompt utuh yang bisa dipahami Gemini
+    let promptText = "";
+    if (systemMsg) {
+      promptText += `[INSTRUKSI SISTEM MULTLAK]:\n${systemMsg}\n\n`;
+    }
+    promptText += userMsgs.map((m: any) => `[PERMINTAAN PENGGUNA]:\n${m.content}`).join("\n\n");
+
+    // Mengirim ke Google Gemini
+    const result = await gemini.generateContent(promptText);
+    const responseText = result.response.text();
+
+    if (!responseText) {
+      return NextResponse.json(
+        { error: "Mesin AI tidak mengembalikan teks apa pun." },
+        { status: 500 }
+      );
+    }
+
+    // Mengembalikan data ke frontend dengan struktur menyerupai OpenAI
+    // (Hal ini agar kodingan frontend 'data.choices[0].message.content' tetap berfungsi)
+    return NextResponse.json({
+      choices: [
+        {
+          message: {
+            role: "assistant",
+            content: responseText
+          }
         }
-      } catch (firebaseError) {
-        console.error("Gagal menarik fallback model dari Firestore:", firebaseError);
+      ],
+      usage: {
+        // Estimasi kasar penggunaan token (1 token ~ 4 karakter) 
+        // Ini digunakan untuk memotong saldo koin/token Guru
+        total_tokens: Math.round((promptText.length + responseText.length) / 4)
       }
-    }
-
-    // Fallback terakhir jika database kosong atau gagal ditarik
-    if (!finalModel) {
-      finalModel = "gemini-1.5-flash"; 
-    }
-
-    // Eksekusi pemanggilan API ke Google AI Studio
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: finalModel,
-        messages: messages
-      })
     });
 
-    const data = await response.json();
-    return NextResponse.json(data);
-    
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Terjadi kesalahan internal server" }, { status: 500 });
+    console.error("Kesalahan API Route:", error);
+    return NextResponse.json(
+      { error: error.message || "Terjadi kesalahan internal saat memproses AI." }, 
+      { status: 500 }
+    );
   }
 }
