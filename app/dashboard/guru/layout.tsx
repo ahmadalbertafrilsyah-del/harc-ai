@@ -85,7 +85,7 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
     <div className={`min-h-screen bg-[#f8fafc] flex ${latoFont.className}`}>
       
       {/* SIDEBAR DESKTOP (Bisa dilipat) */}
-      <aside className={`hidden md:flex flex-col bg-[#0f172a] text-slate-300 transition-all duration-300 z-50 border-r border-slate-800 relative ${isSidebarCollapsed ? "w-[80px]" : "w-[260px]"}`}>
+      <aside className={`hidden md:flex flex-col bg-[#0f172a] text-slate-300 transition-all duration-300 z-50 border-r border-slate-800 relative ${isSidebarCollapsed ? "w-[80px]" : "w-[200px]"}`}>
         
         {/* Tombol Lipat */}
         <button 

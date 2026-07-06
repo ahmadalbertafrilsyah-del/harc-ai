@@ -388,7 +388,7 @@ export default function GeneratorBahanAjar() {
         
         {/* --- BAGIAN ATAS: FORM PARAMETER AI --- */}
         <div className="w-full flex flex-col gap-6">
-          <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-slate-200">
+          <div className="bg-white p-6 md:p-8 rounded-md shadow-sm border border-slate-200">
             <div className="flex items-center gap-3 mb-8 border-b border-slate-100 pb-4">
               <Settings size={22} className="text-slate-800" />
               <h2 className={`text-lg font-bold text-slate-800 tracking-wide uppercase ${teachersFont.className}`}>Parameter Penyusunan Dokumen</h2>
@@ -582,7 +582,7 @@ export default function GeneratorBahanAjar() {
 
         {/* --- BAGIAN BAWAH: KANVAS HASIL AI (FULL WIDTH) --- */}
         <div className="w-full flex flex-col mt-4">
-          <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm flex-1 flex flex-col relative overflow-hidden min-h-[600px] lg:min-h-[800px]">
+          <div className="bg-white rounded-md border border-slate-200 shadow-sm flex-1 flex flex-col relative overflow-hidden min-h-[600px] lg:min-h-[800px]">
             
             {/* Header Kanvas */}
             <div className="px-5 md:px-8 py-5 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
