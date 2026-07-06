@@ -104,7 +104,6 @@ export default function LandingPage() {
             <Link href="/login" className="hidden sm:block">
               <button className="bg-gradient-to-r from-blue-700 to-blue-900 hover:from-blue-600 hover:to-blue-800 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-md shadow-blue-900/20 hover:shadow-blue-900/30 active:scale-95 flex items-center gap-2 border border-blue-600/30">
                 <span>Masuk Portal</span>
-                <ArrowRight size={16} />
               </button>
             </Link>
 
@@ -154,7 +153,6 @@ export default function LandingPage() {
               <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="block pt-1">
                 <button className="w-full bg-gradient-to-r from-blue-700 to-blue-900 text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2 shadow-md active:scale-95 transition-transform">
                   <span>Masuk Portal Sistem</span>
-                  <ArrowRight size={18} />
                 </button>
               </Link>
             </motion.div>
@@ -192,7 +190,6 @@ export default function LandingPage() {
               <Link href="/login" className="w-full sm:w-auto">
                 <button className="w-full sm:w-auto bg-gradient-to-r from-blue-700 via-blue-800 to-blue-950 hover:from-blue-600 hover:to-blue-900 text-white px-8 py-4 rounded-xl font-bold text-base sm:text-lg transition-all shadow-lg shadow-blue-900/25 flex items-center justify-center gap-3 border border-blue-600/30 active:scale-95">
                   <span>Mulai Evaluasi</span>
-                  <ArrowRight size={20} />
                 </button>
               </Link>
               <a href="#dimensi" className="w-full sm:w-auto">

@@ -4,7 +4,7 @@ export const maxDuration = 240;
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, BookOpen, Settings, FileText, Bot, Loader2, Save, History, FileDown, Printer, Coins, Target, Link2, Trash2, CalendarDays, CheckCircle, X } from "lucide-react";
+import { Sparkles, BookOpen, Settings, FileText, Bot, Loader2, Save, History, FileDown, Printer, Coins, Target, Link2, Trash2, CalendarDays, CheckCircle, X, FileSpreadsheet } from "lucide-react";
 import { Teachers } from "next/font/google";
 
 import { db } from "@/lib/firebase"; 
@@ -69,7 +69,7 @@ export default function GeneratorBahanAjar() {
 
   const pdfRef = useRef<HTMLDivElement>(null);
 
-  const isPromes = tipe === "PROMES" || tipe === "PROTA";
+  const isLandscape = tipe === "PROMES" || tipe === "PROTA" || tipe === "Kisi-kisi Ujian" || tipe === "ATP";
 
   const p5Kemendikbud: string[] = ["Semua Dimensi P5", "Beriman, Bertakwa & Berakhlak Mulia", "Berkebinekaan Global", "Bergotong Royong", "Mandiri", "Bernalar Kritis", "Kreatif"];
   const p5Kemenag: string[] = ["Semua Nilai P5 & PPRA", "Berkeadaban (Ta'addub)", "Keteladanan (Qudwah)", "Kewarganegaraan (Muwatana)", "Mengambil jalan tengah (Tawassut)", "Berimbang (Tawazun)", "Lurus dan tegas (I'tidal)", "Kesetaraan (Musawa)"];
@@ -111,7 +111,7 @@ export default function GeneratorBahanAjar() {
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userUid) { alert("Sesi Anda tidak valid. Silakan login ulang."); return; }
-    if (!materi || !fase || !kelas || !mapel) { alert("Mohon lengkapi Fase, Kelas, Mata Pelajaran, dan Materi."); return; }
+    if (!materi || !fase || !kelas || !mapel) { alert("Mohon lengkapi Fase, Kelas, Mata Pelajaran, dan Materi Spesifik."); return; }
     if (aiTokens <= 0) { alert("Sisa Token AI Anda habis."); return; }
 
     setIsGenerating(true);
@@ -161,10 +161,8 @@ export default function GeneratorBahanAjar() {
         const kalender = semester === "Ganjil" ? bulanGanjil : bulanGenap;
         
         topikKirim += `STRUKTUR WAJIB PROMES/PROTA:\n`;
-        topikKirim += `1. Bagian Pertama: Buatlah daftar (bukan tabel) Identitas Dokumen berisi Nama Sekolah, Mata Pelajaran, Fase/Kelas, Semester, Tahun Pelajaran, dan Alokasi Waktu.\n`;
-        topikKirim += `PENTING: Tepat setelah identitas selesai ditulis, Anda WAJIB menyisipkan elemen garis pemisah (---) sendirian di baris baru. Garis ini akan memecah halaman menjadi Landscape.\n`;
-        topikKirim += `2. Bagian Kedua: Buatlah Judul "MATRIKS PROGRAM SEMESTER", lalu buatlah TABEL Matriks.\n`;
-        topikKirim += `Kolom Tabel Matriks WAJIB PERSIS SEPERTI INI:\nNo | Tema | Sub-Tema | Pemb. Ke- | JP | ${kalender}\n`;
+        topikKirim += `Buatlah Judul "MATRIKS PROGRAM SEMESTER", lalu buatlah TABEL Matriks.\n`;
+        topikKirim += `Kolom Tabel Matriks WAJIB PERSIS SEPERTI INI (Sangat Lebar):\nNo | Tema / Materi | Sub-Tema | JP | ${kalender}\n`;
         topikKirim += `Isi sel matriks bulan/minggu tersebut dengan tanda centang (✓) pada minggu yang efektif pelaksanaannya.\n`;
     } else {
         topikKirim += `**IDENTITAS DOKUMEN**\n- Mata Pelajaran: ${mapel}\n- Fase / Kelas: ${fase} / ${kelas}\n- Tahun Pelajaran: ${tahunPelajaran} (Semester ${semester})\n- Materi Pokok: ${materi}\n\n`;
@@ -234,7 +232,10 @@ export default function GeneratorBahanAjar() {
     setFase(riwayat.fase); setKelas(riwayat.kelas || ""); setHasil(riwayat.konten); setDocId(riwayat.id);
     setDokumenTerakhir(riwayat.konten); 
     setShowKoleksi(false);
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    // Scroll dengan sedikit delay agar UI me-render height kanvas terlebih dahulu
+    setTimeout(() => {
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }, 100);
   };
 
   const hapusRiwayat = async (e: React.MouseEvent, id: string) => {
@@ -245,15 +246,39 @@ export default function GeneratorBahanAjar() {
     }
   };
 
+  // --- FITUR DOWNLOAD EXCEL ---
+  const handleDownloadExcel = () => {
+    if (!pdfRef.current) return;
+    let html = pdfRef.current.innerHTML.replace(/class="markdown-body"/g, '');
+    const excelTemplate = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; font-size: 11pt; }
+          table { border-collapse: collapse; width: 100%; }
+          th, td { border: 1px solid black; padding: 5px; vertical-align: top; }
+          th { background-color: #f2f2f2; font-weight: bold; text-align: center; }
+          .header-table td, .header-table th { border: none !important; font-weight: bold; }
+          .sig-table td, .sig-table th { border: none !important; }
+        </style>
+      </head>
+      <body>${html}</body></html>`;
+    const blob = new Blob([excelTemplate], { type: 'application/vnd.ms-excel' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${tipe}_${mapel || 'Dokumen'}.xls`.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+    a.click(); URL.revokeObjectURL(url);
+  };
+
+  // --- FITUR DOWNLOAD WORD ---
   const handleDownloadWord = () => {
     if (!pdfRef.current) return;
-    
     const printNode = pdfRef.current.cloneNode(true) as HTMLElement;
     
-    // Perbaikan Lebar Kolom Tabel Khusus Word
     const tables = printNode.querySelectorAll('table');
     tables.forEach(table => {
-      if (table.classList.contains('sig-table')) return; 
+      if (table.classList.contains('sig-table') || table.classList.contains('header-table')) return; 
       const ths = table.querySelectorAll('th');
       ths.forEach((th) => {
         const text = th.innerText.trim().toLowerCase();
@@ -265,70 +290,33 @@ export default function GeneratorBahanAjar() {
 
     let printHtml = printNode.innerHTML.replace(/class="markdown-body"/g, '');
     
-    // Manipulasi Split Page Break (Portrait -> Landscape)
-    printHtml = printHtml.replace(/<div id="landscape-break-marker".*?<\/div>/g, '###SPLIT###');
-    const parts = printHtml.split('###SPLIT###');
-    
-    if (parts.length > 1) {
-        // Gabungkan kembali dengan tag page break mso (Microsoft Office)
-        printHtml = `
-          <div class="WordSection1">${parts[0]}</div>
-          <br clear="all" style="page-break-before:always; mso-break-type:section-break" />
-          <div class="WordSection2">${parts.slice(1).join('')}</div>
-        `;
-    } else {
-        printHtml = `<div class="WordSection1">${printHtml}</div>`;
-    }
-
-    // CSS untuk Mixed Orientation di Word
     const cssOrientation = `
-      @page WordSection1 { size: 595.3pt 841.9pt; margin: 2.54cm; } 
+      @page WordSection1 { 
+        size: ${isLandscape ? '841.9pt 595.3pt' : '595.3pt 841.9pt'}; 
+        mso-page-orientation: ${isLandscape ? 'landscape' : 'portrait'}; 
+        margin: 2.54cm; 
+      } 
       div.WordSection1 { page: WordSection1; }
-      @page WordSection2 { size: 841.9pt 595.3pt; mso-page-orientation: landscape; margin: 1.5cm; } 
-      div.WordSection2 { page: WordSection2; }
     `;
 
-    const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Dokumen</title><style>${cssOrientation} body, p, li, td, th, h1, h2, h3, h4, div { font-family: 'Times New Roman', serif !important; font-size: 12pt !important; color: black !important; line-height: 1.5; text-align: justify; } h1 { font-size: 14pt !important; font-weight: bold !important; margin-bottom: 12pt; text-align: center; text-transform: uppercase; } h2, h3 { font-size: 12pt !important; font-weight: bold !important; margin-top: 12pt; margin-bottom: 6pt; text-align: left; } table { width: 100%; border-collapse: collapse; margin-top: 10pt; margin-bottom: 15pt; border: 1pt solid black !important; word-wrap: break-word; overflow-wrap: break-word; } table.promes-table { font-size: 8pt !important; table-layout: auto !important; } table.promes-table th, table.promes-table td { padding: 2pt !important; } td, th { border: 1pt solid black !important; padding: 4pt 8pt; vertical-align: top; text-align: left; } th { background-color: #f2f2f2; font-weight: bold !important; text-align: center; } p { margin-bottom: 10pt; } li { margin-bottom: 6pt; text-align: justify; } .sig-table, .sig-table td, .sig-table th, .sig-table tr { border: none !important; }</style></head><body>${printHtml}</body></html>`;
+    const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Dokumen</title><style>${cssOrientation} body, p, li, td, th, h1, h2, h3, h4, div { font-family: 'Times New Roman', serif !important; font-size: 11pt !important; color: black !important; line-height: 1.5; text-align: justify; } h1 { font-size: 14pt !important; font-weight: bold !important; margin-bottom: 12pt; text-align: center; text-transform: uppercase; } h2, h3 { font-size: 12pt !important; font-weight: bold !important; margin-top: 12pt; margin-bottom: 6pt; text-align: left; } table { width: 100%; border-collapse: collapse; margin-top: 10pt; margin-bottom: 15pt; border: 1pt solid black !important; word-wrap: break-word; overflow-wrap: break-word; } table.promes-table { font-size: 8pt !important; table-layout: auto !important; } table.promes-table th, table.promes-table td { padding: 2pt !important; } td, th { border: 1pt solid black !important; padding: 4pt 8pt; vertical-align: top; text-align: left; } th { background-color: #f2f2f2; font-weight: bold !important; text-align: center; } p { margin-bottom: 10pt; } li { margin-bottom: 6pt; text-align: justify; } .header-table, .header-table td, .header-table th { border: none !important; padding: 2pt !important; } .sig-table, .sig-table td, .sig-table th, .sig-table tr { border: none !important; }</style></head><body><div class="WordSection1">${printHtml}</div></body></html>`;
     const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(header);
     const fileDownload = document.createElement("a"); document.body.appendChild(fileDownload); 
     fileDownload.href = source; fileDownload.download = `${tipe}_${mapel || 'Dokumen'}.doc`.replace(/[^a-zA-Z0-9.\-_]/g, "_"); fileDownload.click(); document.body.removeChild(fileDownload);
   };
 
+  // --- FITUR DOWNLOAD PDF ---
   const handlePrintPDF = () => {
     if (!pdfRef.current) return;
-    
     const printNode = pdfRef.current.cloneNode(true) as HTMLElement;
-    const tables = printNode.querySelectorAll('table');
-    tables.forEach(table => {
-      if (table.classList.contains('sig-table')) return; 
-      const ths = table.querySelectorAll('th');
-      ths.forEach((th) => {
-        const text = th.innerText.trim().toLowerCase();
-        if (text === 'no' || text === 'no.') { th.style.width = '3%'; } 
-        else if (text.includes('tema') || text.includes('materi') || text.includes('tujuan') || text.includes('elemen') || text.includes('capaian')) { th.style.width = '25%'; } 
-        else if (text.includes('skor') || text.includes('nilai')) { th.style.width = '15%'; } 
-      });
-    });
-
     let printContent = printNode.innerHTML;
-    printContent = printContent.replace(/<div id="landscape-break-marker".*?<\/div>/g, '###SPLIT###');
-    const parts = printContent.split('###SPLIT###');
-    
-    if (parts.length > 1) {
-        printContent = `<div class="portrait-section">${parts[0]}</div><div class="landscape-section">${parts.slice(1).join('')}</div>`;
-    } else {
-        printContent = `<div class="portrait-section">${printContent}</div>`;
-    }
 
     const cssOrientation = `
-      @page portrait { size: A4 portrait; margin: 2.54cm; }
-      @page landscape { size: A4 landscape; margin: 1.5cm; }
-      .portrait-section { page: portrait; }
-      .landscape-section { page: landscape; page-break-before: always; }
+      @page { size: A4 ${isLandscape ? 'landscape' : 'portrait'}; margin: 1.5cm; }
     `;
 
     const iframe = document.createElement("iframe"); iframe.style.display = "none"; document.body.appendChild(iframe); iframe.contentWindow?.document.open();
-    iframe.contentWindow?.document.write(`<html><head><title>Cetak PDF</title><style>@page { margin: 2cm; } ${cssOrientation} body { font-family: 'Times New Roman', serif !important; font-size: 12pt !important; line-height: 1.6 !important; color: #000; text-align: justify; } h1 { text-align: center; font-size: 14pt; margin-bottom: 2rem; font-weight: bold; text-transform: uppercase; } table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1.5rem; border: 1pt solid #000; word-wrap: break-word; overflow-wrap: break-word; } table.promes-table { font-size: 9px !important; table-layout: auto !important; } table.promes-table th, table.promes-table td { padding: 4px !important; } th, td { border: 1pt solid #000; padding: 6px 8px; text-align: left; vertical-align: top; } th { background-color: #f1f5f9; font-weight: bold; text-align: center; } tr { page-break-inside: avoid; } h2, h3, h4 { page-break-after: avoid; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold; text-align: left; } ul, ol { margin-left: 20px; margin-bottom: 10px; } li { margin-bottom: 6px; text-align: justify; } p { margin-bottom: 10px; } .sig-table, .sig-table td, .sig-table th, .sig-table tr { border: none !important; padding: 4px; vertical-align: top; }</style></head><body>${printContent}</body></html>`);
+    iframe.contentWindow?.document.write(`<html><head><title>Cetak PDF</title><style> ${cssOrientation} body { font-family: 'Times New Roman', serif !important; font-size: 11pt !important; line-height: 1.5 !important; color: #000; text-align: justify; } h1 { text-align: center; font-size: 14pt; margin-bottom: 2rem; font-weight: bold; text-transform: uppercase; } table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1.5rem; border: 1pt solid #000; word-wrap: break-word; overflow-wrap: break-word; } table.promes-table { font-size: 9px !important; table-layout: auto !important; } table.promes-table th, table.promes-table td { padding: 4px !important; } th, td { border: 1pt solid #000; padding: 6px 8px; text-align: left; vertical-align: top; } th { background-color: #f1f5f9; font-weight: bold; text-align: center; } tr { page-break-inside: avoid; } h2, h3, h4 { page-break-after: avoid; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold; text-align: left; } ul, ol { margin-left: 20px; margin-bottom: 10px; } li { margin-bottom: 6px; text-align: justify; } p { margin-bottom: 10px; } .header-table td, .header-table th { border: none !important; padding: 4px; } .sig-table, .sig-table td, .sig-table th, .sig-table tr { border: none !important; padding: 4px; vertical-align: top; }</style></head><body>${printContent}</body></html>`);
     iframe.contentWindow?.document.close();
     setTimeout(() => { iframe.contentWindow?.focus(); iframe.contentWindow?.print(); setTimeout(() => document.body.removeChild(iframe), 1000); }, 500);
   };
@@ -348,10 +336,10 @@ export default function GeneratorBahanAjar() {
         </div>
         <div className="flex items-center gap-3">
           <button onClick={() => setShowKoleksi(true)} className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-slate-900 px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all">
-            <History size={14} /> Lihat Koleksi Saya
+            <History size={14} /> Koleksi
           </button>
           <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2 rounded-lg text-xs font-bold shadow-sm">
-            <Coins size={14} className="text-amber-500" /> Sisa Token AI: {aiTokens.toLocaleString('id-ID')}
+            <Coins size={14} className="text-amber-500" /> Token: {aiTokens.toLocaleString('id-ID')}
           </div>
         </div>
       </div>
@@ -363,7 +351,7 @@ export default function GeneratorBahanAjar() {
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
               <div className="flex justify-between items-center p-5 border-b border-slate-200 bg-slate-50">
                 <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                  <History size={18} className="text-blue-600" /> Koleksi Dokumen Saya
+                  <History size={18} className="text-blue-600" /> Koleksi
                 </h3>
                 <button onClick={() => setShowKoleksi(false)} className="text-slate-400 hover:text-rose-600 transition-colors bg-white p-1 rounded-md border border-slate-200 shadow-sm"><X size={18}/></button>
               </div>
@@ -393,239 +381,228 @@ export default function GeneratorBahanAjar() {
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col gap-8">
+      {/* ==============================================
+          LAYOUT UTAMA: ATAS (FORM) -> BAWAH (KANVAS)
+          ============================================== */}
+      <div className="flex flex-col gap-8 lg:gap-10">
         
-        {/* ==============================================
-            BAGIAN ATAS: FORM PARAMETER AI
-            ============================================== */}
-        <div className="bg-white p-6 md:p-8 rounded-xl shadow-sm border border-slate-200">
-          <div className="flex items-center gap-3 mb-8 border-b border-slate-100 pb-4">
-            <Settings size={22} className="text-slate-800" />
-            <h2 className={`text-lg font-bold text-slate-800 tracking-wide uppercase ${teachersFont.className}`}>Parameter Penyusunan Dokumen</h2>
-          </div>
+        {/* --- BAGIAN ATAS: FORM PARAMETER AI --- */}
+        <div className="w-full flex flex-col gap-6">
+          <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-slate-200">
+            <div className="flex items-center gap-3 mb-8 border-b border-slate-100 pb-4">
+              <Settings size={22} className="text-slate-800" />
+              <h2 className={`text-lg font-bold text-slate-800 tracking-wide uppercase ${teachersFont.className}`}>Parameter Penyusunan Dokumen</h2>
+            </div>
 
-          <form onSubmit={handleGenerate} className="space-y-8">
-            
-            {/* 1. JENIS DOKUMEN */}
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">1. Pilih Jenis Dokumen</label>
-              <div className="flex flex-wrap gap-2.5">
-                {opsiTipeDokumen.map((item) => (
-                  <button key={item} type="button" onClick={() => setTipe(item)} className={`py-2 px-4 text-xs font-bold rounded-lg transition-all border shadow-sm ${tipe === item ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-500 hover:bg-slate-50'}`}>
-                    {item}
-                  </button>
-                ))}
+            <form onSubmit={handleGenerate} className="space-y-8">
+              
+              {/* 1. JENIS DOKUMEN */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">1. Pilih Jenis Dokumen</label>
+                <div className="flex flex-wrap gap-2.5">
+                  {opsiTipeDokumen.map((item) => (
+                    <button key={item} type="button" onClick={() => setTipe(item)} className={`py-2 px-4 text-xs font-bold rounded-lg transition-all border shadow-sm ${tipe === item ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-500 hover:bg-slate-50'}`}>
+                      {item}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* 2. KURIKULUM & MATERI */}
-            <div className="bg-slate-50/80 p-6 rounded-xl border border-slate-200 space-y-6">
-               <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest">2. Kurikulum & Ruang Lingkup Materi</label>
-               
-               <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-2">Standar Kurikulum Nasional</label>
-                  <select value={sumber} onChange={(e) => setSumber(e.target.value)} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer">
-                    <option value="Kemendikdasmen (SK BSKAP 32/2024)">Kemendikdasmen (SK BSKAP 32/2024)</option>
-                    <option value="Kementerian Agama (KMA)">Kementerian Agama (KMA 1503 2025)</option>
-                  </select>
-               </div>
+              {/* GRID UNTUK KURIKULUM DAN IDENTITAS */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* 2. KURIKULUM & MATERI */}
+                <div className="bg-slate-50/80 p-6 rounded-xl border border-slate-200 space-y-5">
+                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-2">2. Kurikulum & Ruang Lingkup Materi</label>
+                   
+                   <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-2">Standar Kurikulum Nasional</label>
+                      <select value={sumber} onChange={(e) => setSumber(e.target.value)} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer">
+                        <option value="Kemendikdasmen (SK BSKAP 32/2024)">Kemendikdasmen (SK BSKAP 32/2024)</option>
+                        <option value="Kementerian Agama (KMA)">Kementerian Agama (KMA 1503 2025)</option>
+                      </select>
+                   </div>
 
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 border-t border-slate-200 pt-5">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-2">Fase Pembelajaran</label>
-                    <select value={fase} onChange={(e) => { setFase(e.target.value); setKelas(""); }} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer" required>
-                      <option value="">Pilih Fase</option>
-                      {Object.keys(opsiKelas).map(f => <option key={f} value={f}>{f}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-2">Spesifik Kelas</label>
-                    <select value={kelas} onChange={(e) => setKelas(e.target.value)} disabled={!fase} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer disabled:bg-slate-100 disabled:text-slate-400" required>
-                      <option value="">Pilih Kelas</option>
-                      {fase && opsiKelas[fase]?.map((kls: string) => <option key={kls} value={kls}>{kls}</option>)}
-                    </select>
-                  </div>
-               </div>
+                   <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-2">Fase Pembelajaran</label>
+                        <select value={fase} onChange={(e) => { setFase(e.target.value); setKelas(""); }} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer" required>
+                          <option value="">Pilih Fase</option>
+                          {Object.keys(opsiKelas).map(f => <option key={f} value={f}>{f}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-2">Spesifik Kelas</label>
+                        <select value={kelas} onChange={(e) => setKelas(e.target.value)} disabled={!fase} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer disabled:bg-slate-100 disabled:text-slate-400" required>
+                          <option value="">Pilih Kelas</option>
+                          {fase && opsiKelas[fase]?.map((kls: string) => <option key={kls} value={kls}>{kls}</option>)}
+                        </select>
+                      </div>
+                   </div>
 
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 border-t border-slate-200 pt-5">
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-bold text-slate-700 mb-2">Mata Pelajaran</label>
-                    <input type="text" value={mapel} onChange={(e) => setMapel(e.target.value)} placeholder="Contoh: Pendidikan Pancasila / Biologi" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm" required />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-2">Elemen CP / Topik Utama <span className="text-slate-400 font-normal italic">(Opsional)</span></label>
-                    <input type="text" value={topik} onChange={(e) => setTopik(e.target.value)} placeholder="Contoh: Menyimak / Sistem Peredaran Darah" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-medium text-slate-800 outline-none focus:border-slate-500 shadow-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-2">Materi Pembelajaran Spesifik</label>
-                    <input type="text" value={materi} onChange={(e) => setMateri(e.target.value)} placeholder="Contoh: Fungsi Jantung dan Pembuluh Darah" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-medium text-slate-800 outline-none focus:border-slate-500 shadow-sm" required />
-                  </div>
-               </div>
-            </div>
+                   <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-2">Mata Pelajaran</label>
+                      <input type="text" value={mapel} onChange={(e) => setMapel(e.target.value)} placeholder="Contoh: Pendidikan Pancasila / Biologi" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm" required />
+                   </div>
+                   <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-2">Elemen CP / Topik Utama <span className="text-slate-400 font-normal italic">(Opsional)</span></label>
+                      <input type="text" value={topik} onChange={(e) => setTopik(e.target.value)} placeholder="Contoh: Menyimak / Sistem Peredaran Darah" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-medium text-slate-800 outline-none focus:border-slate-500 shadow-sm" />
+                   </div>
+                   <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-2">Materi Pembelajaran Spesifik</label>
+                      <input type="text" value={materi} onChange={(e) => setMateri(e.target.value)} placeholder="Contoh: Fungsi Jantung dan Pembuluh Darah" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-medium text-slate-800 outline-none focus:border-slate-500 shadow-sm" required />
+                   </div>
+                </div>
 
-            {/* 3. IDENTITAS & SPESIFIKASI */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               <div className="p-6 bg-slate-50/80 border border-slate-200 rounded-xl">
-                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">3. Identitas Cetak (Opsional)</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <input type="text" value={namaSekolah} onChange={(e) => setNamaSekolah(e.target.value)} placeholder="Nama Institusi/Sekolah" className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
-                    <input type="text" value={kotaSekolah} onChange={(e) => setKotaSekolah(e.target.value)} placeholder="Kota" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
-                    <input type="text" value={tahunPelajaran} onChange={(e) => setTahunPelajaran(e.target.value)} placeholder="Thn Ajaran (2025/2026)" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
-                    <select value={semester} onChange={(e) => setSemester(e.target.value)} className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-bold text-slate-700 cursor-pointer">
-                      <option value="Ganjil">Semester Ganjil</option><option value="Genap">Semester Genap</option>
-                    </select>
-                    <div className="col-span-2 grid grid-cols-2 gap-4 border-t border-slate-200 pt-3">
-                      <div className="space-y-3">
+                {/* 3. IDENTITAS & SPESIFIKASI TAMBAHAN */}
+                <div className="flex flex-col gap-6">
+                  <div className="p-6 bg-slate-50/80 border border-slate-200 rounded-xl space-y-4">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-2">3. Identitas Cetak (Opsional)</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <input type="text" value={namaSekolah} onChange={(e) => setNamaSekolah(e.target.value)} placeholder="Nama Institusi/Sekolah" className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                      <input type="text" value={tahunPelajaran} onChange={(e) => setTahunPelajaran(e.target.value)} placeholder="Thn Ajaran (Contoh: 2025/2026)" className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                      <select value={semester} onChange={(e) => setSemester(e.target.value)} className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-bold text-slate-700 cursor-pointer">
+                        <option value="Ganjil">Semester Ganjil (Juli - Desember)</option><option value="Genap">Semester Genap (Januari - Juni)</option>
+                      </select>
+                      <input type="text" value={kotaSekolah} onChange={(e) => setKotaSekolah(e.target.value)} placeholder="Kota Penerbitan" className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                      <div className="col-span-2 grid grid-cols-2 gap-4">
                         <input type="text" value={namaGuru} onChange={(e) => setNamaGuru(e.target.value)} placeholder="Nama Guru Penyusun" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
                         <input type="text" value={nipGuru} onChange={(e) => setNipGuru(e.target.value)} placeholder="NIP Guru" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
                       </div>
-                      <div className="space-y-3">
+                      <div className="col-span-2 grid grid-cols-2 gap-4">
                         <input type="text" value={namaKepsek} onChange={(e) => setNamaKepsek(e.target.value)} placeholder="Nama Kepala Sekolah" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
                         <input type="text" value={nipKepsek} onChange={(e) => setNipKepsek(e.target.value)} placeholder="NIP Kepala Sekolah" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
                       </div>
                     </div>
                   </div>
-               </div>
 
-               {/* KONDISIONAL BERDASARKAN TIPE */}
-               <AnimatePresence mode="popLayout">
-                 {(tipe === "Modul Ajar" || tipe === "RPP") && (
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="p-6 bg-slate-50/80 border border-slate-200 rounded-xl space-y-4">
-                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">4. Pengaturan Modul</h4>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1.5">Model Pendekatan</label>
-                        <select value={metode} onChange={(e) => setMetode(e.target.value)} className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm cursor-pointer font-medium text-slate-700">
-                          <option value="">Rekomendasi AI (Otomatis)</option><option value="Problem Based Learning (PBL)">PBL</option><option value="Project Based Learning (PjBL)">PjBL</option><option value="Discovery Learning">Discovery Learning</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1.5">Fokus Karakter (P5 / PPRA)</label>
-                        <select value={profilPelajar} onChange={(e) => setProfilPelajar(e.target.value)} className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm cursor-pointer font-medium text-slate-700">
-                          <option value="">Pilih Fokus (Opsional)</option>
-                          {(sumber.includes("Agama") ? p5Kemenag : p5Kemendikbud).map((opt: string) => (<option key={opt} value={opt}>{opt}</option>))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1.5">Alokasi Waktu</label>
-                        <input type="text" value={alokasiWaktu} onChange={(e) => setAlokasiWaktu(e.target.value)} placeholder="Contoh: 2 JP x 45 Menit" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
-                      </div>
-                    </motion.div>
-                 )}
-
-                 {tipe === "Bank Soal" && (
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="p-6 bg-slate-50/80 border border-slate-200 rounded-xl space-y-4">
-                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">4. Komposisi & Spesifikasi Soal</h4>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-1.5">Jenis Ujian</label>
-                          <select value={jenisUjian} onChange={(e) => setJenisUjian(e.target.value)} className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-slate-500 shadow-sm cursor-pointer">
-                            <option>Ulangan Harian</option>
-                            <option>Asesmen Formatif</option>
-                            <option>Sumatif Lingkup Materi</option>
-                            <option>Sumatif Tengah Semester (STS)</option>
-                            <option>Sumatif Akhir Semester (SAS)</option>
-                            <option>Ujian Sekolah (US)</option>
-                            <option>Try Out</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-1.5">Tingkat Kesulitan</label>
-                          <select value={tingkatKesulitan} onChange={(e) => setTingkatKesulitan(e.target.value)} className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-slate-500 shadow-sm cursor-pointer">
-                            <option>Campuran (Proporsional)</option>
-                            <option>HOTS (High Order Thinking)</option>
-                            <option>MOTS (Medium Order Thinking)</option>
-                            <option>LOTS (Low Order Thinking)</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1.5">Opsi Pilihan Ganda (PG)</label>
-                        <select value={opsiPG} onChange={(e) => setOpsiPG(e.target.value)} className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-slate-500 shadow-sm cursor-pointer">
-                          <option>A - D (4 Opsi)</option>
-                          <option>A - E (5 Opsi)</option>
-                        </select>
-                      </div>
-                      
-                      <div className="border-t border-slate-200 pt-3 mt-2">
-                        <label className="block text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-wider">Jumlah Soal Per Kategori</label>
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  {/* KONDISIONAL BERDASARKAN TIPE */}
+                  <AnimatePresence mode="popLayout">
+                    {(tipe === "Modul Ajar" || tipe === "RPP") && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="p-6 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-4 overflow-hidden">
+                          <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-widest mb-2">4. Pengaturan Modul</h4>
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-600 mb-1 text-center">PG</label>
-                            <input type="number" min="0" value={jmlPG} onChange={(e) => setJmlPG(e.target.value)} className="w-full text-center py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold shadow-sm focus:border-slate-500 outline-none" />
+                            <label className="block text-[10px] font-bold text-emerald-700 mb-1.5 uppercase">Model Pendekatan</label>
+                            <select value={metode} onChange={(e) => setMetode(e.target.value)} className="w-full p-3 bg-white border border-emerald-200 rounded-lg text-xs outline-none focus:border-emerald-500 cursor-pointer font-medium text-slate-700">
+                              <option value="">Rekomendasi AI (Otomatis)</option><option value="Problem Based Learning (PBL)">PBL</option><option value="Project Based Learning (PjBL)">PjBL</option><option value="Discovery Learning">Discovery Learning</option>
+                            </select>
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-600 mb-1 text-center">Benar/Salah</label>
-                            <input type="number" min="0" value={jmlBenarSalah} onChange={(e) => setJmlBenarSalah(e.target.value)} className="w-full text-center py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold shadow-sm focus:border-slate-500 outline-none" />
+                            <label className="block text-[10px] font-bold text-emerald-700 mb-1.5 uppercase">Fokus Karakter P5/PPRA</label>
+                            <select value={profilPelajar} onChange={(e) => setProfilPelajar(e.target.value)} className="w-full p-3 bg-white border border-emerald-200 rounded-lg text-xs outline-none focus:border-emerald-500 cursor-pointer font-medium text-slate-700">
+                              <option value="">Pilih Fokus (Opsional)</option>
+                              {(sumber.includes("Agama") ? p5Kemenag : p5Kemendikbud).map((opt: string) => (<option key={opt} value={opt}>{opt}</option>))}
+                            </select>
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-600 mb-1 text-center">Jodohkan</label>
-                            <input type="number" min="0" value={jmlMenjodohkan} onChange={(e) => setJmlMenjodohkan(e.target.value)} className="w-full text-center py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold shadow-sm focus:border-slate-500 outline-none" />
+                            <label className="block text-[10px] font-bold text-emerald-700 mb-1.5 uppercase">Alokasi Waktu</label>
+                            <input type="text" value={alokasiWaktu} onChange={(e) => setAlokasiWaktu(e.target.value)} placeholder="Contoh: 2 JP x 45 Menit" className="w-full p-3 bg-white border border-emerald-200 rounded-lg text-xs outline-none focus:border-emerald-500 font-medium" />
                           </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-600 mb-1 text-center">Isian</label>
-                            <input type="number" min="0" value={jmlIsianSingkat} onChange={(e) => setJmlIsianSingkat(e.target.value)} className="w-full text-center py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold shadow-sm focus:border-slate-500 outline-none" />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-600 mb-1 text-center">Uraian</label>
-                            <input type="number" min="0" value={jmlUraian} onChange={(e) => setJmlUraian(e.target.value)} className="w-full text-center py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold shadow-sm focus:border-slate-500 outline-none" />
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                 )}
+                        </motion.div>
+                    )}
 
-                 {(tipe === "PROMES" || tipe === "PROTA") && (
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="p-6 bg-slate-50/80 border border-slate-200 rounded-xl flex flex-col justify-center text-center">
-                      <CalendarDays size={40} className="mx-auto text-slate-400 mb-4" />
-                      <h4 className="text-sm font-bold text-slate-800 mb-2">Format Kaldik Terpadu</h4>
-                      <p className="text-xs text-slate-500 leading-relaxed">Sistem akan menyusun matriks alokasi waktu per minggu efektif secara otomatis untuk format kalender pendidikan.</p>
-                    </motion.div>
-                 )}
-               </AnimatePresence>
-            </div>
+                    {tipe === "Bank Soal" && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="p-6 bg-rose-50/50 border border-rose-100 rounded-xl space-y-4 overflow-hidden">
+                          <h4 className="text-xs font-bold text-rose-800 uppercase tracking-widest mb-2">4. Komposisi Soal</h4>
+                          <div className="grid grid-cols-1 gap-4">
+                            <div>
+                              <label className="block text-[10px] font-bold text-rose-700 mb-1.5 uppercase">Jenis Ujian</label>
+                              <select value={jenisUjian} onChange={(e) => setJenisUjian(e.target.value)} className="w-full p-3 bg-white border border-rose-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-rose-500 cursor-pointer">
+                                <option>Ulangan Harian</option><option>Asesmen Formatif</option><option>Sumatif Lingkup Materi</option><option>Sumatif Tengah Semester (STS)</option><option>Sumatif Akhir Semester (SAS)</option><option>Ujian Sekolah (US)</option><option>Try Out</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-rose-700 mb-1.5 uppercase">Tingkat Kesulitan</label>
+                              <select value={tingkatKesulitan} onChange={(e) => setTingkatKesulitan(e.target.value)} className="w-full p-3 bg-white border border-rose-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-rose-500 cursor-pointer">
+                                <option>Campuran (Proporsional)</option><option>HOTS (High Order Thinking)</option><option>MOTS (Medium Order Thinking)</option><option>LOTS (Low Order Thinking)</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-rose-700 mb-1.5 uppercase">Opsi Pilihan Ganda</label>
+                              <select value={opsiPG} onChange={(e) => setOpsiPG(e.target.value)} className="w-full p-3 bg-white border border-rose-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-rose-500 cursor-pointer"><option>A - D (4 Opsi)</option><option>A - E (5 Opsi)</option></select>
+                            </div>
+                          </div>
+                          
+                          <div className="border-t border-rose-200/50 pt-4 mt-2">
+                            <label className="block text-[10px] font-bold text-rose-700 mb-3 uppercase tracking-wider text-center">Distribusi Jumlah Soal</label>
+                            <div className="grid grid-cols-5 gap-2">
+                              <div>
+                                <label className="block text-[9px] font-bold text-rose-700 mb-1.5 uppercase text-center truncate">PG</label>
+                                <input type="number" min="0" value={jmlPG} onChange={(e) => setJmlPG(e.target.value)} className="w-full text-center py-2 bg-white border border-rose-200 rounded-lg text-sm font-bold focus:border-rose-500 outline-none" />
+                              </div>
+                              <div>
+                                <label className="block text-[9px] font-bold text-rose-700 mb-1.5 uppercase text-center truncate">B/S</label>
+                                <input type="number" min="0" value={jmlBenarSalah} onChange={(e) => setJmlBenarSalah(e.target.value)} className="w-full text-center py-2 bg-white border border-rose-200 rounded-lg text-sm font-bold focus:border-rose-500 outline-none" />
+                              </div>
+                              <div>
+                                <label className="block text-[9px] font-bold text-rose-700 mb-1.5 uppercase text-center truncate">Jodohkan</label>
+                                <input type="number" min="0" value={jmlMenjodohkan} onChange={(e) => setJmlMenjodohkan(e.target.value)} className="w-full text-center py-2 bg-white border border-rose-200 rounded-lg text-sm font-bold focus:border-rose-500 outline-none" />
+                              </div>
+                              <div>
+                                <label className="block text-[9px] font-bold text-rose-700 mb-1.5 uppercase text-center truncate">Isian</label>
+                                <input type="number" min="0" value={jmlIsianSingkat} onChange={(e) => setJmlIsianSingkat(e.target.value)} className="w-full text-center py-2 bg-white border border-rose-200 rounded-lg text-sm font-bold focus:border-rose-500 outline-none" />
+                              </div>
+                              <div>
+                                <label className="block text-[9px] font-bold text-rose-700 mb-1.5 uppercase text-center truncate">Uraian</label>
+                                <input type="number" min="0" value={jmlUraian} onChange={(e) => setJmlUraian(e.target.value)} className="w-full text-center py-2 bg-white border border-rose-200 rounded-lg text-sm font-bold focus:border-rose-500 outline-none" />
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                    )}
 
-            {/* Checkbox Konteks Lanjutan */}
-            {dokumenTerakhir && (
-              <label className="flex items-start gap-3 p-5 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors shadow-sm">
-                <input type="checkbox" checked={gunakanKonteks} onChange={(e) => setGunakanKonteks(e.target.checked)} className="mt-0.5 w-5 h-5 text-slate-800 rounded border-slate-300 focus:ring-slate-800 cursor-pointer" />
-                <div>
-                  <p className="text-sm font-bold text-slate-800 flex items-center gap-2"><Link2 size={16}/> Selaraskan dengan Dokumen Sebelumnya</p>
-                  <p className="text-[11px] text-slate-500 mt-1">Centang opsi ini agar materi nyambung secara kontekstual dengan dokumen yang baru saja Anda buat.</p>
+                    {(tipe === "PROMES" || tipe === "PROTA") && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="p-6 bg-slate-50/80 border border-slate-200 rounded-xl flex flex-col justify-center text-center overflow-hidden h-full min-h-[150px]">
+                          <CalendarDays size={40} className="mx-auto text-slate-400 mb-4" />
+                          <h4 className="text-sm font-bold text-slate-800 mb-2">Format Kaldik Terpadu</h4>
+                          <p className="text-xs text-slate-500 leading-relaxed px-4">Sistem akan menyusun matriks alokasi waktu per minggu efektif secara otomatis untuk format kalender pendidikan (Landscape).</p>
+                        </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-              </label>
-            )}
+              </div>
 
-            {/* TOMBOL GENERATE */}
-            <button type="submit" disabled={isGenerating} className={`w-full py-4 rounded-xl text-sm font-bold tracking-wider uppercase text-white transition-all shadow-md flex items-center justify-center gap-2 active:scale-95 mt-4 ${isGenerating ? 'bg-slate-400 cursor-not-allowed' : 'bg-slate-900 hover:bg-slate-800 hover:shadow-lg'}`}>
-              {isGenerating ? <><Loader2 size={18} className="animate-spin" /> Menganalisis Parameter Nasional...</> : <><Bot size={18} /> Generate Dokumen AI</>}
-            </button>
-          </form>
+              {/* Checkbox Konteks Lanjutan */}
+              {dokumenTerakhir && (
+                <label className="flex items-start gap-3 p-5 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors shadow-sm">
+                  <input type="checkbox" checked={gunakanKonteks} onChange={(e) => setGunakanKonteks(e.target.checked)} className="mt-0.5 w-5 h-5 text-slate-800 rounded border-slate-300 focus:ring-slate-800 cursor-pointer" />
+                  <div>
+                    <p className="text-sm font-bold text-slate-800 flex items-center gap-2"><Link2 size={16}/> Selaraskan dengan Dokumen Sebelumnya</p>
+                    <p className="text-[11px] text-slate-500 mt-1">Centang opsi ini agar materi nyambung secara kontekstual dengan dokumen yang baru saja Anda buat.</p>
+                  </div>
+                </label>
+              )}
+
+              {/* TOMBOL GENERATE */}
+              <button type="submit" disabled={isGenerating} className={`w-full py-5 rounded-xl text-base font-black tracking-widest uppercase text-white transition-all shadow-md flex items-center justify-center gap-2 active:scale-95 mt-4 ${isGenerating ? 'bg-slate-400 cursor-not-allowed' : 'bg-slate-900 hover:bg-slate-800 hover:shadow-lg'}`}>
+                {isGenerating ? <><Loader2 size={22} className="animate-spin" /> Menganalisis Parameter Nasional...</> : <><Bot size={22} /> Generate Dokumen AI</>}
+              </button>
+            </form>
+          </div>
         </div>
 
-        {/* ==============================================
-            BAGIAN BAWAH: KANVAS HASIL AI (FULL WIDTH)
-            ============================================== */}
-        <div className="w-full flex flex-col pt-4 border-t border-slate-200">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col relative overflow-hidden min-h-[600px] lg:min-h-[800px]">
+        {/* --- BAGIAN BAWAH: KANVAS HASIL AI (FULL WIDTH) --- */}
+        <div className="w-full flex flex-col mt-4">
+          <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm flex-1 flex flex-col relative overflow-hidden min-h-[600px] lg:min-h-[800px]">
             
             {/* Header Kanvas */}
-            <div className="px-4 md:px-6 py-4 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="px-5 md:px-8 py-5 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white border border-slate-300 rounded-lg flex items-center justify-center shadow-sm"><BookOpen size={20} className="text-slate-700"/></div>
+                <div className="w-12 h-12 bg-white border border-slate-300 rounded-xl flex items-center justify-center shadow-sm"><BookOpen size={24} className="text-slate-700"/></div>
                 <div>
-                  <h2 className={`font-bold text-slate-800 text-lg tracking-wide uppercase ${teachersFont.className}`}>Kanvas Tinjauan</h2>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">Siap Edit & Ekspor</p>
+                  <h2 className={`font-bold text-slate-800 text-xl tracking-wide uppercase ${teachersFont.className}`}>Kanvas Tinjauan</h2>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Siap Edit & Ekspor</p>
                 </div>
               </div>
               
               {hasil && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <button onClick={handleDownloadWord} className="px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-md flex items-center gap-1.5 transition-colors border border-slate-300 shadow-sm"><FileDown size={14}/> Word</button>
-                  <button onClick={handlePrintPDF} className="px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-md flex items-center gap-1.5 transition-colors border border-slate-300 shadow-sm"><Printer size={14}/> PDF</button>
-                  <button onClick={handleSaveToDatabase} disabled={isSaving} className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-md flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-70 ml-2">
-                    {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14}/>} {docId ? "Perbarui" : "Simpan Dokumen"}
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {(tipe === "PROMES" || tipe === "PROTA" || tipe === "Kisi-kisi Ujian" || tipe === "ATP") && (
+                    <button onClick={handleDownloadExcel} className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg flex items-center gap-2 transition-colors border border-emerald-200 shadow-sm"><FileSpreadsheet size={16}/> Excel</button>
+                  )}
+                  <button onClick={handleDownloadWord} className="px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg flex items-center gap-2 transition-colors border border-slate-300 shadow-sm"><FileDown size={16}/> Word</button>
+                  <button onClick={handlePrintPDF} className="px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg flex items-center gap-2 transition-colors border border-slate-300 shadow-sm"><Printer size={16}/> PDF</button>
+                  <button onClick={handleSaveToDatabase} disabled={isSaving} className="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors shadow-sm disabled:opacity-70 ml-2">
+                    {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16}/>} {docId ? "Perbarui" : "Simpan Dokumen"}
                   </button>
                 </div>
               )}
@@ -635,38 +612,36 @@ export default function GeneratorBahanAjar() {
             <div className="flex-1 overflow-y-auto bg-slate-100 p-4 md:p-10 relative">
               {isGenerating ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm z-10">
-                  <div className="relative w-16 h-16 flex items-center justify-center mb-5">
+                  <div className="relative w-20 h-20 flex items-center justify-center mb-6">
                     <div className="absolute inset-0 border-4 border-slate-200 rounded-full"></div>
                     <div className="absolute inset-0 border-4 border-slate-800 rounded-full border-t-transparent animate-spin"></div>
-                    <Bot size={24} className="text-slate-800 animate-pulse" />
+                    <Bot size={28} className="text-slate-800 animate-pulse" />
                   </div>
-                  <p className="font-bold text-slate-800 text-lg uppercase tracking-wider">Menyusun Draft...</p>
-                  <p className="text-xs text-slate-500 mt-2 font-medium">Mengkalibrasi standar {sumber.split(" ")[0]}</p>
+                  <p className="font-bold text-slate-800 text-xl uppercase tracking-widest">Menyusun Draft...</p>
+                  <p className="text-sm text-slate-500 mt-2 font-medium">Mengkalibrasi standar {sumber.split(" ")[0]}</p>
                 </div>
               ) : hasil ? (
-                <div className="bg-white shadow-lg border border-slate-300 rounded p-6 md:p-14 mx-auto max-w-4xl min-h-[1100px]">
+                <div className={`bg-white shadow-xl border border-slate-300 p-8 md:p-14 mx-auto min-h-[1100px] overflow-x-auto ${isLandscape ? 'w-full max-w-none' : 'max-w-4xl'}`}>
                   <div ref={pdfRef} className="pdf-container">
                     <style>{`
                       /* PENYESUAIAN FONT UNTUK MOBILE & DESKTOP */
                       .pdf-container { font-family: 'Times New Roman', serif !important; font-size: 14px; line-height: 1.6 !important; color: #000; } 
                       @media (min-width: 768px) { .pdf-container { font-size: 12pt; } }
                       
-                      /* PARAGRAF RATA KIRI KANAN */
                       .markdown-body p { margin-bottom: 0.8rem; text-align: justify; }
                       
-                      /* FIX TABEL OVERFLOW MOBILE: MENCEGAH TEKS TERGENCET */
+                      /* MENCEGAH TEKS TERGENCET DI MOBILE */
                       @media (max-width: 768px) {
                         .markdown-body table { table-layout: auto !important; min-width: 600px; }
                         .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; margin-bottom: 1.5rem; }
                       }
                       
                       .markdown-body table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1.5rem; table-layout: auto; word-wrap: break-word; overflow-wrap: break-word; } 
-                      .markdown-body table.promes-table { font-size: 8pt !important; table-layout: auto !important; }
+                      .markdown-body table.promes-table { font-size: 9pt !important; table-layout: auto !important; }
                       .markdown-body th, .markdown-body td { border: 1pt solid #000; padding: 6px 10px; text-align: left; vertical-align: top; overflow-wrap: break-word; word-wrap: break-word; } 
                       .markdown-body th { background-color: #f8fafc; font-weight: bold; text-align: center; } 
                       .markdown-body tr { page-break-inside: avoid; } 
                       
-                      /* HEADING & LIST */
                       .markdown-body h1 { font-size: 1.25em; font-weight: bold; text-align: center; margin-bottom: 1.5rem; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 10px; } 
                       .markdown-body h2 { font-size: 1.1em; margin-top: 1.5rem; margin-bottom: 0.5rem; font-weight: bold; text-transform: uppercase; } 
                       .markdown-body h3 { font-size: 1em; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold; } 
@@ -674,16 +649,49 @@ export default function GeneratorBahanAjar() {
                       .markdown-body li { margin-bottom: 0.5rem; text-align: justify; }
                       .markdown-body li > p { margin-bottom: 0.2rem; }
                       
-                      /* TABEL TANDA TANGAN */
                       .sig-table, .sig-table td, .sig-table th, .sig-table tr { border: none !important; padding: 4px; vertical-align: top; }
+                      .header-table td, .header-table th { border: none !important; padding: 2px 4px; vertical-align: bottom; font-weight: bold; font-size: 12pt; }
                     `}</style>
                     
-                    {/* Kop Surat Dokumen Formal */}
-                    {namaSekolah && (
-                      <div style={{ textAlign: 'center', borderBottom: '3px solid black', paddingBottom: '12px', marginBottom: '24px', pageBreakAfter: 'avoid' }}>
-                        <h1 style={{ fontSize: '1.25em', fontWeight: 'bold', textTransform: 'uppercase', color: 'black', margin: '0 0 5px 0' }}>{namaSekolah}</h1>
-                        <p style={{ fontSize: '1em', margin: 0 }}>Dokumen Akademik Resmi - Kurikulum {sumber.split("(")[0].trim()}</p>
-                      </div>
+                    {/* Kop Surat Dokumen Khusus PROTA / PROMES */}
+                    {isLandscape ? (
+                       <div style={{ marginBottom: '24px' }}>
+                         <h1 style={{ fontSize: '1.25em', fontWeight: 'bold', textAlign: 'center', marginBottom: '20px', textTransform: 'uppercase' }}>
+                           PROGRAM {tipe === "PROMES" ? "SEMESTER" : "TAHUNAN"} <br/> KURIKULUM {sumber.includes("BSKAP") ? "MERDEKA" : "MADRASAH"}
+                         </h1>
+                         <table className="header-table" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '10px' }}>
+                           <tbody>
+                             <tr>
+                               <td style={{ width: '15%' }}>Satuan Pendidikan</td>
+                               <td style={{ width: '2%' }}>:</td>
+                               <td style={{ width: '43%' }}>{namaSekolah || "........................"}</td>
+                               <td style={{ width: '15%' }}>Tahun Pelajaran</td>
+                               <td style={{ width: '2%' }}>:</td>
+                               <td style={{ width: '23%' }}>{tahunPelajaran || "........................"}</td>
+                             </tr>
+                             <tr>
+                               <td>Mata Pelajaran</td>
+                               <td>:</td>
+                               <td>{mapel || "........................"}</td>
+                               <td>Fase</td>
+                               <td>:</td>
+                               <td>{fase || "........................"}</td>
+                             </tr>
+                             <tr>
+                               <td>Kelas / Semester</td>
+                               <td>:</td>
+                               <td colSpan={4}>{kelas || "........"} / {semester}</td>
+                             </tr>
+                           </tbody>
+                         </table>
+                       </div>
+                    ) : (
+                      namaSekolah && (
+                        <div style={{ textAlign: 'center', borderBottom: '3px solid black', paddingBottom: '12px', marginBottom: '24px', pageBreakAfter: 'avoid' }}>
+                          <h1 style={{ fontSize: '1.25em', fontWeight: 'bold', textTransform: 'uppercase', color: 'black', margin: '0 0 5px 0' }}>{namaSekolah}</h1>
+                          <p style={{ fontSize: '1em', margin: 0 }}>Dokumen Akademik Resmi - Kurikulum {sumber.split("(")[0].trim()}</p>
+                        </div>
+                      )
                     )}
 
                     <div className="markdown-body">
@@ -691,10 +699,9 @@ export default function GeneratorBahanAjar() {
                       <ReactMarkdown 
                         remarkPlugins={[remarkGfm]}
                         components={{
-                          hr: ({node, ...props}) => <div id="landscape-break-marker" style={{ pageBreakBefore: 'always', clear: 'both', margin: '2rem 0', borderBottom: '2px dashed #cbd5e1' }}></div>,
                           table: ({node, ...props}) => (
-                            <div className="table-wrapper">
-                              <table className={isPromes ? "promes-table" : ""} {...props} />
+                            <div className={isLandscape ? "w-full overflow-x-auto" : "table-wrapper"}>
+                              <table className={isLandscape ? "promes-table" : ""} {...props} />
                             </div>
                           ),
                           th: ({node, children, ...props}) => {
@@ -703,18 +710,18 @@ export default function GeneratorBahanAjar() {
                             let whiteSpace = 'normal';
                             
                             if (text === 'no' || text === 'no.') width = '3%';
-                            else if (text.includes('tema') && isPromes) width = '15%';
-                            else if (text.includes('sub-tema') && isPromes) width = '15%';
-                            else if (text.includes('pemb. ke-') && isPromes) width = '5%';
-                            else if (text.includes('jp') && isPromes) width = '3%';
+                            else if (text.includes('tema') && isLandscape) width = '15%';
+                            else if (text.includes('sub-tema') && isLandscape) width = '15%';
+                            else if (text.includes('pemb. ke-') && isLandscape) width = '5%';
+                            else if (text.includes('jp') && isLandscape) width = '3%';
                             else if (text.includes('tema') || text.includes('materi') || text.includes('tujuan') || text.includes('elemen') || text.includes('capaian')) width = '25%';
                             else if (text.includes('skor') || text.includes('nilai')) width = '15%';
-                            else if (isPromes) { whiteSpace = 'nowrap'; } 
+                            else if (isLandscape) { whiteSpace = 'nowrap'; } 
                             
-                            return <th style={{ width, whiteSpace: whiteSpace as any, padding: isPromes ? '4px 2px' : '6px 10px' }} {...props}>{children}</th>;
+                            return <th style={{ width, whiteSpace: whiteSpace as any, padding: isLandscape ? '4px 2px' : '6px 10px' }} {...props}>{children}</th>;
                           },
                           td: ({node, children, ...props}) => {
-                            return <td style={{ padding: isPromes ? '4px 2px' : '6px 10px', fontSize: isPromes ? '8pt' : 'inherit' }} {...props}>{children}</td>;
+                            return <td style={{ padding: isLandscape ? '4px 2px' : '6px 10px', fontSize: isLandscape ? '9pt' : 'inherit' }} {...props}>{children}</td>;
                           }
                         }}
                       >
@@ -747,9 +754,9 @@ export default function GeneratorBahanAjar() {
                 </div>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400 text-center py-20 opacity-70">
-                  <div className="w-20 h-20 bg-white border-2 border-slate-300 rounded-lg flex items-center justify-center mb-5 text-4xl shadow-sm">📄</div>
-                  <h3 className="font-bold text-slate-700 text-lg mb-2 uppercase tracking-widest">Area Tinjau Dokumen</h3>
-                  <p className="text-xs max-w-md text-slate-500 leading-relaxed font-medium">Dokumen yang telah digenerate akan tampil di sini dengan format standar baku nasional dan siap untuk diunduh (Word/PDF).</p>
+                  <div className="w-24 h-24 bg-white border-2 border-slate-300 rounded-2xl flex items-center justify-center mb-6 text-5xl shadow-sm">📄</div>
+                  <h3 className="font-bold text-slate-700 text-xl mb-2 uppercase tracking-widest">Area Tinjau Dokumen</h3>
+                  <p className="text-sm max-w-md text-slate-500 leading-relaxed font-medium">Dokumen yang telah digenerate akan tampil di sini dengan format standar baku nasional dan siap untuk diunduh (Word/PDF/Excel).</p>
                 </div>
               )}
             </div>
