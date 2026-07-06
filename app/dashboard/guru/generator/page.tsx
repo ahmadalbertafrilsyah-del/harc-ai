@@ -45,7 +45,7 @@ export default function GeneratorBahanAjar() {
   const [alokasiWaktu, setAlokasiWaktu] = useState("");
   const [profilPelajar, setProfilPelajar] = useState("");
   
-  // State Parameter Bank Soal (DIPERLUAS)
+  // State Parameter Bank Soal
   const [jenisUjian, setJenisUjian] = useState("Ulangan Harian");
   const [tingkatKesulitan, setTingkatKesulitan] = useState("Campuran (Proporsional)");
   const [opsiPG, setOpsiPG] = useState("A - D (4 Opsi)");
@@ -68,6 +68,8 @@ export default function GeneratorBahanAjar() {
   const [riwayatModul, setRiwayatModul] = useState<any[]>([]);
 
   const pdfRef = useRef<HTMLDivElement>(null);
+
+  const isPromes = tipe === "PROMES" || tipe === "PROTA";
 
   const p5Kemendikbud: string[] = ["Semua Dimensi P5", "Beriman, Bertakwa & Berakhlak Mulia", "Berkebinekaan Global", "Bergotong Royong", "Mandiri", "Bernalar Kritis", "Kreatif"];
   const p5Kemenag: string[] = ["Semua Nilai P5 & PPRA", "Berkeadaban (Ta'addub)", "Keteladanan (Qudwah)", "Kewarganegaraan (Muwatana)", "Mengambil jalan tengah (Tawassut)", "Berimbang (Tawazun)", "Lurus dan tegas (I'tidal)", "Kesetaraan (Musawa)"];
@@ -118,7 +120,7 @@ export default function GeneratorBahanAjar() {
     const startTime = Date.now();
     
     let sistemPrompt = `Anda adalah Ahli Penyusun Kurikulum Pendidikan Nasional Indonesia. Buatlah dokumen menggunakan format Markdown (tabel, bold, list) yang sangat rapi dan terstruktur secara formal.\n`;
-    sistemPrompt += `ATURAN FORMAT JARAK: Setiap Sub-bab atau Judul Poin WAJIB diberi baris baru (ENTER) dua kali sebelum menuliskan isinya, agar judul dan isi kalimat tidak menyatu/menempel.\n`;
+    sistemPrompt += `ATURAN FORMAT JARAK: Setiap Sub-bab atau Judul Poin WAJIB diberi baris baru (ENTER dua kali) sebelum menuliskan isinya. DILARANG KERAS MENGGUNAKAN TAG HTML SEPERTI <br> ATAU <br/>.\n`;
     
     if (sumber.includes("BSKAP")) {
       sistemPrompt += `PENTING: Rujuk pada SK BSKAP No. 32 Tahun 2024 tentang Capaian Pembelajaran (CP) Kurikulum Merdeka.\n`;
@@ -153,20 +155,23 @@ export default function GeneratorBahanAjar() {
         if (Number(jmlUraian) > 0) topikKirim += `- Uraian/Essay: ${jmlUraian} butir.\n`;
         topikKirim += `ATURAN FORMAT OPSI JAWABAN: WAJIB pisahkan setiap pilihan ganda (A, B, C, D, E) ke baris baru yang menurun ke bawah (dengan list). JANGAN MENGGABUNGKAN opsi dalam satu baris paragraf.\n`;
         topikKirim += `Buat Tabel Kunci Jawaban & Rubrik Penskoran di bagian paling bawah dokumen secara lengkap sesuai dengan komposisi soal di atas.\n`;
+    } else if (tipe === "PROMES" || tipe === "PROTA") {
+        const bulanGanjil = "Jul 1|Jul 2|Jul 3|Jul 4|Jul 5|Agu 1|Agu 2|Agu 3|Agu 4|Agu 5|Sep 1|Sep 2|Sep 3|Sep 4|Sep 5|Okt 1|Okt 2|Okt 3|Okt 4|Okt 5|Nov 1|Nov 2|Nov 3|Nov 4|Nov 5|Des 1|Des 2|Des 3|Des 4|Des 5";
+        const bulanGenap = "Jan 1|Jan 2|Jan 3|Jan 4|Jan 5|Feb 1|Feb 2|Feb 3|Feb 4|Feb 5|Mar 1|Mar 2|Mar 3|Mar 4|Mar 5|Apr 1|Apr 2|Apr 3|Apr 4|Apr 5|Mei 1|Mei 2|Mei 3|Mei 4|Mei 5|Jun 1|Jun 2|Jun 3|Jun 4|Jun 5";
+        const kalender = semester === "Ganjil" ? bulanGanjil : bulanGenap;
+        
+        topikKirim += `STRUKTUR WAJIB PROMES/PROTA:\n`;
+        topikKirim += `1. Bagian Pertama: Buatlah daftar (bukan tabel) Identitas Dokumen berisi Nama Sekolah, Mata Pelajaran, Fase/Kelas, Semester, Tahun Pelajaran, dan Alokasi Waktu.\n`;
+        topikKirim += `PENTING: Tepat setelah identitas selesai ditulis, Anda WAJIB menyisipkan elemen garis pemisah (---) sendirian di baris baru. Garis ini akan memecah halaman menjadi Landscape.\n`;
+        topikKirim += `2. Bagian Kedua: Buatlah Judul "MATRIKS PROGRAM SEMESTER", lalu buatlah TABEL Matriks.\n`;
+        topikKirim += `Kolom Tabel Matriks WAJIB PERSIS SEPERTI INI:\nNo | Tema | Sub-Tema | Pemb. Ke- | JP | ${kalender}\n`;
+        topikKirim += `Isi sel matriks bulan/minggu tersebut dengan tanda centang (✓) pada minggu yang efektif pelaksanaannya.\n`;
     } else {
         topikKirim += `**IDENTITAS DOKUMEN**\n- Mata Pelajaran: ${mapel}\n- Fase / Kelas: ${fase} / ${kelas}\n- Tahun Pelajaran: ${tahunPelajaran} (Semester ${semester})\n- Materi Pokok: ${materi}\n\n`;
-        
         if (tipe === "RPP") {
             topikKirim += `STRUKTUR WAJIB:\n1. Identitas\n2. Tujuan Pembelajaran\n3. Tabel Langkah Pembelajaran (Tahap, Deskripsi Kegiatan Guru & Siswa, Alokasi Waktu)\n4. Penilaian.\n`;
         } else if (tipe === "ATP") {
             topikKirim += `STRUKTUR WAJIB:\nBuatlah TABEL Alur Tujuan Pembelajaran dengan kolom: Elemen | Tujuan Pembelajaran | Alokasi Waktu | Profil Pelajar Pancasila.\n`;
-        } else if (tipe === "PROTA") {
-            topikKirim += `STRUKTUR WAJIB:\nBuatlah TABEL Program Tahunan dengan kolom: Semester | No | Tema/Materi Pokok | Sub Tema | Alokasi Waktu (JP) | Keterangan.\n`;
-        } else if (tipe === "PROMES") {
-            const bulanGanjil = "Jul M1 | Jul M2 | Jul M3 | Jul M4 | Agu M1 | Agu M2 | Agu M3 | Agu M4 | Sep M1 | Sep M2 | Sep M3 | Sep M4 | Okt M1 | Okt M2 | Okt M3 | Okt M4 | Nov M1 | Nov M2 | Nov M3 | Nov M4 | Des M1 | Des M2 | Des M3 | Des M4";
-            const bulanGenap = "Jan M1 | Jan M2 | Jan M3 | Jan M4 | Feb M1 | Feb M2 | Feb M3 | Feb M4 | Mar M1 | Mar M2 | Mar M3 | Mar M4 | Apr M1 | Apr M2 | Apr M3 | Apr M4 | Mei M1 | Mei M2 | Mei M3 | Mei M4 | Jun M1 | Jun M2 | Jun M3 | Jun M4";
-            const kalender = semester === "Ganjil" ? bulanGanjil : bulanGenap;
-            topikKirim += `STRUKTUR WAJIB:\nBuatlah TABEL MATRIKS Program Semester (PROSEM). Kolom tabel WAJIB terdiri dari:\nNo | Tema/Materi | JP | ${kalender}\nIsi sel matriks kalender dengan tanda centang (✓) pada minggu efektif pelaksanaannya.\n`;
         } else if (tipe === "LKPD") {
             topikKirim += `STRUKTUR WAJIB:\nJudul LKPD, Tujuan Kegiatan, Alat & Bahan, Langkah Kerja (Sistematis), TABEL Pengamatan (No | Aspek | Hasil [Biarkan Kosong]), Pertanyaan Analisis.\n`;
         } else if (tipe === "Bahan Bacaan Siswa") {
@@ -186,7 +191,6 @@ export default function GeneratorBahanAjar() {
       const apiMessages = [{ role: "system", content: sistemPrompt }, { role: "user", content: topikKirim }];
       const response = await fetch("/api/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        // Mengunci model ke Gemini 2.5 Pro untuk hasil maksimal di generator bahan ajar
         body: JSON.stringify({ model: "gemini-2.5-pro", messages: apiMessages })
       });
       const data = await response.json();
@@ -244,24 +248,47 @@ export default function GeneratorBahanAjar() {
   const handleDownloadWord = () => {
     if (!pdfRef.current) return;
     
-    // Klona DOM untuk manipulasi kolom
     const printNode = pdfRef.current.cloneNode(true) as HTMLElement;
+    
+    // Perbaikan Lebar Kolom Tabel Khusus Word
     const tables = printNode.querySelectorAll('table');
     tables.forEach(table => {
       if (table.classList.contains('sig-table')) return; 
       const ths = table.querySelectorAll('th');
       ths.forEach((th) => {
         const text = th.innerText.trim().toLowerCase();
-        if (text === 'no' || text === 'no.') {
-          th.style.width = '5%';
-        } else if (text.includes('skor') || text.includes('nilai')) {
-          th.style.width = '15%';
-        }
+        if (text === 'no' || text === 'no.') { th.style.width = '3%'; } 
+        else if (text.includes('tema') || text.includes('materi') || text.includes('tujuan') || text.includes('elemen') || text.includes('capaian')) { th.style.width = '25%'; } 
+        else if (text.includes('skor') || text.includes('nilai')) { th.style.width = '15%'; }
       });
     });
 
     let printHtml = printNode.innerHTML.replace(/class="markdown-body"/g, '');
-    const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Dokumen</title><style>@page WordSection1 { size: 21cm 29.7cm; margin: 2.54cm; } div.WordSection1 { page: WordSection1; } body, p, li, td, th, h1, h2, h3, h4, div { font-family: 'Times New Roman', serif !important; font-size: 12pt !important; color: black !important; line-height: 1.5; text-align: justify; } h1 { font-size: 14pt !important; font-weight: bold !important; margin-bottom: 12pt; text-align: center; text-transform: uppercase; } h2, h3 { font-size: 12pt !important; font-weight: bold !important; margin-top: 12pt; margin-bottom: 6pt; text-align: left; } table { width: 100%; border-collapse: collapse; margin-top: 10pt; margin-bottom: 15pt; border: 1pt solid black !important; table-layout: fixed; word-wrap: break-word; overflow-wrap: break-word; } td, th { border: 1pt solid black !important; padding: 4pt 8pt; vertical-align: top; text-align: left; overflow-wrap: break-word; word-wrap: break-word; } th { background-color: #f2f2f2; font-weight: bold !important; text-align: center; } p { margin-bottom: 10pt; } li { margin-bottom: 6pt; text-align: justify; } .sig-table, .sig-table td, .sig-table th, .sig-table tr { border: none !important; }</style></head><body><div class="WordSection1">${printHtml}</div></body></html>`;
+    
+    // Manipulasi Split Page Break (Portrait -> Landscape)
+    printHtml = printHtml.replace(/<div id="landscape-break-marker".*?<\/div>/g, '###SPLIT###');
+    const parts = printHtml.split('###SPLIT###');
+    
+    if (parts.length > 1) {
+        // Gabungkan kembali dengan tag page break mso (Microsoft Office)
+        printHtml = `
+          <div class="WordSection1">${parts[0]}</div>
+          <br clear="all" style="page-break-before:always; mso-break-type:section-break" />
+          <div class="WordSection2">${parts.slice(1).join('')}</div>
+        `;
+    } else {
+        printHtml = `<div class="WordSection1">${printHtml}</div>`;
+    }
+
+    // CSS untuk Mixed Orientation di Word
+    const cssOrientation = `
+      @page WordSection1 { size: 595.3pt 841.9pt; margin: 2.54cm; } 
+      div.WordSection1 { page: WordSection1; }
+      @page WordSection2 { size: 841.9pt 595.3pt; mso-page-orientation: landscape; margin: 1.5cm; } 
+      div.WordSection2 { page: WordSection2; }
+    `;
+
+    const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Dokumen</title><style>${cssOrientation} body, p, li, td, th, h1, h2, h3, h4, div { font-family: 'Times New Roman', serif !important; font-size: 12pt !important; color: black !important; line-height: 1.5; text-align: justify; } h1 { font-size: 14pt !important; font-weight: bold !important; margin-bottom: 12pt; text-align: center; text-transform: uppercase; } h2, h3 { font-size: 12pt !important; font-weight: bold !important; margin-top: 12pt; margin-bottom: 6pt; text-align: left; } table { width: 100%; border-collapse: collapse; margin-top: 10pt; margin-bottom: 15pt; border: 1pt solid black !important; word-wrap: break-word; overflow-wrap: break-word; } table.promes-table { font-size: 8pt !important; table-layout: auto !important; } table.promes-table th, table.promes-table td { padding: 2pt !important; } td, th { border: 1pt solid black !important; padding: 4pt 8pt; vertical-align: top; text-align: left; } th { background-color: #f2f2f2; font-weight: bold !important; text-align: center; } p { margin-bottom: 10pt; } li { margin-bottom: 6pt; text-align: justify; } .sig-table, .sig-table td, .sig-table th, .sig-table tr { border: none !important; }</style></head><body>${printHtml}</body></html>`;
     const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(header);
     const fileDownload = document.createElement("a"); document.body.appendChild(fileDownload); 
     fileDownload.href = source; fileDownload.download = `${tipe}_${mapel || 'Dokumen'}.doc`.replace(/[^a-zA-Z0-9.\-_]/g, "_"); fileDownload.click(); document.body.removeChild(fileDownload);
@@ -270,7 +297,6 @@ export default function GeneratorBahanAjar() {
   const handlePrintPDF = () => {
     if (!pdfRef.current) return;
     
-    // Klona DOM untuk manipulasi kolom
     const printNode = pdfRef.current.cloneNode(true) as HTMLElement;
     const tables = printNode.querySelectorAll('table');
     tables.forEach(table => {
@@ -278,20 +304,36 @@ export default function GeneratorBahanAjar() {
       const ths = table.querySelectorAll('th');
       ths.forEach((th) => {
         const text = th.innerText.trim().toLowerCase();
-        if (text === 'no' || text === 'no.') {
-          th.style.width = '5%';
-        } else if (text.includes('skor') || text.includes('nilai')) {
-          th.style.width = '15%';
-        }
+        if (text === 'no' || text === 'no.') { th.style.width = '3%'; } 
+        else if (text.includes('tema') || text.includes('materi') || text.includes('tujuan') || text.includes('elemen') || text.includes('capaian')) { th.style.width = '25%'; } 
+        else if (text.includes('skor') || text.includes('nilai')) { th.style.width = '15%'; } 
       });
     });
 
-    const printContent = printNode.innerHTML;
+    let printContent = printNode.innerHTML;
+    printContent = printContent.replace(/<div id="landscape-break-marker".*?<\/div>/g, '###SPLIT###');
+    const parts = printContent.split('###SPLIT###');
+    
+    if (parts.length > 1) {
+        printContent = `<div class="portrait-section">${parts[0]}</div><div class="landscape-section">${parts.slice(1).join('')}</div>`;
+    } else {
+        printContent = `<div class="portrait-section">${printContent}</div>`;
+    }
+
+    const cssOrientation = `
+      @page portrait { size: A4 portrait; margin: 2.54cm; }
+      @page landscape { size: A4 landscape; margin: 1.5cm; }
+      .portrait-section { page: portrait; }
+      .landscape-section { page: landscape; page-break-before: always; }
+    `;
+
     const iframe = document.createElement("iframe"); iframe.style.display = "none"; document.body.appendChild(iframe); iframe.contentWindow?.document.open();
-    iframe.contentWindow?.document.write(`<html><head><title>Cetak PDF</title><style>@page { size: A4 portrait; margin: 2.54cm; } body { font-family: 'Times New Roman', serif !important; font-size: 12pt !important; line-height: 1.6 !important; color: #000; text-align: justify; } h1 { text-align: center; font-size: 14pt; margin-bottom: 2rem; font-weight: bold; text-transform: uppercase; } table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1.5rem; border: 1pt solid #000; table-layout: fixed; word-wrap: break-word; overflow-wrap: break-word; } th, td { border: 1pt solid #000; padding: 6px 8px; text-align: left; vertical-align: top; overflow-wrap: break-word; word-wrap: break-word; } th { background-color: #f1f5f9; font-weight: bold; text-align: center; } tr { page-break-inside: avoid; } h2, h3, h4 { page-break-after: avoid; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold; text-align: left; } ul, ol { margin-left: 20px; margin-bottom: 10px; } li { margin-bottom: 6px; text-align: justify; } p { margin-bottom: 10px; } .sig-table, .sig-table td, .sig-table th, .sig-table tr { border: none !important; padding: 4px; vertical-align: top; }</style></head><body>${printContent}</body></html>`);
+    iframe.contentWindow?.document.write(`<html><head><title>Cetak PDF</title><style>@page { margin: 2cm; } ${cssOrientation} body { font-family: 'Times New Roman', serif !important; font-size: 12pt !important; line-height: 1.6 !important; color: #000; text-align: justify; } h1 { text-align: center; font-size: 14pt; margin-bottom: 2rem; font-weight: bold; text-transform: uppercase; } table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1.5rem; border: 1pt solid #000; word-wrap: break-word; overflow-wrap: break-word; } table.promes-table { font-size: 9px !important; table-layout: auto !important; } table.promes-table th, table.promes-table td { padding: 4px !important; } th, td { border: 1pt solid #000; padding: 6px 8px; text-align: left; vertical-align: top; } th { background-color: #f1f5f9; font-weight: bold; text-align: center; } tr { page-break-inside: avoid; } h2, h3, h4 { page-break-after: avoid; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold; text-align: left; } ul, ol { margin-left: 20px; margin-bottom: 10px; } li { margin-bottom: 6px; text-align: justify; } p { margin-bottom: 10px; } .sig-table, .sig-table td, .sig-table th, .sig-table tr { border: none !important; padding: 4px; vertical-align: top; }</style></head><body>${printContent}</body></html>`);
     iframe.contentWindow?.document.close();
     setTimeout(() => { iframe.contentWindow?.focus(); iframe.contentWindow?.print(); setTimeout(() => document.body.removeChild(iframe), 1000); }, 500);
   };
+
+  const sanitasiHasil = hasil.replace(/<br\s*\/?>/gi, '\n\n');
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="max-w-6xl mx-auto space-y-6 pb-16 pt-4 px-2">
@@ -612,8 +654,14 @@ export default function GeneratorBahanAjar() {
                       /* PARAGRAF RATA KIRI KANAN */
                       .markdown-body p { margin-bottom: 0.8rem; text-align: justify; }
                       
-                      /* FIX TABEL OVERFLOW */
-                      .markdown-body table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1.5rem; table-layout: fixed; word-wrap: break-word; overflow-wrap: break-word; } 
+                      /* FIX TABEL OVERFLOW MOBILE: MENCEGAH TEKS TERGENCET */
+                      @media (max-width: 768px) {
+                        .markdown-body table { table-layout: auto !important; min-width: 600px; }
+                        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; margin-bottom: 1.5rem; }
+                      }
+                      
+                      .markdown-body table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1.5rem; table-layout: auto; word-wrap: break-word; overflow-wrap: break-word; } 
+                      .markdown-body table.promes-table { font-size: 8pt !important; table-layout: auto !important; }
                       .markdown-body th, .markdown-body td { border: 1pt solid #000; padding: 6px 10px; text-align: left; vertical-align: top; overflow-wrap: break-word; word-wrap: break-word; } 
                       .markdown-body th { background-color: #f8fafc; font-weight: bold; text-align: center; } 
                       .markdown-body tr { page-break-inside: avoid; } 
@@ -643,17 +691,34 @@ export default function GeneratorBahanAjar() {
                       <ReactMarkdown 
                         remarkPlugins={[remarkGfm]}
                         components={{
+                          hr: ({node, ...props}) => <div id="landscape-break-marker" style={{ pageBreakBefore: 'always', clear: 'both', margin: '2rem 0', borderBottom: '2px dashed #cbd5e1' }}></div>,
+                          table: ({node, ...props}) => (
+                            <div className="table-wrapper">
+                              <table className={isPromes ? "promes-table" : ""} {...props} />
+                            </div>
+                          ),
                           th: ({node, children, ...props}) => {
                             const text = String(children).toLowerCase().trim();
                             let width = 'auto';
-                            if (text === 'no' || text === 'no.') width = '5%';
+                            let whiteSpace = 'normal';
+                            
+                            if (text === 'no' || text === 'no.') width = '3%';
+                            else if (text.includes('tema') && isPromes) width = '15%';
+                            else if (text.includes('sub-tema') && isPromes) width = '15%';
+                            else if (text.includes('pemb. ke-') && isPromes) width = '5%';
+                            else if (text.includes('jp') && isPromes) width = '3%';
+                            else if (text.includes('tema') || text.includes('materi') || text.includes('tujuan') || text.includes('elemen') || text.includes('capaian')) width = '25%';
                             else if (text.includes('skor') || text.includes('nilai')) width = '15%';
-                            else if (text.includes('aspek') || text.includes('kriteria') || text.includes('keterangan')) width = '25%';
-                            return <th style={{ width }} {...props}>{children}</th>;
+                            else if (isPromes) { whiteSpace = 'nowrap'; } 
+                            
+                            return <th style={{ width, whiteSpace: whiteSpace as any, padding: isPromes ? '4px 2px' : '6px 10px' }} {...props}>{children}</th>;
+                          },
+                          td: ({node, children, ...props}) => {
+                            return <td style={{ padding: isPromes ? '4px 2px' : '6px 10px', fontSize: isPromes ? '8pt' : 'inherit' }} {...props}>{children}</td>;
                           }
                         }}
                       >
-                        {hasil}
+                        {sanitasiHasil}
                       </ReactMarkdown>
                     </div>
 
