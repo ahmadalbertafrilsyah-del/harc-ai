@@ -185,13 +185,14 @@ export default function LandingPage() {
               Kerangka <span className="font-semibold text-blue-500">Humanistic, Adaptive, and Responsive-Cultural Assessment (HARC-AI)</span>. Dirancang presisi untuk memediasi pembelajaran bahasa daerah, mereduksi beban administratif, dan mengakselerasi prestasi akademik siswa.
             </p>
             
-            {/* Tombol Aksi */}
-            <div className="flex flex-col sm:flex-row w-full sm:w-auto items-center gap-3.5 sm:gap-4">
+            {/* Tombol Aksi - Ubah bagian div ini */}
+            <div className="flex flex-row w-full sm:w-auto items-center justify-center gap-3 sm:gap-4">
               <Link href="/login" className="w-full sm:w-auto">
                 <button className="w-full sm:w-auto bg-gradient-to-r from-blue-700 via-blue-800 to-blue-950 hover:from-blue-600 hover:to-blue-900 text-white px-8 py-4 rounded-xl font-bold text-base sm:text-lg transition-all shadow-lg shadow-blue-900/25 flex items-center justify-center gap-3 border border-blue-600/30 active:scale-95">
                   <span>Mulai Evaluasi</span>
                 </button>
               </Link>
+  
               <a href="#dimensi" className="w-full sm:w-auto">
                 <button className={`w-full sm:w-auto px-6 py-4 rounded-xl font-bold text-sm sm:text-base transition-all border flex items-center justify-center gap-2 ${isDarkMode ? 'bg-slate-800/60 border-slate-700 text-slate-200 hover:bg-slate-800' : 'bg-white border-slate-300/80 text-slate-700 hover:bg-slate-50'}`}>
                   Pelajari Dimensi
@@ -290,7 +291,7 @@ export default function LandingPage() {
       </main>
 
       {/* FOOTER */}
-      <footer className={`relative z-10 mt-20 border-t py-8 transition-colors ${isDarkMode ? 'bg-[#080d1a] border-slate-800 text-slate-400' : 'bg-slate-900 border-slate-800 text-slate-300'}`}>
+      <footer className={`relative z-10 mt-20 border-t py-4 transition-colors ${isDarkMode ? 'bg-[#080d1a] border-slate-800 text-slate-400' : 'bg-slate-900 border-slate-800 text-slate-300'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
           <div className="flex items-center gap-2.5">
             <GraduationCap className="w-5 h-5 text-amber-400 shrink-0" />

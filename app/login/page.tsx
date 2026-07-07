@@ -216,19 +216,28 @@ export default function LoginPage() {
                   <h1 className={`text-2xl font-bold text-blue-950 mb-1 ${teachersFont.className}`}>Selamat Datang</h1>
                   <p className="text-slate-500 font-medium text-xs">Silakan pilih peran Anda untuk mengakses sistem.</p>
                 </div>
-                <div className="space-y-3">
+    
+                {/* UBAH BAGIAN INI: Dari space-y-3 menjadi grid-cols-3 */}
+                <div className="grid grid-cols-3 gap-3">
                   {roles.map((role) => (
-                    <motion.button key={role.id} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }} onClick={() => setSelectedRole(role.id)} className={`w-full flex items-center p-3 rounded-xl border transition-all duration-200 text-left ${selectedRole === role.id ? role.activeColor : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'}`}>
-                      <div className={`p-2 rounded-lg mr-3 ${selectedRole === role.id ? 'bg-white shadow-sm' : 'bg-slate-100 text-slate-600'}`}>
-                        <role.icon className="w-5 h-5" />
+                    <motion.button 
+                      key={role.id} 
+                      whileHover={{ scale: 1.02 }} 
+                      whileTap={{ scale: 0.98 }} 
+                      onClick={() => setSelectedRole(role.id)} 
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 text-center ${selectedRole === role.id ? role.activeColor : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'}`}
+                    >
+                      <div className={`p-2 rounded-lg mb-2 ${selectedRole === role.id ? 'bg-white shadow-sm' : 'bg-slate-100 text-slate-600'}`}>
+                        <role.icon className="w-6 h-6" />
                       </div>
-                      <div>
-                        <div className={`text-sm font-bold ${teachersFont.className} ${selectedRole === role.id ? 'text-inherit' : 'text-slate-800'}`}>{role.name}</div>
-                        <div className={`text-[11px] mt-0.5 ${selectedRole === role.id ? 'opacity-90' : 'text-slate-500'}`}>{role.desc}</div>
+                      <div className={`text-xs font-bold ${teachersFont.className} ${selectedRole === role.id ? 'text-inherit' : 'text-slate-800'}`}>
+                        {role.name}
                       </div>
+                      {/* Deskripsi saya sembunyikan agar tidak terlalu panjang saat berjejer */}
                     </motion.button>
                   ))}
                 </div>
+                
                 <button onClick={() => setStep(2)} disabled={!selectedRole} className={`w-full mt-6 py-3 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 ${selectedRole ? 'bg-blue-900 hover:bg-blue-800 text-white shadow-lg shadow-blue-900/20' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
                   Lanjutkan <ArrowRight size={16} />
                 </button>
