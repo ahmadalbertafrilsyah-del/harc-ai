@@ -4,6 +4,7 @@ export const maxDuration = 240;
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+// FIX 1: Menambahkan Trash2 pada import di bawah ini
 import { Sparkles, BookOpen, Settings, FileText, Bot, Loader2, Save, History, FileDown, Printer, Coins, Target, Link2, Trash2, CalendarDays, CheckCircle, X, FileSpreadsheet } from "lucide-react";
 import { Teachers } from "next/font/google";
 
@@ -305,7 +306,7 @@ export default function GeneratorBahanAjar() {
     fileDownload.href = source; fileDownload.download = `${tipe}_${mapel || 'Dokumen'}.doc`.replace(/[^a-zA-Z0-9.\-_]/g, "_"); fileDownload.click(); document.body.removeChild(fileDownload);
   };
 
-  // --- FITUR DOWNLOAD PDF ---
+  // --- FITUR DOWNLOAD PDF (DIPERBAIKI UNTUK HP) ---
   const handlePrintPDF = () => {
     if (!pdfRef.current) return;
     const printNode = pdfRef.current.cloneNode(true) as HTMLElement;
@@ -315,10 +316,26 @@ export default function GeneratorBahanAjar() {
       @page { size: A4 ${isLandscape ? 'landscape' : 'portrait'}; margin: 1.5cm; }
     `;
 
-    const iframe = document.createElement("iframe"); iframe.style.display = "none"; document.body.appendChild(iframe); iframe.contentWindow?.document.open();
-    iframe.contentWindow?.document.write(`<html><head><title>Cetak PDF</title><style> ${cssOrientation} body { font-family: 'Times New Roman', serif !important; font-size: 11pt !important; line-height: 1.5 !important; color: #000; text-align: justify; } h1 { text-align: center; font-size: 14pt; margin-bottom: 2rem; font-weight: bold; text-transform: uppercase; } table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1.5rem; border: 1pt solid #000; word-wrap: break-word; overflow-wrap: break-word; } table.promes-table { font-size: 9px !important; table-layout: auto !important; } table.promes-table th, table.promes-table td { padding: 4px !important; } th, td { border: 1pt solid #000; padding: 6px 8px; text-align: left; vertical-align: top; } th { background-color: #f1f5f9; font-weight: bold; text-align: center; } tr { page-break-inside: avoid; } h2, h3, h4 { page-break-after: avoid; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold; text-align: left; } ul, ol { margin-left: 20px; margin-bottom: 10px; } li { margin-bottom: 6px; text-align: justify; } p { margin-bottom: 10px; } .header-table td, .header-table th { border: none !important; padding: 4px; } .sig-table, .sig-table td, .sig-table th, .sig-table tr { border: none !important; padding: 4px; vertical-align: top; }</style></head><body>${printContent}</body></html>`);
+    const iframe = document.createElement("iframe"); 
+    
+    // FIX 2: Perbaikan pencetakan di HP agar tabel tidak terpotong (overflow)
+    // Kita paksakan ukuran fisik kertas A4 pada iframe sebelum dicetak
+    iframe.style.position = "absolute";
+    iframe.style.top = "-9999px";
+    iframe.style.left = "-9999px";
+    iframe.style.width = isLandscape ? "297mm" : "210mm";
+    iframe.style.height = "100vh"; // Height tidak terlalu masalah untuk print
+    
+    document.body.appendChild(iframe); 
+    iframe.contentWindow?.document.open();
+    iframe.contentWindow?.document.write(`<html><head><title>Cetak PDF</title><style> ${cssOrientation} body { font-family: 'Times New Roman', serif !important; font-size: 11pt !important; line-height: 1.5 !important; color: #000; text-align: justify; min-width: ${isLandscape ? '1000px' : '700px'}; } h1 { text-align: center; font-size: 14pt; margin-bottom: 2rem; font-weight: bold; text-transform: uppercase; } table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1.5rem; border: 1pt solid #000; word-wrap: break-word; overflow-wrap: break-word; } table.promes-table { font-size: 9px !important; table-layout: auto !important; } table.promes-table th, table.promes-table td { padding: 4px !important; } th, td { border: 1pt solid #000; padding: 6px 8px; text-align: left; vertical-align: top; } th { background-color: #f1f5f9; font-weight: bold; text-align: center; } tr { page-break-inside: avoid; } h2, h3, h4 { page-break-after: avoid; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold; text-align: left; } ul, ol { margin-left: 20px; margin-bottom: 10px; } li { margin-bottom: 6px; text-align: justify; } p { margin-bottom: 10px; } .header-table td, .header-table th { border: none !important; padding: 4px; } .sig-table, .sig-table td, .sig-table th, .sig-table tr { border: none !important; padding: 4px; vertical-align: top; }</style></head><body>${printContent}</body></html>`);
     iframe.contentWindow?.document.close();
-    setTimeout(() => { iframe.contentWindow?.focus(); iframe.contentWindow?.print(); setTimeout(() => document.body.removeChild(iframe), 1000); }, 500);
+    
+    setTimeout(() => { 
+        iframe.contentWindow?.focus(); 
+        iframe.contentWindow?.print(); 
+        setTimeout(() => document.body.removeChild(iframe), 1000); 
+    }, 500);
   };
 
   const sanitasiHasil = hasil.replace(/<br\s*\/?>/gi, '\n\n');
@@ -339,7 +356,7 @@ export default function GeneratorBahanAjar() {
             <History size={14} /> Koleksi
           </button>
           <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2 rounded-lg text-xs font-bold shadow-sm">
-            <Coins size={14} className="text-amber-500" /> Token: {aiTokens.toLocaleString('id-ID')}
+            <Coins size={14} className="text-amber-500" /> Token AI: {aiTokens.toLocaleString('id-ID')}
           </div>
         </div>
       </div>
@@ -351,7 +368,7 @@ export default function GeneratorBahanAjar() {
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
               <div className="flex justify-between items-center p-5 border-b border-slate-200 bg-slate-50">
                 <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                  <History size={18} className="text-blue-600" /> Koleksi
+                  <History size={18} className="text-blue-600" /> Koleksi Dokumen Saya
                 </h3>
                 <button onClick={() => setShowKoleksi(false)} className="text-slate-400 hover:text-rose-600 transition-colors bg-white p-1 rounded-md border border-slate-200 shadow-sm"><X size={18}/></button>
               </div>
@@ -587,7 +604,7 @@ export default function GeneratorBahanAjar() {
             {/* Header Kanvas */}
             <div className="px-5 md:px-8 py-5 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-white border border-slate-300 rounded-xl flex items-center justify-center shadow-sm"><BookOpen size={24} className="text-slate-700"/></div>
+                <div className="w-12 h-12 bg-white border border-slate-300 rounded-md flex items-center justify-center shadow-sm"><BookOpen size={24} className="text-slate-700"/></div>
                 <div>
                   <h2 className={`font-bold text-slate-800 text-xl tracking-wide uppercase ${teachersFont.className}`}>Kanvas Tinjauan</h2>
                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Siap Edit & Ekspor</p>
@@ -653,7 +670,7 @@ export default function GeneratorBahanAjar() {
                       .header-table td, .header-table th { border: none !important; padding: 2px 4px; vertical-align: bottom; font-weight: bold; font-size: 12pt; }
                     `}</style>
                     
-                    {/* Kop Surat Dokumen Khusus PROTA / PROMES */}
+                    {/* Kop Surat Dokumen (Otomatis menyesuaikan dengan Tipe Dokumen) */}
                     {isLandscape ? (
                        <div style={{ marginBottom: '24px' }}>
                          <h1 style={{ fontSize: '1.25em', fontWeight: 'bold', textAlign: 'center', marginBottom: '20px', textTransform: 'uppercase' }}>
