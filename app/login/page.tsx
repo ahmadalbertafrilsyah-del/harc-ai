@@ -38,9 +38,9 @@ export default function LoginPage() {
   const [regPassword, setRegPassword] = useState("");
 
   const roles = [
-    { id: "admin", name: "Administrator", icon: ShieldCheck, desc: "Manajemen sistem & kurikulum", activeColor: "bg-blue-50 border-blue-600 text-blue-900 ring-2 ring-blue-600/20" },
-    { id: "guru", name: "Guru / Pendidik", icon: BookOpen, desc: "Validasi budaya & analitik kelas", activeColor: "bg-amber-50 border-amber-500 text-amber-900 ring-2 ring-amber-500/20" },
-    { id: "siswa", name: "Peserta Didik", icon: User, desc: "Asesmen dinamis & ruang belajar", activeColor: "bg-emerald-50 border-emerald-500 text-emerald-900 ring-2 ring-emerald-500/20" }
+    { id: "admin", name: "Admin", icon: ShieldCheck, desc: "Manajemen sistem & kurikulum", activeColor: "bg-blue-50 border-blue-600 text-blue-900 ring-2 ring-blue-600/20" },
+    { id: "guru", name: "Guru", icon: BookOpen, desc: "Validasi budaya & analitik kelas", activeColor: "bg-amber-50 border-amber-500 text-amber-900 ring-2 ring-amber-500/20" },
+    { id: "siswa", name: "Siswa", icon: User, desc: "Asesmen dinamis & ruang belajar", activeColor: "bg-emerald-50 border-emerald-500 text-emerald-900 ring-2 ring-emerald-500/20" }
   ];
 
   // REAL-TIME FETCH PENGATURAN GLOBAL
