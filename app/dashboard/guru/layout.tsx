@@ -40,6 +40,7 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
     { name: "Bahan Ajar", icon: BookOpen, path: "/dashboard/guru/generator" },
     { name: "Validasi", icon: CheckCircle, path: "/dashboard/guru/validasi" },
     { name: "Analitik", icon: BarChart3, path: "/dashboard/guru/analitik" },
+    { name: "Pengaturan", icon: Settings, path: "/dashboard/guru/pengaturan" },
   ];
 
   useEffect(() => {

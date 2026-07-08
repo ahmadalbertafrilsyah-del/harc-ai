@@ -22,14 +22,15 @@ export default function ManajemenGuruLembaga() {
         const unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
-            const instansi = data.namaInstansi || data.instansi; // Prioritaskan namaInstansi
-            setNamaInstansi(instansi);
+            const npsn = data.npsn || data.instansi; // Kunci Relasi (NPSN)
+            setNamaInstansi(data.namaLembaga || data.namaInstansi || `NPSN: ${npsn}`); 
 
-            if (instansi) {
+            if (npsn) {
+              // Tarik data guru berbasis NPSN
               const qGuru = query(
                 collection(db, "users"), 
                 where("role", "==", "guru"), 
-                where("instansi", "==", instansi)
+                where("npsn", "==", npsn) 
               );
               
               const unsubGuru = onSnapshot(qGuru, (snapshot) => {
@@ -59,7 +60,7 @@ export default function ManajemenGuruLembaga() {
         <div>
           <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>Data Pendidik</h1>
           <p className="text-slate-500 text-sm mt-1.5">
-            Daftar seluruh guru yang bernaung di bawah instansi <strong>{namaInstansi || "Anda"}</strong>.
+            Daftar seluruh guru yang bernaung di bawah instansi <strong>{namaInstansi}</strong>.
           </p>
         </div>
         <div className="flex items-center gap-2 bg-white border border-slate-300 px-3 py-2.5 rounded-xl w-full md:w-72 shadow-sm">
@@ -127,7 +128,7 @@ export default function ManajemenGuruLembaga() {
                     <td colSpan={4} className="px-6 py-16 text-center text-slate-400">
                       <Users size={40} className="mx-auto text-slate-300 mb-3" />
                       <p className="font-bold text-sm text-slate-600">Tidak ada guru ditemukan</p>
-                      <p className="text-xs mt-1">Pastikan nama instansi di profil Anda dan profil guru persis sama.</p>
+                      <p className="text-xs mt-1">Belum ada guru yang mendaftar menggunakan NPSN yang sama dengan lembaga Anda.</p>
                     </td>
                   </tr>
                 )}

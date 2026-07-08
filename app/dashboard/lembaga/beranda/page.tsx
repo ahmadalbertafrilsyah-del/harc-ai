@@ -25,33 +25,39 @@ export default function LembagaBeranda() {
     const auth = getAuth();
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
-        // Ambil data instansi Lembaga saat ini
         const unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
           if (docSnap.exists()) {
-            const instansi = docSnap.data().instansi || docSnap.data().namaInstansi;
-            setNamaInstansi(instansi);
+            const data = docSnap.data();
+            const npsn = data.npsn || data.instansi; // Kunci Relasi Utama (Angka)
+            const namaLembaga = data.namaLembaga || data.namaInstansi || `NPSN: ${npsn}`; // Untuk Tampilan
+            
+            setNamaInstansi(namaLembaga);
 
-            if (instansi) {
-              // 1. Hitung Total Guru di instansi ini
-              const qGuru = query(collection(db, "users"), where("role", "==", "guru"), where("instansi", "==", instansi));
-              const unsubGuru = onSnapshot(qGuru, (snap) => {
-                setStats(prev => ({ ...prev, totalGuru: snap.size }));
+            if (npsn) {
+              // Hitung Total Guru berbasis NPSN
+              const qGuru = query(collection(db, "users"), where("role", "==", "guru"), where("npsn", "==", npsn));
+              const unsubGuru = onSnapshot(qGuru, (snap) => setStats(prev => ({ ...prev, totalGuru: snap.size })));
+
+              // Hitung Total Siswa berbasis NPSN
+              const qSiswa = query(collection(db, "users"), where("role", "==", "siswa"), where("npsn", "==", npsn));
+              const unsubSiswa = onSnapshot(qSiswa, (snap) => setStats(prev => ({ ...prev, totalSiswa: snap.size })));
+
+              // Hitung Total Modul (Cari UID guru dulu, baru cari modulnya)
+              const unsubModulTrigger = onSnapshot(qGuru, (guruSnap) => {
+                const guruIds = guruSnap.docs.map(g => g.id);
+                if (guruIds.length > 0) {
+                  const qModul = query(collection(db, "modul_ajar"), where("userId", "in", guruIds));
+                  onSnapshot(qModul, (modulSnap) => {
+                    setStats(prev => ({ ...prev, totalModul: modulSnap.size }));
+                    setIsLoading(false);
+                  });
+                } else {
+                  setStats(prev => ({ ...prev, totalModul: 0 }));
+                  setIsLoading(false);
+                }
               });
 
-              // 2. Hitung Total Siswa di instansi ini
-              const qSiswa = query(collection(db, "users"), where("role", "==", "siswa"), where("instansi", "==", instansi));
-              const unsubSiswa = onSnapshot(qSiswa, (snap) => {
-                setStats(prev => ({ ...prev, totalSiswa: snap.size }));
-              });
-
-              // 3. Hitung Total Bahan Ajar dari instansi ini
-              const qModul = query(collection(db, "modul_ajar"), where("namaSekolah", "==", instansi));
-              const unsubModul = onSnapshot(qModul, (snap) => {
-                setStats(prev => ({ ...prev, totalModul: snap.size }));
-                setIsLoading(false);
-              });
-
-              return () => { unsubGuru(); unsubSiswa(); unsubModul(); };
+              return () => { unsubGuru(); unsubSiswa(); unsubModulTrigger(); };
             } else {
               setIsLoading(false);
             }
@@ -76,12 +82,11 @@ export default function LembagaBeranda() {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto space-y-8">
       
-      {/* Welcome Banner */}
       <div className="bg-gradient-to-r from-[#2e1065] to-purple-900 rounded-3xl p-8 md:p-10 text-white shadow-lg shadow-purple-900/20 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
         <div className="relative z-10">
           <h1 className={`text-3xl md:text-4xl font-bold mb-2 ${teachersFont.className}`}>
-            Dasbor Utama {namaInstansi || "Lembaga"}
+            Dasbor Utama {namaInstansi}
           </h1>
           <p className="text-purple-200 max-w-xl text-sm md:text-base leading-relaxed">
             Pantau aktivitas pendidik, sebaran siswa, dan kualitas bahan ajar secara terpusat untuk memastikan ekosistem belajar yang optimal.
@@ -89,7 +94,6 @@ export default function LembagaBeranda() {
         </div>
       </div>
 
-      {/* Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-purple-300 transition-all group flex flex-col">
           <div className="flex justify-between items-start mb-4">
@@ -127,7 +131,6 @@ export default function LembagaBeranda() {
           </Link>
         </div>
       </div>
-
     </motion.div>
   );
 }

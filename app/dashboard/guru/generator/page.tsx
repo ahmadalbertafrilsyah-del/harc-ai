@@ -4,12 +4,11 @@ export const maxDuration = 240;
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-// FIX 1: Menambahkan Trash2 pada import di bawah ini
 import { Sparkles, BookOpen, Settings, FileText, Bot, Loader2, Save, History, FileDown, Printer, Coins, Target, Link2, Trash2, CalendarDays, CheckCircle, X, FileSpreadsheet } from "lucide-react";
 import { Teachers } from "next/font/google";
 
 import { db } from "@/lib/firebase"; 
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, increment, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, increment, deleteDoc, where } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 import ReactMarkdown from "react-markdown";
@@ -94,8 +93,24 @@ export default function GeneratorBahanAjar() {
         setUserUid(user.uid);
         const unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
           if (docSnap.exists()) {
-            setUserName(docSnap.data().nama || "Pendidik");
-            setAiTokens(docSnap.data().aiTokens || 0);
+            const data = docSnap.data();
+            setUserName(data.nama || "Pendidik");
+            setNamaGuru(data.nama || ""); // Auto-fill Nama Guru
+            setAiTokens(data.aiTokens || 0);
+
+            // LOGIKA CROSS-REFERENCING (Cari Nama Lembaga dari NPSN)
+            const npsnUser = data.npsn || data.instansi;
+            if (npsnUser) {
+              const qLembaga = query(collection(db, "users"), where("role", "==", "lembaga"), where("npsn", "==", npsnUser));
+              onSnapshot(qLembaga, (lembagaSnap) => {
+                if (!lembagaSnap.empty) {
+                  const dataLembaga = lembagaSnap.docs[0].data();
+                  setNamaSekolah(dataLembaga.namaLembaga || dataLembaga.namaInstansi || `NPSN: ${npsnUser}`);
+                } else {
+                  setNamaSekolah(`NPSN: ${npsnUser}`); // Fallback jika lembaga belum buat akun
+                }
+              });
+            }
           }
         });
         const qRiwayat = query(collection(db, "modul_ajar"), orderBy("createdAt", "desc"));
@@ -398,9 +413,6 @@ export default function GeneratorBahanAjar() {
         )}
       </AnimatePresence>
 
-      {/* ==============================================
-          LAYOUT UTAMA: ATAS (FORM) -> BAWAH (KANVAS)
-          ============================================== */}
       <div className="flex flex-col gap-8 lg:gap-10">
         
         {/* --- BAGIAN ATAS: FORM PARAMETER AI --- */}

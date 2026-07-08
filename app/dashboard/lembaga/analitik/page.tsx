@@ -33,13 +33,12 @@ export default function AnalitikLembaga() {
         const unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
-            const instansi = data.namaInstansi || data.instansi; 
-            setNamaInstansi(instansi);
+            const npsn = data.npsn || data.instansi; // Kunci Relasi (NPSN)
+            setNamaInstansi(data.namaLembaga || data.namaInstansi || `NPSN: ${npsn}`);
 
-            if (instansi) {
-              const qSiswa = query(collection(db, "users"), where("role", "==", "siswa"), where("instansi", "==", instansi));
+            if (npsn) {
+              const qSiswa = query(collection(db, "users"), where("role", "==", "siswa"), where("npsn", "==", npsn));
               const unsubSiswa = onSnapshot(qSiswa, (siswaSnap) => {
-                // PERBAIKAN TYPESCRIPT: Penambahan "as any" di sini
                 const dataSiswa = siswaSnap.docs.map(s => ({ id: s.id, ...s.data() } as any));
                 const idsSiswa = dataSiswa.map(s => s.id);
 
@@ -150,7 +149,6 @@ export default function AnalitikLembaga() {
         </button>
       </div>
 
-      {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 md:gap-6">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-bl-full -z-0"></div>
@@ -197,7 +195,6 @@ export default function AnalitikLembaga() {
         </div>
       </div>
 
-      {/* Tabel */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mt-8 flex flex-col min-h-[400px]">
         <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50">
           <h3 className={`text-base font-bold text-slate-800 flex items-center gap-2 ${teachersFont.className}`}>

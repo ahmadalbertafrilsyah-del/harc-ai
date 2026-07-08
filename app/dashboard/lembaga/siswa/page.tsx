@@ -22,14 +22,15 @@ export default function ManajemenSiswaLembaga() {
         const unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
-            const instansi = data.namaInstansi || data.instansi; // Prioritaskan namaInstansi
-            setNamaInstansi(instansi);
+            const npsn = data.npsn || data.instansi; // Kunci Relasi (NPSN)
+            setNamaInstansi(data.namaLembaga || data.namaInstansi || `NPSN: ${npsn}`); 
 
-            if (instansi) {
+            if (npsn) {
+              // Tarik data siswa berbasis NPSN
               const qSiswa = query(
                 collection(db, "users"), 
                 where("role", "==", "siswa"), 
-                where("instansi", "==", instansi)
+                where("npsn", "==", npsn) 
               );
               
               const unsubSiswa = onSnapshot(qSiswa, (snapshot) => {
@@ -59,7 +60,7 @@ export default function ManajemenSiswaLembaga() {
         <div>
           <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>Data Siswa Terdaftar</h1>
           <p className="text-slate-500 text-sm mt-1.5">
-            Daftar seluruh peserta didik yang terasosiasi dengan <strong>{namaInstansi || "Lembaga Anda"}</strong>.
+            Daftar seluruh peserta didik yang terasosiasi dengan <strong>{namaInstansi}</strong>.
           </p>
         </div>
         <div className="flex items-center gap-2 bg-white border border-slate-300 px-3 py-2.5 rounded-xl w-full md:w-72 shadow-sm">
@@ -116,7 +117,7 @@ export default function ManajemenSiswaLembaga() {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                         <p className="text-xs font-medium text-slate-600">{siswa.instansi}</p>
+                         <p className="text-xs font-medium text-slate-600">{namaInstansi}</p>
                       </td>
                     </motion.tr>
                   ))
@@ -125,7 +126,7 @@ export default function ManajemenSiswaLembaga() {
                     <td colSpan={3} className="px-6 py-16 text-center text-slate-400">
                       <GraduationCap size={40} className="mx-auto text-slate-300 mb-3" />
                       <p className="font-bold text-sm text-slate-600">Tidak ada siswa ditemukan</p>
-                      <p className="text-xs mt-1">Pastikan nama instansi di profil Anda dan profil siswa persis sama.</p>
+                      <p className="text-xs mt-1">Belum ada siswa yang mendaftar menggunakan NPSN yang sama dengan lembaga Anda.</p>
                     </td>
                   </tr>
                 )}

@@ -15,30 +15,23 @@ import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, query, where
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
 export default function ManajemenPenggunaAdmin() {
-  // TABS: "lembaga", "guru", "siswa", "pengajuan"
   const [activeTab, setActiveTab] = useState("lembaga"); 
   const [isLoading, setIsLoading] = useState(true);
-  
-  // State Pencarian
   const [searchQuery, setSearchQuery] = useState("");
   
-  // State Real-time dari Firebase
   const [daftarPengguna, setDaftarPengguna] = useState<any[]>([]);
   const [daftarPengajuan, setDaftarPengajuan] = useState<any[]>([]);
-
-  // State untuk Modal Detail Pengguna
   const [detailPengguna, setDetailPengguna] = useState<any | null>(null);
 
   useEffect(() => {
-    // 1. PULL REAL-TIME: Daftar Pengguna (Lembaga, Guru, Siswa)
-    // Query ini akan otomatis mengabaikan data yang tidak memiliki role (mencegah error localeCompare)
+    // 1. PULL REAL-TIME: Daftar Pengguna
     const qUsers = query(collection(db, "users"), where("role", "in", ["lembaga", "guru", "siswa"]));
     const unsubUsers = onSnapshot(qUsers, (snapshot) => {
       const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setDaftarPengguna(users);
     });
 
-    // 2. PULL REAL-TIME: Daftar Pengajuan Akun (Hanya Lembaga & Guru yang butuh ACC)
+    // 2. PULL REAL-TIME: Daftar Pengajuan Akun
     const qPengajuan = query(collection(db, "pengajuan_akun"), where("status", "==", "pending"));
     const unsubPengajuan = onSnapshot(qPengajuan, (snapshot) => {
       const pengajuan = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -53,37 +46,56 @@ export default function ManajemenPenggunaAdmin() {
   }, []);
 
   // ==========================================
+  // LOGIKA CROSS-REFERENCING (MENCARI NAMA LEMBAGA DARI ANGKA NPSN)
+  // ==========================================
+  const getNamaLembagaDariNPSN = (npsn: string) => {
+    if (!npsn) return "NPSN Tidak Diketahui";
+    // Cari akun lembaga yang punya NPSN ini
+    const lembaga = daftarPengguna.find(u => u.role === "lembaga" && (u.npsn === npsn || u.instansi === npsn));
+    // Jika ketemu, kembalikan teks nama lembaganya. Jika tidak, tampilkan angka NPSN-nya
+    return lembaga ? (lembaga.namaLembaga || lembaga.namaInstansi) : `NPSN: ${npsn}`;
+  };
+
+  // ==========================================
   // LOGIKA PENCARIAN & PEMISAHAN TAB
   // ==========================================
   const filteredTabUsers = daftarPengguna.filter(user => {
-    // Pastikan user masuk ke tab yang tepat
     if (user.role !== activeTab) return false;
-    
-    // Filter Pencarian
     const keyword = searchQuery.toLowerCase();
+    
+    // Teks instansi yang akan dicari
+    const teksInstansi = user.role === "lembaga" 
+      ? (user.namaLembaga || user.namaInstansi) 
+      : getNamaLembagaDariNPSN(user.npsn || user.instansi);
+    
     return (
       (user.nama || "").toLowerCase().includes(keyword) ||
       (user.email || "").toLowerCase().includes(keyword) ||
-      (user.instansi || "").toLowerCase().includes(keyword)
+      (user.npsn || "").toLowerCase().includes(keyword) ||
+      (teksInstansi || "").toLowerCase().includes(keyword)
     );
   });
 
   const filteredPengajuan = daftarPengajuan.filter(pengajuan => {
     const keyword = searchQuery.toLowerCase();
+    const teksInstansi = pengajuan.role === "lembaga" 
+      ? (pengajuan.namaLembaga || pengajuan.namaInstansi) 
+      : getNamaLembagaDariNPSN(pengajuan.npsn || pengajuan.instansi);
+    
     return (
       (pengajuan.nama || "").toLowerCase().includes(keyword) ||
       (pengajuan.email || "").toLowerCase().includes(keyword) ||
-      (pengajuan.instansi || "").toLowerCase().includes(keyword)
+      (pengajuan.npsn || "").toLowerCase().includes(keyword) ||
+      (teksInstansi || "").toLowerCase().includes(keyword)
     );
   });
 
-  // Hitungan untuk notifikasi Tab
   const countLembaga = daftarPengguna.filter(u => u.role === "lembaga").length;
   const countGuru = daftarPengguna.filter(u => u.role === "guru").length;
   const countSiswa = daftarPengguna.filter(u => u.role === "siswa").length;
 
   // ==========================================
-  // FUNGSI KENDALI ADMIN
+  // FUNGSI KENDALI ADMIN (SINKRONISASI DATABASE)
   // ==========================================
 
   const handleAccAkun = async (pengajuan: any) => {
@@ -97,22 +109,22 @@ export default function ManajemenPenggunaAdmin() {
       const dataBaru: any = {
         nama: pengajuan.nama,
         email: pengajuan.email,
-        instansi: pengajuan.instansi || pengajuan.npsn || "",
         role: roleReq,
         status: "Aktif",
+        npsn: pengajuan.npsn || pengajuan.instansi || "", // Set konsisten
+        instansi: pengajuan.npsn || pengajuan.instansi || "", // Tetap simpan sebagai angka untuk query relasi
         createdAt: serverTimestamp()
       };
 
       if (roleReq === "lembaga") {
         dataBaru.aiTokens = 50000;
-        dataBaru.npsn = pengajuan.npsn || pengajuan.instansi || "";
-        dataBaru.telepon = pengajuan.telepon || "";
-        dataBaru.lokasi = pengajuan.lokasi || "";
-        alert("Akun Lembaga berhasil di-ACC! Lembaga telah diberikan 50.000 Token AI awal.");
+        dataBaru.namaLembaga = pengajuan.namaLembaga || pengajuan.namaInstansi || ""; 
+        dataBaru.namaInstansi = pengajuan.namaLembaga || pengajuan.namaInstansi || ""; 
+        alert("Akun Lembaga berhasil di-ACC!");
       } else {
         dataBaru.aiTokens = 10000;
         dataBaru.spesialisasi = pengajuan.spesialisasi || "Pendidik";
-        alert("Akun Guru berhasil di-ACC! Guru telah diberikan 10.000 Token AI awal.");
+        alert(`Akun ${roleReq.toUpperCase()} berhasil di-ACC!`);
       }
 
       await setDoc(doc(db, "users", targetUid), dataBaru);
@@ -146,7 +158,6 @@ export default function ManajemenPenggunaAdmin() {
       await updateDoc(doc(db, "users", id), { aiTokens: newTokens });
     } catch (error) {
       console.error("Gagal update token:", error);
-      alert("Gagal mengubah token. Periksa koneksi.");
     }
   };
 
@@ -193,14 +204,13 @@ export default function ManajemenPenggunaAdmin() {
           <p className="text-slate-500 text-sm mt-1">Kelola akses, pembekuan akun, dan distribusi Token AI untuk Lembaga, Guru, dan Siswa.</p>
         </div>
         
-        {/* KOLOM PENCARIAN */}
         <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-2 rounded-lg w-full md:w-64 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all shadow-sm">
           <Search size={16} className="text-slate-400" />
           <input 
             type="text" 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari nama, email, instansi..." 
+            placeholder="Cari nama, npsn, lembaga..." 
             className="bg-transparent border-none outline-none text-sm w-full text-slate-700 placeholder:text-slate-400" 
           />
           {searchQuery && (
@@ -212,20 +222,20 @@ export default function ManajemenPenggunaAdmin() {
       </div>
 
       {/* TABS KONTROL */}
-      <div className="flex flex-wrap gap-6 border-b border-slate-200">
-        <button onClick={() => setActiveTab("lembaga")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 ${activeTab === "lembaga" ? "text-blue-700" : "text-slate-500 hover:text-slate-700"}`}>
+      <div className="flex flex-wrap gap-6 border-b border-slate-200 overflow-x-auto custom-scrollbar">
+        <button onClick={() => setActiveTab("lembaga")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${activeTab === "lembaga" ? "text-blue-700" : "text-slate-500 hover:text-slate-700"}`}>
           <Building2 size={16} /> Data Lembaga ({countLembaga})
           {activeTab === "lembaga" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-blue-600 rounded-t-full"></span>}
         </button>
-        <button onClick={() => setActiveTab("guru")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 ${activeTab === "guru" ? "text-indigo-700" : "text-slate-500 hover:text-slate-700"}`}>
+        <button onClick={() => setActiveTab("guru")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${activeTab === "guru" ? "text-indigo-700" : "text-slate-500 hover:text-slate-700"}`}>
           <UserCircle size={16} /> Data Guru ({countGuru})
           {activeTab === "guru" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-indigo-600 rounded-t-full"></span>}
         </button>
-        <button onClick={() => setActiveTab("siswa")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 ${activeTab === "siswa" ? "text-emerald-700" : "text-slate-500 hover:text-slate-700"}`}>
+        <button onClick={() => setActiveTab("siswa")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${activeTab === "siswa" ? "text-emerald-700" : "text-slate-500 hover:text-slate-700"}`}>
           <GraduationCap size={16} /> Data Siswa ({countSiswa})
           {activeTab === "siswa" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-emerald-600 rounded-t-full"></span>}
         </button>
-        <button onClick={() => setActiveTab("pengajuan")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 ${activeTab === "pengajuan" ? "text-amber-700" : "text-slate-500 hover:text-slate-700"}`}>
+        <button onClick={() => setActiveTab("pengajuan")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${activeTab === "pengajuan" ? "text-amber-700" : "text-slate-500 hover:text-slate-700"}`}>
           Antrean Pengajuan
           {filteredPengajuan.length > 0 && <span className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{filteredPengajuan.length}</span>}
           {activeTab === "pengajuan" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-amber-600 rounded-t-full"></span>}
@@ -236,20 +246,20 @@ export default function ManajemenPenggunaAdmin() {
       {(activeTab === "lembaga" || activeTab === "guru" || activeTab === "siswa") && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-xl shadow-sm border border-slate-200/80 overflow-hidden">
           <div className="overflow-x-auto min-h-[400px]">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[600px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
-                  <th className="px-5 py-4">Identitas Pengguna</th>
-                  <th className="px-5 py-4 text-center">Status Akun</th>
-                  <th className="px-5 py-4 text-center">{activeTab === "siswa" ? "Tingkat/Kelas" : "Kuota AI"}</th>
-                  <th className="px-5 py-4 text-center">Panel Kendali</th>
+                  <th className="px-5 py-4 whitespace-nowrap">Identitas Pengguna</th>
+                  <th className="px-5 py-4 text-center whitespace-nowrap">Status Akun</th>
+                  <th className="px-5 py-4 text-center whitespace-nowrap">{activeTab === "siswa" ? "Tingkat/Kelas" : "Kuota AI"}</th>
+                  <th className="px-5 py-4 text-center whitespace-nowrap">Panel Kendali</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 <AnimatePresence>
                   {filteredTabUsers.length > 0 ? filteredTabUsers.map((user) => (
                     <motion.tr key={user.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="hover:bg-slate-50/50 transition-colors group">
-                      <td className="px-5 py-4">
+                      <td className="px-5 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0 shadow-sm ${
                             user.status === 'Dibekukan' ? 'bg-slate-100 text-slate-500' : 
@@ -265,14 +275,14 @@ export default function ManajemenPenggunaAdmin() {
                             <div className="flex items-center gap-2">
                               <p className="font-bold text-slate-800 text-sm">{user.nama}</p>
                             </div>
-                            <p className="text-xs text-slate-500 truncate max-w-[200px]" title={user.instansi || user.email}>
-                              {user.role === 'lembaga' ? user.email : (user.instansi || "Instansi tidak diisi")}
+                            <p className="text-xs text-slate-500 truncate max-w-[250px]">
+                              {user.role === 'lembaga' ? (user.namaLembaga || user.namaInstansi || `NPSN: ${user.npsn}`) : getNamaLembagaDariNPSN(user.npsn || user.instansi)}
                             </p>
                           </div>
                         </div>
                       </td>
                       
-                      <td className="px-5 py-4 text-center">
+                      <td className="px-5 py-4 text-center whitespace-nowrap">
                         <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border items-center gap-1 ${
                           user.status === 'Dibekukan' 
                             ? 'bg-rose-50 text-rose-700 border-rose-200' 
@@ -283,7 +293,7 @@ export default function ManajemenPenggunaAdmin() {
                         </span>
                       </td>
 
-                      <td className="px-5 py-4 text-center">
+                      <td className="px-5 py-4 text-center whitespace-nowrap">
                         {user.role === "siswa" ? (
                           <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
                             {user.kelas || user.fase || "Siswa Aktif"}
@@ -296,13 +306,12 @@ export default function ManajemenPenggunaAdmin() {
                         )}
                       </td>
                       
-                      <td className="px-5 py-4 text-center">
+                      <td className="px-5 py-4 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-2">
                           <button onClick={() => setDetailPengguna(user)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100" title="Lihat Detail Database">
                             <Eye size={16} />
                           </button>
                           
-                          {/* Hanya Guru dan Lembaga yang butuh kontrol token */}
                           {user.role !== "siswa" && (
                             <button onClick={() => handleUpdateToken(user.id, user.aiTokens, user.nama)} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors border border-transparent hover:border-amber-100" title="Atur Kuota Token">
                               <Coins size={16} />
@@ -321,7 +330,7 @@ export default function ManajemenPenggunaAdmin() {
                   )) : (
                     <tr>
                       <td colSpan={4} className="text-center py-12 text-slate-500 text-sm">
-                        {searchQuery ? `Tidak ada ${activeTab} yang sesuai dengan pencarian.` : `Belum ada data ${activeTab} di sistem.`}
+                        {searchQuery ? `Tidak ada data yang sesuai pencarian.` : `Belum ada data ${activeTab} di sistem.`}
                       </td>
                     </tr>
                   )}
@@ -336,20 +345,20 @@ export default function ManajemenPenggunaAdmin() {
       {activeTab === "pengajuan" && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-xl shadow-sm border border-slate-200/80 overflow-hidden">
           <div className="overflow-x-auto min-h-[400px]">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[600px]">
               <thead>
                 <tr className="bg-amber-50/50 border-b border-amber-100 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
-                  <th className="px-6 py-4">Data Pemohon</th>
-                  <th className="px-6 py-4 text-center">Tipe Pengajuan</th>
-                  <th className="px-6 py-4 text-center">Waktu Pengajuan</th>
-                  <th className="px-6 py-4 text-right">Tindakan Persetujuan</th>
+                  <th className="px-6 py-4 whitespace-nowrap">Data Pemohon</th>
+                  <th className="px-6 py-4 text-center whitespace-nowrap">Tipe Pengajuan</th>
+                  <th className="px-6 py-4 text-center whitespace-nowrap">Waktu Pengajuan</th>
+                  <th className="px-6 py-4 text-right whitespace-nowrap">Tindakan Persetujuan</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 <AnimatePresence>
                   {filteredPengajuan.length > 0 ? filteredPengajuan.map((pengajuan) => (
                     <motion.tr key={pengajuan.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, x: -20 }} className="hover:bg-amber-50/30 transition-colors">
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0 border ${pengajuan.role === 'lembaga' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
                              {pengajuan.role === 'lembaga' ? <Building2 size={16} /> : <UserCircle size={16} />}
@@ -360,18 +369,20 @@ export default function ManajemenPenggunaAdmin() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-6 py-4 text-center whitespace-nowrap">
                         <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider mb-1 ${pengajuan.role === 'lembaga' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>
                           {pengajuan.role || "Guru"}
                         </span>
-                        <p className="text-[11px] font-medium text-slate-700 max-w-[150px] truncate mx-auto">{pengajuan.instansi || pengajuan.npsn || "-"}</p>
+                        <p className="text-[11px] font-medium text-slate-700 max-w-[200px] truncate mx-auto">
+                          {pengajuan.role === "lembaga" ? (pengajuan.namaLembaga || pengajuan.namaInstansi) : getNamaLembagaDariNPSN(pengajuan.npsn || pengajuan.instansi)}
+                        </p>
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-6 py-4 text-center whitespace-nowrap">
                         <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">
                           {pengajuan.timestamp ? new Date(pengajuan.timestamp.toDate()).toLocaleDateString('id-ID') : "Baru saja"}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center justify-end gap-2">
                           <button onClick={() => handleTolakAkun(pengajuan.id)} className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-red-600 bg-slate-50 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-lg transition-all flex items-center gap-1">
                             <XCircle size={14} /> Tolak
@@ -387,9 +398,7 @@ export default function ManajemenPenggunaAdmin() {
                       <td colSpan={4} className="text-center py-16 text-slate-500">
                         <div className="flex flex-col items-center justify-center">
                           <ShieldCheck size={32} className="text-slate-300 mb-3" />
-                          <p className="text-sm font-bold text-slate-700">
-                             {searchQuery ? "Tidak ada pengajuan yang sesuai dengan kata kunci." : "Tidak ada pengajuan akun baru."}
-                          </p>
+                          <p className="text-sm font-bold text-slate-700">Tidak ada pengajuan akun baru.</p>
                         </div>
                       </td>
                     </tr>
@@ -411,7 +420,6 @@ export default function ManajemenPenggunaAdmin() {
               exit={{ opacity: 0, scale: 0.95 }} 
               className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
             >
-              {/* Header Modal */}
               <div className="px-5 md:px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
                 <h3 className={`text-base md:text-lg font-bold text-slate-800 flex items-center gap-2 ${teachersFont.className}`}>
                   {detailPengguna.role === 'lembaga' ? <Building2 size={18} className="text-blue-600"/> : 
@@ -424,9 +432,7 @@ export default function ManajemenPenggunaAdmin() {
                 </button>
               </div>
               
-              {/* Body Modal */}
               <div className="p-5 md:p-6 space-y-5 overflow-y-auto">
-                
                 <div className="flex items-center gap-4 border-b border-slate-100 pb-5">
                   <div className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center font-bold text-xl md:text-2xl shrink-0 ${
                     detailPengguna.role === 'lembaga' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 
@@ -463,16 +469,18 @@ export default function ManajemenPenggunaAdmin() {
                     <p className={`text-xs font-bold ${detailPengguna.status === 'Dibekukan' ? 'text-rose-600' : 'text-emerald-600'}`}>{detailPengguna.status || 'Aktif'}</p>
                   </div>
                   
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <div className={`bg-slate-50 p-3 rounded-xl border border-slate-100 ${detailPengguna.role === 'lembaga' ? 'sm:col-span-2' : ''}`}>
                     <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Instansi / Sekolah</p>
-                    <p className="text-xs font-medium text-slate-700 truncate">{detailPengguna.instansi || 'Belum diatur'}</p>
+                    <p className="text-xs font-medium text-slate-700 truncate">
+                      {detailPengguna.role === 'lembaga' ? (detailPengguna.namaLembaga || detailPengguna.namaInstansi) : getNamaLembagaDariNPSN(detailPengguna.npsn || detailPengguna.instansi)}
+                    </p>
                   </div>
                   
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                     <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
-                      {detailPengguna.role === 'lembaga' ? 'NPSN' : detailPengguna.role === 'siswa' ? 'NISN / NIS' : 'Nomor Induk (NIP)'}
+                      NPSN Sekolah
                     </p>
-                    <p className="text-xs font-medium text-slate-700 truncate">{detailPengguna.nip || detailPengguna.npsn || detailPengguna.nisn || 'Belum diatur'}</p>
+                    <p className="text-xs font-medium text-slate-700 truncate">{detailPengguna.npsn || detailPengguna.instansi || 'Belum diatur'}</p>
                   </div>
                   
                   {detailPengguna.role === 'guru' && (
@@ -488,21 +496,8 @@ export default function ManajemenPenggunaAdmin() {
                       <p className="text-xs font-medium text-slate-700">{detailPengguna.kelas || detailPengguna.fase || 'Belum diatur'}</p>
                     </div>
                   )}
-                  
-                  <div className={`bg-slate-50 p-3 rounded-xl border border-slate-100 ${detailPengguna.role === 'lembaga' ? 'sm:col-span-2' : ''}`}>
-                    <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Telepon / WhatsApp</p>
-                    <p className="text-xs font-medium text-slate-700">{detailPengguna.telepon || 'Belum diatur'}</p>
-                  </div>
                 </div>
 
-                {detailPengguna.role === 'lembaga' && (
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Alamat Lengkap</p>
-                    <p className="text-xs font-medium text-slate-700 leading-relaxed">{detailPengguna.lokasi || 'Belum diatur'}</p>
-                  </div>
-                )}
-
-                {/* Info Token AI (Hanya untuk Lembaga & Guru) */}
                 {detailPengguna.role !== 'siswa' && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between shrink-0 mt-2">
                     <div>
@@ -518,7 +513,6 @@ export default function ManajemenPenggunaAdmin() {
           </div>
         )}
       </AnimatePresence>
-
     </motion.div>
   );
 }

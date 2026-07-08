@@ -8,7 +8,7 @@ import { useState, useEffect } from "react";
 // IMPORT FIREBASE
 import { db } from "@/lib/firebase"; 
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { doc, onSnapshot, collection, query, orderBy, limit, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, onSnapshot, collection, query, orderBy, limit, setDoc, serverTimestamp, where } from "firebase/firestore";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -17,6 +17,7 @@ export default function ProfilGuru() {
   const [userUid, setUserUid] = useState<string | null>(null);
   const [profilData, setProfilData] = useState<any>({});
   const [aktivitas, setAktivitas] = useState<any[]>([]);
+  const [namaSekolah, setNamaSekolah] = useState("Memuat...");
 
   // State untuk Modal Edit
   const [isEditing, setIsEditing] = useState(false);
@@ -49,7 +50,22 @@ export default function ProfilGuru() {
     // Ambil data profil dari koleksi 'users'
     const unsubProfil = onSnapshot(doc(db, "users", userUid), (docSnap) => {
       if (docSnap.exists()) {
-        setProfilData(docSnap.data());
+        const data = docSnap.data();
+        setProfilData(data);
+
+        // Cari Nama Lembaga dari NPSN
+        const npsn = data.npsn || data.instansi;
+        if (npsn) {
+          const qLembaga = query(collection(db, "users"), where("role", "==", "lembaga"), where("npsn", "==", npsn));
+          onSnapshot(qLembaga, (lembagaSnap) => {
+            if (!lembagaSnap.empty) {
+              const dataLembaga = lembagaSnap.docs[0].data();
+              setNamaSekolah(dataLembaga.namaLembaga || dataLembaga.namaInstansi || `NPSN: ${npsn}`);
+            } else {
+              setNamaSekolah(`NPSN: ${npsn} (Lembaga Belum Terdaftar)`);
+            }
+          });
+        }
       } else {
         setProfilData({ nama: "Pengguna Baru", role: "guru", status: "Aktif" });
       }
@@ -173,6 +189,14 @@ export default function ProfilGuru() {
             </h3>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-3 sm:col-span-2">
+                <Building size={18} className="text-slate-400 shrink-0 mt-0.5" />
+                <div className="overflow-hidden">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Instansi / Lembaga</p>
+                  <p className="text-sm font-bold text-slate-700 mt-1 truncate">{namaSekolah}</p>
+                </div>
+              </div>
+
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-3">
                 <Fingerprint size={18} className="text-slate-400 shrink-0 mt-0.5" />
                 <div className="overflow-hidden">
@@ -185,7 +209,7 @@ export default function ProfilGuru() {
                 <Building size={18} className="text-slate-400 shrink-0 mt-0.5" />
                 <div className="overflow-hidden">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">NPSN</p>
-                  <p className="text-sm font-bold text-slate-700 mt-1 truncate">{profilData?.instansi || "Belum diatur"}</p>
+                  <p className="text-sm font-bold text-slate-700 mt-1 truncate">{profilData?.npsn || profilData?.instansi || "Belum diatur"}</p>
                 </div>
               </div>
 
@@ -264,8 +288,8 @@ export default function ProfilGuru() {
                 {/* Info Read-Only */}
                 <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100/50 space-y-2">
                   <p className="text-xs text-slate-600 flex justify-between"><span>Email:</span> <span className="font-bold">{profilData?.email}</span></p>
-                  <p className="text-xs text-slate-600 flex justify-between"><span>Instansi:</span> <span className="font-bold truncate max-w-[200px]">{profilData?.instansi}</span></p>
-                  <p className="text-[10px] text-blue-500 mt-1 italic">*Hubungi Admin jika ingin mengubah Email atau Instansi.</p>
+                  <p className="text-xs text-slate-600 flex justify-between"><span>NPSN:</span> <span className="font-bold truncate max-w-[200px]">{profilData?.npsn || profilData?.instansi}</span></p>
+                  <p className="text-[10px] text-blue-500 mt-1 italic">*Hubungi Admin jika ingin mengubah Email atau NPSN.</p>
                 </div>
 
                 <div>

@@ -5,15 +5,16 @@ import { Save, BellRing, BrainCircuit, Loader2 } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase"; 
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
 export default function PengaturanSistem() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [userUid, setUserUid] = useState<string | null>(null);
 
-  // Menggabungkan state pengaturan menjadi satu objek agar mudah dikirim ke database
   const [pengaturan, setPengaturan] = useState({
     notifEmail: false,
     notifPush: false,
@@ -22,18 +23,33 @@ export default function PengaturanSistem() {
   });
 
   useEffect(() => {
-    const docRef = doc(db, "pengaturan_guru", "guru_ahmad");
-    const unsubPengaturan = onSnapshot(docRef, (doc) => {
-      if (doc.exists()) {
-        setPengaturan(doc.data() as any);
+    const auth = getAuth();
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserUid(user.uid);
+        
+        // Menggunakan onSnapshot untuk real-time sync
+        const docRef = doc(db, "pengaturan_guru", user.uid);
+        const unsub = onSnapshot(docRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setPengaturan(docSnap.data() as any);
+          }
+          // Set loading false baik data ada maupun tidak (untuk menghentikan animasi loading)
+          setIsLoading(false);
+        }, (error) => {
+          console.error("Error fetching settings:", error);
+          setIsLoading(false);
+        });
+
+        return () => unsub();
+      } else {
+        window.location.href = "/login";
       }
-      setIsLoading(false);
     });
 
-    return () => unsubPengaturan();
+    return () => unsubscribeAuth();
   }, []);
 
-  // Handler dinamis untuk mengubah nilai toggle
   const handleToggle = (kunci: keyof typeof pengaturan) => {
     setPengaturan((prev) => ({
       ...prev,
@@ -41,48 +57,34 @@ export default function PengaturanSistem() {
     }));
   };
 
-  // Fungsi untuk menyimpan pengaturan ke Firestore
   const handleSimpan = async () => {
+    if (!userUid) return;
     setIsSaving(true);
     
-    // ----------------------------------------------------------------------
-    // BLOK SIMPAN KE FIREBASE FIRESTORE
-    // ----------------------------------------------------------------------
-    /*
     try {
-      const docRef = doc(db, "pengaturan_guru", "guru_ahmad");
-      await updateDoc(docRef, pengaturan);
-      console.log("Pengaturan berhasil disinkronisasi ke server");
+      const docRef = doc(db, "pengaturan_guru", userUid);
+      // setDoc dengan merge: true akan memperbarui jika ada, membuat jika belum ada
+      await setDoc(docRef, pengaturan, { merge: true });
+      alert("Konfigurasi berhasil disimpan!");
     } catch (error) {
-      console.error("Gagal menyimpan pengaturan:", error);
-      alert("Terjadi kesalahan jaringan saat menyimpan konfigurasi.");
-    }
-    */
-
-    // Simulasi jeda jaringan
-    setTimeout(() => {
-      alert("Konfigurasi sistem berhasil disimpan ke Database (Firebase)!");
+      console.error("Gagal menyimpan:", error);
+      alert("Gagal menyimpan. Pastikan koneksi internet stabil.");
+    } finally {
       setIsSaving(false);
-    }, 1200);
+    }
   };
 
-  // Komponen Switch Toggle buatan sendiri
   const ToggleSwitch = ({ active, onToggle }: { active: boolean, onToggle: () => void }) => (
-    <button 
-      onClick={onToggle}
-      className={`w-11 h-6 rounded-full transition-colors relative shadow-inner ${active ? 'bg-blue-600' : 'bg-slate-300'}`}
-    >
-      <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm ${active ? 'translate-x-6' : 'translate-x-1'}`}></div>
+    <button onClick={onToggle} className={`w-12 h-6 rounded-full transition-colors relative shadow-inner shrink-0 ${active ? 'bg-indigo-600' : 'bg-slate-300'}`}>
+      <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform shadow-sm ${active ? 'translate-x-7' : 'translate-x-1'}`}></div>
     </button>
   );
 
-  // Tampilan Loading Layar Penuh
   if (isLoading) {
     return (
       <div className="w-full h-[70vh] flex flex-col items-center justify-center text-slate-500">
         <Loader2 size={40} className="animate-spin text-blue-600 mb-4" />
         <p className="font-bold">Memuat Konfigurasi...</p>
-        <p className="text-sm">Membaca preferensi sistem dari profil Anda</p>
       </div>
     );
   }
