@@ -363,7 +363,7 @@ export default function LoginPage() {
                       
                       {/* LOGIKA DROPDOWN: Lembaga ketik manual, Guru/Siswa pilih dari dropdown */}
                       {selectedRole === "lembaga" ? (
-                        <input type="text" value={regInstansi} onChange={(e) => setRegInstansi(e.target.value)} required placeholder="Contoh: SMA Negeri 1 Malang" className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none text-sm shadow-sm" />
+                        <input type="text" value={regInstansi} onChange={(e) => setRegInstansi(e.target.value)} required placeholder="" className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none text-sm shadow-sm" />
                       ) : (
                         <select 
                           value={regInstansi} 
