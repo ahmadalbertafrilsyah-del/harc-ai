@@ -94,8 +94,11 @@ export default function LembagaBeranda() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-purple-300 transition-all group flex flex-col">
+      {/* Metric Cards - Pastikan pembungkusnya seperti ini */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        {/* Kartu Pendidik */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-purple-300 transition-all group flex flex-col h-full">
           <div className="flex justify-between items-start mb-4">
             <div className="p-3 bg-purple-50 text-purple-600 rounded-xl group-hover:scale-110 transition-transform"><Users size={24} /></div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded">Pendidik</span>
@@ -106,8 +109,9 @@ export default function LembagaBeranda() {
             Kelola Guru <ArrowRight size={14}/>
           </Link>
         </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-blue-300 transition-all group flex flex-col">
+      
+        {/* Kartu Siswa */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-blue-300 transition-all group flex flex-col h-full">
           <div className="flex justify-between items-start mb-4">
             <div className="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform"><GraduationCap size={24} /></div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded">Siswa</span>
@@ -118,8 +122,9 @@ export default function LembagaBeranda() {
             Kelola Siswa <ArrowRight size={14}/>
           </Link>
         </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-emerald-300 transition-all group flex flex-col">
+      
+        {/* Kartu Dokumen */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-emerald-300 transition-all group flex flex-col h-full">
           <div className="flex justify-between items-start mb-4">
             <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:scale-110 transition-transform"><BookOpen size={24} /></div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded">Dokumen</span>
@@ -130,6 +135,7 @@ export default function LembagaBeranda() {
             Tinjau Dokumen <ArrowRight size={14}/>
           </Link>
         </div>
+      
       </div>
     </motion.div>
   );

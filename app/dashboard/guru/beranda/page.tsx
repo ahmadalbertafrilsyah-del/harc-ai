@@ -94,7 +94,7 @@ export default function BerandaGuru() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
         <StatCard title="Total Siswa" value={stats.siswaAktif.toString()} icon={Users} color="blue" trend="Di kelas Anda" />
         <StatCard title="Tugas Tertunda" value={antrean.length.toString()} icon={AlertCircle} color="amber" highlight={antrean.length > 0} trend={antrean.length === 0 ? "Tuntas" : "Perlu tinjauan"} />
         <StatCard title="Indeks Kesantunan" value={`${stats.indeksKesantunan}%`} icon={Activity} color="emerald" trend="Rata-rata kelas" />

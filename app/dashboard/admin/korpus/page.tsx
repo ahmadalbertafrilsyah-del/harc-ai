@@ -179,15 +179,15 @@ export default function KorpusStandarAdmin() {
       {/* TABS DENGAN CLASS CAPITALIZE */}
       <div className="flex flex-wrap gap-4 md:gap-6 border-b border-slate-200 capitalize">
         <button onClick={() => setActiveTab("korpus")} className={`pb-3 text-sm font-bold transition-all relative ${activeTab === "korpus" ? "text-indigo-700" : "text-slate-500 hover:text-slate-700"}`}>
-          konfigurasi korpus AI ({filteredKorpus.length})
+          LKorp({filteredKorpus.length})
           {activeTab === "korpus" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-indigo-600 rounded-t-full"></span>}
         </button>
         <button onClick={() => setActiveTab("standar")} className={`pb-3 text-sm font-bold transition-all relative ${activeTab === "standar" ? "text-indigo-700" : "text-slate-500 hover:text-slate-700"}`}>
-          standar kurikulum nasional
+          SNP
           {activeTab === "standar" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-indigo-600 rounded-t-full"></span>}
         </button>
         <button onClick={() => setActiveTab("batasan")} className={`pb-3 text-sm font-bold ${activeTab === "batasan" ? "text-indigo-700" : "text-slate-500"}`}>
-          batasan AI
+          Batasan
         </button>
       </div>
 

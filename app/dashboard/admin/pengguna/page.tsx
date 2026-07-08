@@ -224,15 +224,15 @@ export default function ManajemenPenggunaAdmin() {
       {/* TABS KONTROL */}
       <div className="flex flex-wrap gap-6 border-b border-slate-200 overflow-x-auto custom-scrollbar">
         <button onClick={() => setActiveTab("lembaga")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${activeTab === "lembaga" ? "text-blue-700" : "text-slate-500 hover:text-slate-700"}`}>
-          <Building2 size={16} /> Data Lembaga ({countLembaga})
+          <Building2 size={16} /> Lembaga ({countLembaga})
           {activeTab === "lembaga" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-blue-600 rounded-t-full"></span>}
         </button>
         <button onClick={() => setActiveTab("guru")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${activeTab === "guru" ? "text-indigo-700" : "text-slate-500 hover:text-slate-700"}`}>
-          <UserCircle size={16} /> Data Guru ({countGuru})
+          <UserCircle size={16} /> Guru ({countGuru})
           {activeTab === "guru" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-indigo-600 rounded-t-full"></span>}
         </button>
         <button onClick={() => setActiveTab("siswa")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${activeTab === "siswa" ? "text-emerald-700" : "text-slate-500 hover:text-slate-700"}`}>
-          <GraduationCap size={16} /> Data Siswa ({countSiswa})
+          <GraduationCap size={16} /> Siswa ({countSiswa})
           {activeTab === "siswa" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-emerald-600 rounded-t-full"></span>}
         </button>
         <button onClick={() => setActiveTab("pengajuan")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${activeTab === "pengajuan" ? "text-amber-700" : "text-slate-500 hover:text-slate-700"}`}>
@@ -249,7 +249,7 @@ export default function ManajemenPenggunaAdmin() {
             <table className="w-full text-left border-collapse min-w-[600px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
-                  <th className="px-5 py-4 whitespace-nowrap">Identitas Pengguna</th>
+                  <th className="px-5 py-4 text-center whitespace-nowrap">Identitas Pengguna</th>
                   <th className="px-5 py-4 text-center whitespace-nowrap">Status Akun</th>
                   <th className="px-5 py-4 text-center whitespace-nowrap">{activeTab === "siswa" ? "Tingkat/Kelas" : "Kuota AI"}</th>
                   <th className="px-5 py-4 text-center whitespace-nowrap">Panel Kendali</th>
