@@ -184,7 +184,7 @@ export default function ProfilGuru() {
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-3">
                 <Building size={18} className="text-slate-400 shrink-0 mt-0.5" />
                 <div className="overflow-hidden">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Instansi / Sekolah</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">NPSN</p>
                   <p className="text-sm font-bold text-slate-700 mt-1 truncate">{profilData?.instansi || "Belum diatur"}</p>
                 </div>
               </div>

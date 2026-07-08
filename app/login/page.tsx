@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   User, BookOpen, ShieldCheck, ArrowLeft, ArrowRight, 
-  GraduationCap, Mail, Lock, Eye, EyeOff, Building, Send, Loader2, AlertCircle, Wrench, Landmark
+  GraduationCap, Mail, Lock, Eye, EyeOff, Building, Send, Loader2, AlertCircle, Wrench, Landmark, Hash
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -11,7 +11,7 @@ import { Teachers, Lato } from "next/font/google";
 
 // IMPORT FIREBASE
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp, onSnapshot, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase"; 
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700", "800"], display: "swap" });
@@ -27,17 +27,16 @@ export default function LoginPage() {
   const [isRegOpen, setIsRegOpen] = useState(true);
   const [isMaintenance, setIsMaintenance] = useState(false);
 
-  // Daftar Lembaga Aktif (Untuk Dropdown Guru/Siswa)
-  const [daftarLembaga, setDaftarLembaga] = useState<any[]>([]);
-
   // State Login & Register
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   
-  const [regNama, setRegNama] = useState("");
+  // State Input Pendaftaran (Sesuai Permintaan Baru)
+  const [regNama, setRegNama] = useState(""); // Nama Lengkap / Nama Penanggung Jawab
+  const [regNamaLembaga, setRegNamaLembaga] = useState(""); // Khusus Lembaga
+  const [regNPSN, setRegNPSN] = useState(""); // Kunci Penghubung
   const [regEmail, setRegEmail] = useState("");
-  const [regInstansi, setRegInstansi] = useState("");
   const [regPassword, setRegPassword] = useState("");
 
   const roles = [
@@ -47,9 +46,8 @@ export default function LoginPage() {
     { id: "siswa", name: "Siswa", icon: User, desc: "Asesmen & belajar", activeColor: "bg-emerald-50 border-emerald-500 text-emerald-900 ring-2 ring-emerald-500/20" }
   ];
 
-  // REAL-TIME FETCH PENGATURAN GLOBAL & DATA LEMBAGA
+  // REAL-TIME FETCH PENGATURAN GLOBAL
   useEffect(() => {
-    // Tarik Pengaturan Sistem
     const unsubConfig = onSnapshot(doc(db, "sistem_stats", "pengaturan_global"), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -58,20 +56,6 @@ export default function LoginPage() {
         if (data.maintenanceMode !== undefined) setIsMaintenance(data.maintenanceMode);
       }
     });
-
-    // Tarik Daftar Lembaga Aktif untuk relasi Guru/Siswa
-    const fetchLembaga = async () => {
-      try {
-        const qLembaga = query(collection(db, "users"), where("role", "==", "lembaga"), where("status", "==", "Aktif"));
-        const snapshot = await getDocs(qLembaga);
-        const lembagaList = snapshot.docs.map(d => ({ id: d.id, nama: d.data().nama }));
-        setDaftarLembaga(lembagaList);
-      } catch (error) {
-        console.error("Gagal menarik data lembaga:", error);
-      }
-    };
-
-    fetchLembaga();
     return () => unsubConfig();
   }, []);
 
@@ -126,13 +110,6 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     
-    // Validasi Instansi untuk Guru & Siswa
-    if ((selectedRole === "guru" || selectedRole === "siswa") && !regInstansi) {
-      alert("Mohon pilih Instansi/Sekolah Anda.");
-      setIsLoading(false);
-      return;
-    }
-    
     try {
       const auth = getAuth();
       const userCredential = await createUserWithEmailAndPassword(auth, regEmail, regPassword);
@@ -141,31 +118,48 @@ export default function LoginPage() {
       await signOut(auth);
 
       const roleDiajukan = selectedRole || "guru";
-
-      // Simpan ke Antrean ACC
-      await setDoc(doc(db, "pengajuan_akun", newUser.uid), {
+      
+      // Susun Data Sesuai Format Baru (Kunci Relasi: npsn)
+      const dataPengajuan: any = {
         uid: newUser.uid,
         nama: regNama,
         email: regEmail,
-        instansi: regInstansi,
+        npsn: regNPSN,
+        instansi: regNPSN, // Disimpan sebagai instansi agar kodingan dashboard (where instansi == instansi) langsung berfungsi
         role: roleDiajukan, 
         status: "pending",
         timestamp: serverTimestamp()
-      });
+      };
 
-      const namaPeran = roleDiajukan === "lembaga" ? "Lembaga" : roleDiajukan === "guru" ? "Pendidik" : "Siswa";
-      const message = `Halo Admin Syntax LMS,%0A%0ASaya ingin mengajukan pembuatan akun ${namaPeran}. Berikut data saya:%0A- Nama: *${regNama}*%0A- Email: *${regEmail}*%0A- Instansi/Lembaga: *${regInstansi}*%0A%0AStatus pendaftaran saya ada di Dasbor Admin. Mohon persetujuannya (ACC) agar saya dapat mengakses sistem. Terima kasih.`;
+      // Jika role Lembaga, tambahkan nama lembaganya
+      if (roleDiajukan === "lembaga") {
+        dataPengajuan.namaLembaga = regNamaLembaga;
+        dataPengajuan.namaInstansi = regNamaLembaga; // Untuk kompatibilitas
+      }
+
+      // Simpan ke Antrean ACC
+      await setDoc(doc(db, "pengajuan_akun", newUser.uid), dataPengajuan);
+
+      const namaPeran = roleDiajukan === "lembaga" ? "Lembaga" : roleDiajukan === "guru" ? "Guru" : "Siswa";
+      let detailPendaftar = `- Nama: *${regNama}*%0A- NPSN: *${regNPSN}*%0A- Email: *${regEmail}*`;
+      if (roleDiajukan === "lembaga") {
+        detailPendaftar = `- Penanggung Jawab: *${regNama}*%0A- Nama Lembaga: *${regNamaLembaga}*%0A- NPSN: *${regNPSN}*%0A- Email: *${regEmail}*`;
+      }
+
+      const message = `Halo Admin Syntax LMS,%0A%0ASaya ingin mengajukan pembuatan akun ${namaPeran}. Berikut data saya:%0A${detailPendaftar}%0A%0AStatus pendaftaran saya ada di Dasbor Admin. Mohon persetujuannya (ACC) agar saya dapat mengakses sistem. Terima kasih.`;
       const waUrl = `https://wa.me/${adminPhone}?text=${message}`;
 
       alert("Pendaftaran berhasil direkam! Anda akan dialihkan ke WhatsApp Admin.");
       window.open(waUrl, '_blank');
       
+      // Reset Form
       setStep(1);
       setSelectedRole(null);
       setRegPassword(""); 
       setRegNama("");
       setRegEmail("");
-      setRegInstansi("");
+      setRegNPSN("");
+      setRegNamaLembaga("");
     } catch (error: any) {
       console.error("Gagal mengajukan akun:", error);
       if (error.code === 'auth/email-already-in-use') {
@@ -224,7 +218,6 @@ export default function LoginPage() {
 
         <div className="w-full max-w-[380px] my-auto">
           
-          {/* BANNER MAINTENANCE UNTUK STEP 1 */}
           <AnimatePresence>
             {isMaintenance && step === 1 && (
               <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 shadow-sm">
@@ -307,11 +300,10 @@ export default function LoginPage() {
                   </button>
                 </form>
 
-                {/* Tombol Daftar Muncul Jika Role BUKAN Admin (Lembaga, Guru, Siswa bisa daftar) */}
                 {(selectedRole !== "admin") && isRegOpen && (
                   <div className="mt-5 pt-4 border-t border-slate-200 text-center">
                     <button onClick={() => setStep(3)} className="w-full py-2.5 rounded-lg font-bold text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all">
-                      Ajukan Akun {selectedRole === "lembaga" ? "Lembaga" : selectedRole === "guru" ? "Pendidik" : "Siswa"} Baru
+                      Ajukan Akun {selectedRole === "lembaga" ? "Lembaga" : selectedRole === "guru" ? "Guru" : "Siswa"} Baru
                     </button>
                   </div>
                 )}
@@ -324,28 +316,64 @@ export default function LoginPage() {
               </motion.div>
             )}
 
-            {/* STEP 3: Form Pengajuan (Lembaga / Guru / Siswa) */}
+            {/* STEP 3: Form Pengajuan (Disesuaikan Penuh) */}
             {step === 3 && (
               <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                 <div className="text-center md:text-left mb-5">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full text-[10px] font-bold mb-2 border border-amber-100 uppercase tracking-wide">
-                    Pengajuan Akses
+                    Pengajuan Akun
                   </div>
                   <h1 className={`text-xl font-bold text-blue-950 mb-1 ${teachersFont.className}`}>
-                    {selectedRole === "lembaga" ? "Pendaftaran Lembaga" : selectedRole === "guru" ? "Pendidik Baru" : "Pendaftaran Siswa"}
+                    {selectedRole === "lembaga" ? "Akun Lembaga" : selectedRole === "guru" ? "Akun Guru" : "Akun Siswa"}
                   </h1>
                 </div>
+                
                 <form onSubmit={handleRegister} className="space-y-3">
+                  
+                  {/* FIELD 1: Nama (Penanggung Jawab / Lengkap) */}
                   <div>
                     <label className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">
-                      {selectedRole === "lembaga" ? "Nama Lembaga" : "Nama Lengkap"}
+                      {selectedRole === "lembaga" ? "Nama Penanggung Jawab" : "Nama Lengkap"}
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><User className="h-3.5 w-3.5 text-slate-400" /></div>
                       <input type="text" value={regNama} onChange={(e) => setRegNama(e.target.value)} required className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none text-sm shadow-sm" />
                     </div>
                   </div>
+
+                  {/* FIELD 2: Nama Lembaga (KHUSUS LEMBAGA) */}
+                  {selectedRole === "lembaga" && (
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">
+                        Nama Lembaga/Instansi
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Building className="h-3.5 w-3.5 text-slate-400" /></div>
+                        <input type="text" value={regNamaLembaga} onChange={(e) => setRegNamaLembaga(e.target.value)} required className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none text-sm shadow-sm" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* FIELD 3: NPSN (Untuk Semua) */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider flex items-center justify-between">
+                      <span>NPSN</span>
+                      {selectedRole !== "lembaga" && <span className="text-[9px] text-slate-400 normal-case">(Samakan dengan NPSN Lembaga)</span>}
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Hash className="h-3.5 w-3.5 text-slate-400" /></div>
+                      <input 
+                        type="text" // Menggunakan text untuk keamanan format angka
+                        value={regNPSN} 
+                        onChange={(e) => setRegNPSN(e.target.value)} 
+                        required 
+                        placeholder="Contoh: 69725804"
+                        className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none text-sm shadow-sm" 
+                      />
+                    </div>
+                  </div>
                   
+                  {/* FIELD 4: Email */}
                   <div>
                     <label className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">Alamat Email</label>
                     <div className="relative">
@@ -354,36 +382,7 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">
-                      {selectedRole === "lembaga" ? "NPSN" : "Asal Lembaga / Sekolah"}
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Building className="h-3.5 w-3.5 text-slate-400" /></div>
-                      
-                      {/* LOGIKA DROPDOWN: Lembaga ketik manual, Guru/Siswa pilih dari dropdown */}
-                      {selectedRole === "lembaga" ? (
-                        <input type="text" value={regInstansi} onChange={(e) => setRegInstansi(e.target.value)} required placeholder="" className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none text-sm shadow-sm" />
-                      ) : (
-                        <select 
-                          value={regInstansi} 
-                          onChange={(e) => setRegInstansi(e.target.value)} 
-                          required 
-                          className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none text-sm shadow-sm cursor-pointer appearance-none text-slate-700"
-                        >
-                          <option value="" disabled className="text-slate-400">-- Pilih Lembaga Terdaftar --</option>
-                          {daftarLembaga.map((lembaga, idx) => (
-                            <option key={idx} value={lembaga.nama}>{lembaga.nama}</option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-                    {/* Pesan Bantuan jika Lembaga belum terdaftar */}
-                    {selectedRole !== "lembaga" && daftarLembaga.length === 0 && (
-                      <p className="text-[10px] text-rose-500 mt-1 italic">Belum ada lembaga yang terdaftar. Hubungi Admin.</p>
-                    )}
-                  </div>
-
+                  {/* FIELD 5: Password */}
                   <div>
                     <label className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">Buat Kata Sandi</label>
                     <div className="relative">
@@ -396,7 +395,7 @@ export default function LoginPage() {
                   </div>
                   
                   <button type="submit" disabled={isLoading} className="w-full mt-3 py-2.5 rounded-xl font-bold text-sm text-white bg-amber-600 hover:bg-amber-700 shadow-md transition-all flex justify-center items-center gap-2">
-                    {isLoading ? <Loader2 size={16} className="animate-spin" /> : <>Kirim & Hubungi Admin <Send size={14} /></>}
+                    {isLoading ? <Loader2 size={16} className="animate-spin" /> : <>Kirim Pengajuan <Send size={14} /></>}
                   </button>
                 </form>
               </motion.div>

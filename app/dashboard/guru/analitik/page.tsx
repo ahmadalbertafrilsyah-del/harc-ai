@@ -32,11 +32,11 @@ export default function AnalitikProses() {
       if (docSnap.exists()) {
         setKpiStats(docSnap.data() as any);
       } else {
-        // Fallback default jika koleksi belum ada datanya
+        // PERBAIKAN: Ubah fallback menjadi 0 agar sesuai dengan data asli yang masih kosong
         setKpiStats({
-          rataPrestasi: 85, 
-          waktuDihemat: 12.5, 
-          efektivitasAI: 92
+          rataPrestasi: 0, 
+          waktuDihemat: 0, 
+          efektivitasAI: 0
         });
       }
     });
@@ -48,7 +48,7 @@ export default function AnalitikProses() {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setAnalitikData(data);
       } else {
-        // Tampilkan array kosong jika tidak ada data, jangan biarkan loading terus
+        // Tampilkan array kosong jika tidak ada data
         setAnalitikData([]); 
       }
       // Hentikan loading terlepas dari ada data atau tidak
