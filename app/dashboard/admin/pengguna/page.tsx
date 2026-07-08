@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Users, Search, Trash2, ShieldCheck, Loader2, CheckCircle2, 
-  XCircle, Coins, Lock, Unlock, Eye, X 
+  XCircle, Coins, Lock, Unlock, Eye, X, Building2, UserCircle, GraduationCap 
 } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect } from "react";
@@ -15,28 +15,30 @@ import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, query, where
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
 export default function ManajemenPenggunaAdmin() {
-  const [activeTab, setActiveTab] = useState("aktif"); 
+  // TABS: "lembaga", "guru", "siswa", "pengajuan"
+  const [activeTab, setActiveTab] = useState("lembaga"); 
   const [isLoading, setIsLoading] = useState(true);
   
   // State Pencarian
   const [searchQuery, setSearchQuery] = useState("");
   
   // State Real-time dari Firebase
-  const [daftarGuru, setDaftarGuru] = useState<any[]>([]);
+  const [daftarPengguna, setDaftarPengguna] = useState<any[]>([]);
   const [daftarPengajuan, setDaftarPengajuan] = useState<any[]>([]);
 
-  // State untuk Modal Detail Guru
-  const [detailGuru, setDetailGuru] = useState<any | null>(null);
+  // State untuk Modal Detail Pengguna
+  const [detailPengguna, setDetailPengguna] = useState<any | null>(null);
 
   useEffect(() => {
-    // 1. PULL REAL-TIME: Daftar Guru 
-    const qUsers = query(collection(db, "users"), where("role", "==", "guru"));
+    // 1. PULL REAL-TIME: Daftar Pengguna (Lembaga, Guru, Siswa)
+    // Query ini akan otomatis mengabaikan data yang tidak memiliki role (mencegah error localeCompare)
+    const qUsers = query(collection(db, "users"), where("role", "in", ["lembaga", "guru", "siswa"]));
     const unsubUsers = onSnapshot(qUsers, (snapshot) => {
       const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setDaftarGuru(users);
+      setDaftarPengguna(users);
     });
 
-    // 2. PULL REAL-TIME: Daftar Pengajuan Akun
+    // 2. PULL REAL-TIME: Daftar Pengajuan Akun (Hanya Lembaga & Guru yang butuh ACC)
     const qPengajuan = query(collection(db, "pengajuan_akun"), where("status", "==", "pending"));
     const unsubPengajuan = onSnapshot(qPengajuan, (snapshot) => {
       const pengajuan = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -51,18 +53,22 @@ export default function ManajemenPenggunaAdmin() {
   }, []);
 
   // ==========================================
-  // LOGIKA PENCARIAN (FILTERING)
+  // LOGIKA PENCARIAN & PEMISAHAN TAB
   // ==========================================
-  const filteredGuru = daftarGuru.filter((guru) => {
+  const filteredTabUsers = daftarPengguna.filter(user => {
+    // Pastikan user masuk ke tab yang tepat
+    if (user.role !== activeTab) return false;
+    
+    // Filter Pencarian
     const keyword = searchQuery.toLowerCase();
     return (
-      (guru.nama || "").toLowerCase().includes(keyword) ||
-      (guru.email || "").toLowerCase().includes(keyword) ||
-      (guru.instansi || "").toLowerCase().includes(keyword)
+      (user.nama || "").toLowerCase().includes(keyword) ||
+      (user.email || "").toLowerCase().includes(keyword) ||
+      (user.instansi || "").toLowerCase().includes(keyword)
     );
   });
 
-  const filteredPengajuan = daftarPengajuan.filter((pengajuan) => {
+  const filteredPengajuan = daftarPengajuan.filter(pengajuan => {
     const keyword = searchQuery.toLowerCase();
     return (
       (pengajuan.nama || "").toLowerCase().includes(keyword) ||
@@ -71,29 +77,46 @@ export default function ManajemenPenggunaAdmin() {
     );
   });
 
+  // Hitungan untuk notifikasi Tab
+  const countLembaga = daftarPengguna.filter(u => u.role === "lembaga").length;
+  const countGuru = daftarPengguna.filter(u => u.role === "guru").length;
+  const countSiswa = daftarPengguna.filter(u => u.role === "siswa").length;
+
   // ==========================================
   // FUNGSI KENDALI ADMIN
   // ==========================================
 
   const handleAccAkun = async (pengajuan: any) => {
-    const konfirmasi = confirm(`Apakah Anda yakin ingin meng-ACC akun untuk ${pengajuan.nama}?`);
+    const roleReq = pengajuan.role || "guru";
+    const konfirmasi = confirm(`Apakah Anda yakin ingin meng-ACC akun ${roleReq.toUpperCase()} untuk ${pengajuan.nama}?`);
     if (!konfirmasi) return;
 
     try {
       const targetUid = pengajuan.uid || pengajuan.id; 
-      await setDoc(doc(db, "users", targetUid), {
+      
+      const dataBaru: any = {
         nama: pengajuan.nama,
         email: pengajuan.email,
-        instansi: pengajuan.instansi,
-        role: "guru",
-        spesialisasi: "Bahasa Daerah",
+        instansi: pengajuan.instansi || pengajuan.npsn || "",
+        role: roleReq,
         status: "Aktif",
-        aiTokens: 10000, 
         createdAt: serverTimestamp()
-      });
+      };
 
+      if (roleReq === "lembaga") {
+        dataBaru.aiTokens = 50000;
+        dataBaru.npsn = pengajuan.npsn || pengajuan.instansi || "";
+        dataBaru.telepon = pengajuan.telepon || "";
+        dataBaru.lokasi = pengajuan.lokasi || "";
+        alert("Akun Lembaga berhasil di-ACC! Lembaga telah diberikan 50.000 Token AI awal.");
+      } else {
+        dataBaru.aiTokens = 10000;
+        dataBaru.spesialisasi = pengajuan.spesialisasi || "Pendidik";
+        alert("Akun Guru berhasil di-ACC! Guru telah diberikan 10.000 Token AI awal.");
+      }
+
+      await setDoc(doc(db, "users", targetUid), dataBaru);
       await deleteDoc(doc(db, "pengajuan_akun", pengajuan.id));
-      alert("Akun berhasil di-ACC! Guru telah diberikan 10.000 Token AI awal.");
     } catch (error) {
       console.error("Gagal melakukan ACC:", error);
       alert("Terjadi kesalahan saat memproses data ke Firestore.");
@@ -139,13 +162,13 @@ export default function ManajemenPenggunaAdmin() {
     }
   };
 
-  const handleHapusGuru = async (id: string, nama: string) => {
+  const handleHapusPengguna = async (id: string, nama: string) => {
     const konfirmasi = confirm(`PERINGATAN FATAL!\n\nApakah Anda yakin ingin MENGHAPUS PERMANEN seluruh data profil ${nama}? Tindakan ini tidak dapat dibatalkan.`);
     if (!konfirmasi) return;
 
     try {
       await deleteDoc(doc(db, "users", id));
-      setDetailGuru(null); 
+      setDetailPengguna(null); 
     } catch (error) {
       console.error("Gagal menghapus akun:", error);
     }
@@ -155,7 +178,7 @@ export default function ManajemenPenggunaAdmin() {
     return (
       <div className="w-full h-[70vh] flex flex-col items-center justify-center text-slate-500">
         <Loader2 size={40} className="animate-spin text-indigo-600 mb-4" />
-        <p className="font-bold">Memuat Data Pengguna...</p>
+        <p className="font-bold">Memuat Database Pengguna...</p>
       </div>
     );
   }
@@ -167,10 +190,10 @@ export default function ManajemenPenggunaAdmin() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-6">
         <div>
           <h1 className={`text-2xl font-bold text-slate-900 ${teachersFont.className}`}>Manajemen Pengguna</h1>
-          <p className="text-slate-500 text-sm mt-1">Kelola akses, pembekuan akun, dan distribusi Token AI Pendidik.</p>
+          <p className="text-slate-500 text-sm mt-1">Kelola akses, pembekuan akun, dan distribusi Token AI untuk Lembaga, Guru, dan Siswa.</p>
         </div>
         
-        {/* KOLOM PENCARIAN YANG SUDAH BERFUNGSI */}
+        {/* KOLOM PENCARIAN */}
         <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-2 rounded-lg w-full md:w-64 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all shadow-sm">
           <Search size={16} className="text-slate-400" />
           <input 
@@ -189,77 +212,107 @@ export default function ManajemenPenggunaAdmin() {
       </div>
 
       {/* TABS KONTROL */}
-      <div className="flex gap-6 border-b border-slate-200">
-        <button onClick={() => setActiveTab("aktif")} className={`pb-3 text-sm font-bold transition-all relative ${activeTab === "aktif" ? "text-indigo-700" : "text-slate-500 hover:text-slate-700"}`}>
-          Database Pendidik ({filteredGuru.length})
-          {activeTab === "aktif" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-indigo-600 rounded-t-full"></span>}
+      <div className="flex flex-wrap gap-6 border-b border-slate-200">
+        <button onClick={() => setActiveTab("lembaga")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 ${activeTab === "lembaga" ? "text-blue-700" : "text-slate-500 hover:text-slate-700"}`}>
+          <Building2 size={16} /> Data Lembaga ({countLembaga})
+          {activeTab === "lembaga" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-blue-600 rounded-t-full"></span>}
         </button>
-        <button onClick={() => setActiveTab("pengajuan")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 ${activeTab === "pengajuan" ? "text-indigo-700" : "text-slate-500 hover:text-slate-700"}`}>
+        <button onClick={() => setActiveTab("guru")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 ${activeTab === "guru" ? "text-indigo-700" : "text-slate-500 hover:text-slate-700"}`}>
+          <UserCircle size={16} /> Data Guru ({countGuru})
+          {activeTab === "guru" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-indigo-600 rounded-t-full"></span>}
+        </button>
+        <button onClick={() => setActiveTab("siswa")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 ${activeTab === "siswa" ? "text-emerald-700" : "text-slate-500 hover:text-slate-700"}`}>
+          <GraduationCap size={16} /> Data Siswa ({countSiswa})
+          {activeTab === "siswa" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-emerald-600 rounded-t-full"></span>}
+        </button>
+        <button onClick={() => setActiveTab("pengajuan")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 ${activeTab === "pengajuan" ? "text-amber-700" : "text-slate-500 hover:text-slate-700"}`}>
           Antrean Pengajuan
           {filteredPengajuan.length > 0 && <span className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{filteredPengajuan.length}</span>}
-          {activeTab === "pengajuan" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-indigo-600 rounded-t-full"></span>}
+          {activeTab === "pengajuan" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-amber-600 rounded-t-full"></span>}
         </button>
       </div>
 
-      {/* TAB 1: DAFTAR GURU AKTIF & KENDALI */}
-      {activeTab === "aktif" && (
+      {/* TAB: DAFTAR PENGGUNA (Lembaga / Guru / Siswa) */}
+      {(activeTab === "lembaga" || activeTab === "guru" || activeTab === "siswa") && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-xl shadow-sm border border-slate-200/80 overflow-hidden">
           <div className="overflow-x-auto min-h-[400px]">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
-                  <th className="px-5 py-4">Identitas Pendidik</th>
+                  <th className="px-5 py-4">Identitas Pengguna</th>
                   <th className="px-5 py-4 text-center">Status Akun</th>
-                  <th className="px-5 py-4 text-center">Kuota AI</th>
+                  <th className="px-5 py-4 text-center">{activeTab === "siswa" ? "Tingkat/Kelas" : "Kuota AI"}</th>
                   <th className="px-5 py-4 text-center">Panel Kendali</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 <AnimatePresence>
-                  {filteredGuru.length > 0 ? filteredGuru.map((guru) => (
-                    <motion.tr key={guru.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="hover:bg-indigo-50/30 transition-colors group">
+                  {filteredTabUsers.length > 0 ? filteredTabUsers.map((user) => (
+                    <motion.tr key={user.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${guru.status === 'Dibekukan' ? 'bg-slate-100 text-slate-500' : 'bg-indigo-100 text-indigo-700'}`}>
-                            {guru.nama ? guru.nama.charAt(0).toUpperCase() : "U"}
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0 shadow-sm ${
+                            user.status === 'Dibekukan' ? 'bg-slate-100 text-slate-500' : 
+                            user.role === 'lembaga' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 
+                            user.role === 'siswa' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 
+                            'bg-indigo-100 text-indigo-700'
+                          }`}>
+                            {user.role === 'lembaga' ? <Building2 size={16} /> : 
+                             user.role === 'siswa' ? <GraduationCap size={16} /> : 
+                             (user.nama ? user.nama.charAt(0).toUpperCase() : "U")}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-800 text-sm">{guru.nama}</p>
-                            <p className="text-xs text-slate-500 truncate max-w-[150px]" title={guru.instansi}>{guru.instansi || "Instansi tidak diisi"}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-slate-800 text-sm">{user.nama}</p>
+                            </div>
+                            <p className="text-xs text-slate-500 truncate max-w-[200px]" title={user.instansi || user.email}>
+                              {user.role === 'lembaga' ? user.email : (user.instansi || "Instansi tidak diisi")}
+                            </p>
                           </div>
                         </div>
                       </td>
                       
                       <td className="px-5 py-4 text-center">
                         <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border items-center gap-1 ${
-                          guru.status === 'Dibekukan' 
+                          user.status === 'Dibekukan' 
                             ? 'bg-rose-50 text-rose-700 border-rose-200' 
                             : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         }`}>
-                          {guru.status === 'Dibekukan' ? <Lock size={12} /> : <CheckCircle2 size={12} />} 
-                          {guru.status || "Aktif"}
+                          {user.status === 'Dibekukan' ? <Lock size={12} /> : <CheckCircle2 size={12} />} 
+                          {user.status || "Aktif"}
                         </span>
                       </td>
 
                       <td className="px-5 py-4 text-center">
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-100 rounded-lg text-amber-700 font-mono text-xs font-bold">
-                          <Coins size={14} />
-                          {(guru.aiTokens || 0).toLocaleString('id-ID')}
-                        </div>
+                        {user.role === "siswa" ? (
+                          <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
+                            {user.kelas || user.fase || "Siswa Aktif"}
+                          </span>
+                        ) : (
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-100 rounded-lg text-amber-700 font-mono text-xs font-bold">
+                            <Coins size={14} />
+                            {(user.aiTokens || 0).toLocaleString('id-ID')}
+                          </div>
+                        )}
                       </td>
                       
                       <td className="px-5 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <button onClick={() => setDetailGuru(guru)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100" title="Lihat Detail Database">
+                          <button onClick={() => setDetailPengguna(user)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100" title="Lihat Detail Database">
                             <Eye size={16} />
                           </button>
-                          <button onClick={() => handleUpdateToken(guru.id, guru.aiTokens, guru.nama)} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors border border-transparent hover:border-amber-100" title="Atur Kuota Token">
-                            <Coins size={16} />
+                          
+                          {/* Hanya Guru dan Lembaga yang butuh kontrol token */}
+                          {user.role !== "siswa" && (
+                            <button onClick={() => handleUpdateToken(user.id, user.aiTokens, user.nama)} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors border border-transparent hover:border-amber-100" title="Atur Kuota Token">
+                              <Coins size={16} />
+                            </button>
+                          )}
+
+                          <button onClick={() => handleToggleStatus(user.id, user.status || 'Aktif', user.nama)} className={`p-2 rounded-lg transition-colors border border-transparent ${user.status === 'Dibekukan' ? 'text-emerald-500 hover:bg-emerald-50 hover:border-emerald-100' : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-100'}`} title={user.status === 'Dibekukan' ? 'Aktifkan Akun' : 'Bekukan Akun'}>
+                            {user.status === 'Dibekukan' ? <Unlock size={16} /> : <Lock size={16} />}
                           </button>
-                          <button onClick={() => handleToggleStatus(guru.id, guru.status || 'Aktif', guru.nama)} className={`p-2 rounded-lg transition-colors border border-transparent ${guru.status === 'Dibekukan' ? 'text-emerald-500 hover:bg-emerald-50 hover:border-emerald-100' : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-100'}`} title={guru.status === 'Dibekukan' ? 'Aktifkan Akun' : 'Bekukan Akun'}>
-                            {guru.status === 'Dibekukan' ? <Unlock size={16} /> : <Lock size={16} />}
-                          </button>
-                          <button onClick={() => handleHapusGuru(guru.id, guru.nama)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100" title="Hapus Permanen">
+                          <button onClick={() => handleHapusPengguna(user.id, user.nama)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100" title="Hapus Permanen">
                             <Trash2 size={16} />
                           </button>
                         </div>
@@ -268,7 +321,7 @@ export default function ManajemenPenggunaAdmin() {
                   )) : (
                     <tr>
                       <td colSpan={4} className="text-center py-12 text-slate-500 text-sm">
-                        {searchQuery ? "Pendidik tidak ditemukan dengan kata kunci tersebut." : "Belum ada pendidik yang aktif dalam database."}
+                        {searchQuery ? `Tidak ada ${activeTab} yang sesuai dengan pencarian.` : `Belum ada data ${activeTab} di sistem.`}
                       </td>
                     </tr>
                   )}
@@ -279,7 +332,7 @@ export default function ManajemenPenggunaAdmin() {
         </motion.div>
       )}
 
-      {/* TAB 2: ANTREAN PENGAJUAN */}
+      {/* TAB: ANTREAN PENGAJUAN */}
       {activeTab === "pengajuan" && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-xl shadow-sm border border-slate-200/80 overflow-hidden">
           <div className="overflow-x-auto min-h-[400px]">
@@ -287,7 +340,7 @@ export default function ManajemenPenggunaAdmin() {
               <thead>
                 <tr className="bg-amber-50/50 border-b border-amber-100 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
                   <th className="px-6 py-4">Data Pemohon</th>
-                  <th className="px-6 py-4 text-center">Asal Instansi</th>
+                  <th className="px-6 py-4 text-center">Tipe Pengajuan</th>
                   <th className="px-6 py-4 text-center">Waktu Pengajuan</th>
                   <th className="px-6 py-4 text-right">Tindakan Persetujuan</th>
                 </tr>
@@ -298,8 +351,8 @@ export default function ManajemenPenggunaAdmin() {
                     <motion.tr key={pengajuan.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, x: -20 }} className="hover:bg-amber-50/30 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm shrink-0">
-                            {pengajuan.nama ? pengajuan.nama.charAt(0) : "?"}
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0 border ${pengajuan.role === 'lembaga' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
+                             {pengajuan.role === 'lembaga' ? <Building2 size={16} /> : <UserCircle size={16} />}
                           </div>
                           <div>
                             <p className="font-bold text-slate-800 text-sm">{pengajuan.nama}</p>
@@ -308,7 +361,10 @@ export default function ManajemenPenggunaAdmin() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <p className="text-sm font-medium text-slate-700">{pengajuan.instansi}</p>
+                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider mb-1 ${pengajuan.role === 'lembaga' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>
+                          {pengajuan.role || "Guru"}
+                        </span>
+                        <p className="text-[11px] font-medium text-slate-700 max-w-[150px] truncate mx-auto">{pengajuan.instansi || pengajuan.npsn || "-"}</p>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">
@@ -320,7 +376,7 @@ export default function ManajemenPenggunaAdmin() {
                           <button onClick={() => handleTolakAkun(pengajuan.id)} className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-red-600 bg-slate-50 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-lg transition-all flex items-center gap-1">
                             <XCircle size={14} /> Tolak
                           </button>
-                          <button onClick={() => handleAccAkun(pengajuan)} className="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 rounded-lg transition-all flex items-center gap-1">
+                          <button onClick={() => handleAccAkun(pengajuan)} className={`px-3 py-1.5 text-xs font-bold text-white shadow-sm rounded-lg transition-all flex items-center gap-1 ${pengajuan.role === 'lembaga' ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20'}`}>
                             <CheckCircle2 size={14} /> ACC Akses
                           </button>
                         </div>
@@ -332,7 +388,7 @@ export default function ManajemenPenggunaAdmin() {
                         <div className="flex flex-col items-center justify-center">
                           <ShieldCheck size={32} className="text-slate-300 mb-3" />
                           <p className="text-sm font-bold text-slate-700">
-                             {searchQuery ? "Tidak ada pengajuan yang sesuai dengan kata kunci." : "Tidak ada pengajuan baru."}
+                             {searchQuery ? "Tidak ada pengajuan yang sesuai dengan kata kunci." : "Tidak ada pengajuan akun baru."}
                           </p>
                         </div>
                       </td>
@@ -345,9 +401,9 @@ export default function ManajemenPenggunaAdmin() {
         </motion.div>
       )}
 
-      {/* OVERLAY MODAL DETAIL GURU */}
+      {/* OVERLAY MODAL DETAIL PENGGUNA */}
       <AnimatePresence>
-        {detailGuru && (
+        {detailPengguna && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }} 
@@ -357,69 +413,105 @@ export default function ManajemenPenggunaAdmin() {
             >
               {/* Header Modal */}
               <div className="px-5 md:px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                <h3 className={`text-base md:text-lg font-bold text-slate-800 ${teachersFont.className}`}>Profil & Database Pendidik</h3>
-                <button onClick={() => setDetailGuru(null)} className="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-200 transition-colors">
+                <h3 className={`text-base md:text-lg font-bold text-slate-800 flex items-center gap-2 ${teachersFont.className}`}>
+                  {detailPengguna.role === 'lembaga' ? <Building2 size={18} className="text-blue-600"/> : 
+                   detailPengguna.role === 'siswa' ? <GraduationCap size={18} className="text-emerald-600"/> :
+                   <UserCircle size={18} className="text-indigo-600"/>}
+                  Profil & Database Akun
+                </h3>
+                <button onClick={() => setDetailPengguna(null)} className="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-200 transition-colors">
                   <X size={20} />
                 </button>
               </div>
               
-              {/* Body Modal (Memungkinkan Scroll pada HP) */}
+              {/* Body Modal */}
               <div className="p-5 md:p-6 space-y-5 overflow-y-auto">
                 
                 <div className="flex items-center gap-4 border-b border-slate-100 pb-5">
-                  <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xl md:text-2xl shrink-0">
-                    {detailGuru.nama.charAt(0).toUpperCase()}
+                  <div className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center font-bold text-xl md:text-2xl shrink-0 ${
+                    detailPengguna.role === 'lembaga' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 
+                    detailPengguna.role === 'siswa' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                    'bg-indigo-100 text-indigo-700'
+                  }`}>
+                    {detailPengguna.role === 'lembaga' ? <Building2 size={24} /> : 
+                     detailPengguna.role === 'siswa' ? <GraduationCap size={24} /> : 
+                     detailPengguna.nama.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <h4 className="text-lg md:text-xl font-bold text-slate-900 leading-tight">{detailGuru.nama}</h4>
-                    <p className="text-xs md:text-sm text-blue-600 font-medium mt-0.5">{detailGuru.email}</p>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-lg md:text-xl font-bold text-slate-900 leading-tight">{detailPengguna.nama}</h4>
+                      <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
+                        detailPengguna.role === 'lembaga' ? 'bg-blue-50 text-blue-700 border-blue-200' : 
+                        detailPengguna.role === 'siswa' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                        'bg-indigo-50 text-indigo-700 border-indigo-200'
+                      }`}>
+                        {detailPengguna.role}
+                      </span>
+                    </div>
+                    <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5">{detailPengguna.email}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                     <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">ID Data Akun</p>
-                    <p className="text-xs font-mono text-slate-700 truncate" title={detailGuru.id}>{detailGuru.id}</p>
+                    <p className="text-xs font-mono text-slate-700 truncate" title={detailPengguna.id}>{detailPengguna.id}</p>
                   </div>
                   
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                     <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Status Akun</p>
-                    <p className={`text-xs font-bold ${detailGuru.status === 'Dibekukan' ? 'text-rose-600' : 'text-emerald-600'}`}>{detailGuru.status || 'Aktif'}</p>
+                    <p className={`text-xs font-bold ${detailPengguna.status === 'Dibekukan' ? 'text-rose-600' : 'text-emerald-600'}`}>{detailPengguna.status || 'Aktif'}</p>
                   </div>
                   
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                     <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Instansi / Sekolah</p>
-                    <p className="text-xs font-medium text-slate-700 truncate">{detailGuru.instansi || 'Belum diatur'}</p>
+                    <p className="text-xs font-medium text-slate-700 truncate">{detailPengguna.instansi || 'Belum diatur'}</p>
                   </div>
                   
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Nomor Induk (NIP/NUPTK)</p>
-                    <p className="text-xs font-medium text-slate-700 truncate">{detailGuru.nip || 'Belum diatur'}</p>
+                    <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">
+                      {detailPengguna.role === 'lembaga' ? 'NPSN' : detailPengguna.role === 'siswa' ? 'NISN / NIS' : 'Nomor Induk (NIP)'}
+                    </p>
+                    <p className="text-xs font-medium text-slate-700 truncate">{detailPengguna.nip || detailPengguna.npsn || detailPengguna.nisn || 'Belum diatur'}</p>
                   </div>
                   
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Spesialisasi</p>
-                    <p className="text-xs font-medium text-slate-700">{detailGuru.spesialisasi || 'Belum diatur'}</p>
-                  </div>
+                  {detailPengguna.role === 'guru' && (
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                      <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Spesialisasi</p>
+                      <p className="text-xs font-medium text-slate-700">{detailPengguna.spesialisasi || 'Belum diatur'}</p>
+                    </div>
+                  )}
+
+                  {detailPengguna.role === 'siswa' && (
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                      <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Tingkat / Kelas</p>
+                      <p className="text-xs font-medium text-slate-700">{detailPengguna.kelas || detailPengguna.fase || 'Belum diatur'}</p>
+                    </div>
+                  )}
                   
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <div className={`bg-slate-50 p-3 rounded-xl border border-slate-100 ${detailPengguna.role === 'lembaga' ? 'sm:col-span-2' : ''}`}>
                     <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Telepon / WhatsApp</p>
-                    <p className="text-xs font-medium text-slate-700">{detailGuru.telepon || 'Belum diatur'}</p>
+                    <p className="text-xs font-medium text-slate-700">{detailPengguna.telepon || 'Belum diatur'}</p>
                   </div>
                 </div>
 
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Lokasi / Alamat Domisili</p>
-                  <p className="text-xs font-medium text-slate-700">{detailGuru.lokasi || 'Belum diatur'}</p>
-                </div>
-
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between shrink-0">
-                  <div>
-                    <p className="text-xs font-bold text-amber-800 uppercase tracking-wide">Sisa Token AI</p>
-                    <p className="text-2xl font-bold text-amber-600 mt-0.5">{(detailGuru.aiTokens || 0).toLocaleString('id-ID')}</p>
+                {detailPengguna.role === 'lembaga' && (
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Alamat Lengkap</p>
+                    <p className="text-xs font-medium text-slate-700 leading-relaxed">{detailPengguna.lokasi || 'Belum diatur'}</p>
                   </div>
-                  <Coins size={32} className="text-amber-300 opacity-50" />
-                </div>
+                )}
+
+                {/* Info Token AI (Hanya untuk Lembaga & Guru) */}
+                {detailPengguna.role !== 'siswa' && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between shrink-0 mt-2">
+                    <div>
+                      <p className="text-xs font-bold text-amber-800 uppercase tracking-wide">Sisa Token AI</p>
+                      <p className="text-2xl font-bold text-amber-600 mt-0.5">{(detailPengguna.aiTokens || 0).toLocaleString('id-ID')}</p>
+                    </div>
+                    <Coins size={32} className="text-amber-300 opacity-50" />
+                  </div>
+                )}
                 
               </div>
             </motion.div>

@@ -18,8 +18,10 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
   // State UI
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
-  // State Header Dinamis
-  const [currentTime, setCurrentTime] = useState(new Date());
+  // State Header Dinamis (Perbaikan Hydration Error)
+  const [jam, setJam] = useState("");
+  const [tanggal, setTanggal] = useState("");
+  
   const [showNotif, setShowNotif] = useState(false);
   const [notifCount, setNotifCount] = useState(0);
   
@@ -41,9 +43,18 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
   ];
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    const auth = getAuth();
+    // 1. Logika Update Jam Real-time (Hanya jalan di Client)
+    const updateTime = () => {
+      const now = new Date();
+      setJam(now.toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      setTanggal(now.toLocaleDateString("id-ID", { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }));
+    };
+    
+    updateTime(); // Panggil sekali saat komponen dimuat
+    const timer = setInterval(updateTime, 1000); // Update setiap detik
 
+    // 2. Logika Firebase Auth & Profil
+    const auth = getAuth();
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
         // Ambil profil berdasarkan UID User yang sedang Login
@@ -67,11 +78,11 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
       }
     });
 
-    return () => { clearInterval(timer); unsubscribeAuth(); };
+    return () => { 
+      clearInterval(timer); 
+      unsubscribeAuth(); 
+    };
   }, []);
-
-  const jam = currentTime.toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  const tanggal = currentTime.toLocaleDateString("id-ID", { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
 
   const getInitials = (name: string) => {
     if (name === "Memuat...") return "...";
@@ -142,7 +153,7 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
           <div className="flex items-center w-full md:w-auto">
             <div className="md:hidden flex items-center gap-2 text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
               <Clock size={16} className="text-blue-500 shrink-0" />
-              <span className="text-[11px] font-bold font-mono leading-none">{jam}</span>
+              <span className="text-[11px] font-bold font-mono leading-none">{jam || "--.--.--"}</span>
             </div>
           </div>
 
@@ -150,8 +161,8 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
             <div className="hidden md:flex items-center gap-2 text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
               <Clock size={16} className="text-blue-500 shrink-0" />
               <div className="flex flex-col">
-                <span className="text-[11px] md:text-sm font-bold font-mono leading-none">{jam} WIB</span>
-                <span className="text-[9px] md:text-[10px] text-slate-400 font-medium mt-0.5">{tanggal}</span>
+                <span className="text-[11px] md:text-sm font-bold font-mono leading-none">{jam || "--.--.--"} WIB</span>
+                <span className="text-[9px] md:text-[10px] text-slate-400 font-medium mt-0.5">{tanggal || "Memuat..."}</span>
               </div>
             </div>
 
@@ -160,7 +171,6 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
                 <Bell size={18} />
                 {notifCount > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 border-2 border-white rounded-full animate-pulse"></span>}
               </button>
-              {/* Dropdown Notif... (Sama seperti sebelumnya) */}
             </div>
 
             <div className="hidden md:block w-px h-5 bg-slate-200 mx-1"></div>
