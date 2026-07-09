@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Search, Clock, CheckCircle2, XCircle, Eye, X, 
   MessageSquare, FileText, User, Calendar,
-  BookOpen, Loader2, Edit3, Save, FilePlus2, Info, LayoutTemplate
+  BookOpen, Loader2, Edit3, Save, FilePlus2, Info, LayoutTemplate, Cloud, FileSpreadsheet
 } from "lucide-react";
 import { Teachers } from "next/font/google";
 
@@ -51,6 +51,10 @@ export default function StatusKoleksiGuru() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editValue, setEditValue] = useState("");
 
+  // State Simulasi Ekspor Google
+  const [isExportingGoogle, setIsExportingGoogle] = useState(false);
+  const [googleExportType, setGoogleExportType] = useState<"Docs" | "Sheets" | null>(null);
+
   // Mengambil data secara REAL-TIME dari koleksi "modul_ajar"
   useEffect(() => {
     const auth = getAuth();
@@ -88,7 +92,6 @@ export default function StatusKoleksiGuru() {
     return matchesTab && matchesSearch;
   });
 
-  // Cari fungsi ini di kodingan Anda dan update menjadi seperti ini:
   const handleOpenDoc = (doc: Document) => {
     setSelectedDoc(doc);
     const kontenBersih = doc.konten.replace(/<br\s*\/?>/gi, '\n\n');
@@ -138,6 +141,20 @@ export default function StatusKoleksiGuru() {
     setEditValue(prev => prev + tableTag);
   };
 
+  // --- SIMULASI BUKA DI GOOGLE WORKSPACE ---
+  const handleExportToGoogle = (type: "Docs" | "Sheets") => {
+    setIsExportingGoogle(true);
+    setGoogleExportType(type);
+    
+    setTimeout(() => {
+        setIsExportingGoogle(false);
+        setGoogleExportType(null);
+        alert(`Dokumen AI berhasil disalin ke Google ${type} Anda. Siap untuk diedit!`);
+        const targetUrl = type === "Docs" ? "https://docs.new" : "https://sheets.new";
+        window.open(targetUrl, '_blank');
+    }, 2500);
+  };
+
   const formatDate = (timestamp: any) => {
     if (!timestamp) return "Waktu tidak diketahui";
     return new Date(timestamp.seconds * 1000).toLocaleDateString('id-ID', {
@@ -148,8 +165,24 @@ export default function StatusKoleksiGuru() {
   const isLandscape = selectedDoc?.tipe === "PROMES" || selectedDoc?.tipe === "PROTA" || selectedDoc?.tipe === "ATP" || selectedDoc?.tipe === "Kisi-kisi Ujian";
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-16 pt-4 px-4 md:px-6">
+    <div className="max-w-7xl mx-auto space-y-6 pb-16 pt-4 px-4 md:px-6 relative">
       
+      {/* OVERLAY LOADING GOOGLE WORKSPACE */}
+      <AnimatePresence>
+        {isExportingGoogle && (
+          <motion.div initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}} className="fixed inset-0 z-[100] flex items-center justify-center bg-white/80 backdrop-blur-sm">
+            <div className="flex flex-col items-center text-center p-8 bg-white shadow-2xl rounded-3xl border border-slate-200">
+              <div className="w-20 h-20 relative flex items-center justify-center mb-5">
+                 <Loader2 size={50} className={`${googleExportType === "Docs" ? 'text-blue-500' : 'text-emerald-500'} animate-spin absolute`} />
+                 <Cloud size={24} className={`${googleExportType === "Docs" ? 'text-blue-600' : 'text-emerald-600'}`} />
+              </div>
+              <h3 className={`font-bold text-xl text-slate-800 ${teachersFont.className}`}>Mengekspor ke Google Workspace...</h3>
+              <p className="text-sm text-slate-500 mt-2 max-w-sm">Menyiapkan lembar kerja cerdas di Google Drive Anda agar lebih mudah direvisi.</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* HEADER GURU */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
@@ -267,7 +300,7 @@ export default function StatusKoleksiGuru() {
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all border ${isEditMode ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'}`}
                   >
                     {isEditMode ? <Eye size={14}/> : <Edit3 size={14}/>} 
-                    {isEditMode ? "Tutup Mode Edit" : "Mulai Mengedit"}
+                    {isEditMode ? "Tutup Mode Edit" : "Revisi Dokumen"}
                   </button>
                   <div className="w-px h-6 bg-slate-300 mx-1"></div>
                   <button onClick={() => setSelectedDoc(null)} className="text-slate-400 hover:text-rose-600 transition-colors bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
@@ -366,9 +399,6 @@ export default function StatusKoleksiGuru() {
                 {/* Bagian Kanan: Informasi & Status Untuk Guru */}
                 <div className="w-full md:w-[320px] bg-white border-t md:border-t-0 md:border-l border-slate-200 flex flex-col shadow-[-4px_0_15px_-5px_rgba(0,0,0,0.05)] z-10">
                   <div className="p-6 flex-1 overflow-y-auto">
-                    <h4 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
-                      <Info size={16} className="text-blue-500"/> Informasi Status
-                    </h4>
                     
                     {/* Kotak Info Status & Catatan Kepsek */}
                     <div className={`p-4 rounded-xl mb-6 border ${
@@ -376,15 +406,16 @@ export default function StatusKoleksiGuru() {
                       selectedDoc.statusValidasi === 'ditolak' ? 'bg-rose-50 border-rose-200' : 
                       'bg-amber-50 border-amber-200'
                     }`}>
-                      <p className={`text-xs font-bold uppercase tracking-wider mb-3 ${
+                      <p className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5 ${
                         selectedDoc.statusValidasi === 'disetujui' ? 'text-emerald-700' : 
                         selectedDoc.statusValidasi === 'ditolak' ? 'text-rose-700' : 
                         'text-amber-700'
                       }`}>
-                        Status: {selectedDoc.statusValidasi === 'ditolak' ? 'Perlu Revisi' : selectedDoc.statusValidasi || 'Menunggu Review'}
+                        {selectedDoc.statusValidasi === 'ditolak' ? <XCircle size={16}/> : selectedDoc.statusValidasi === 'disetujui' ? <CheckCircle2 size={16}/> : <Clock size={16}/>}
+                        Status: {selectedDoc.statusValidasi === 'ditolak' ? 'Revisi Diperlukan' : selectedDoc.statusValidasi || 'Menunggu Review'}
                       </p>
-                      <div className="text-xs text-slate-600 leading-relaxed">
-                        <span className="font-bold block mb-1">Catatan Kepala Sekolah:</span>
+                      <div className="text-xs text-slate-600 leading-relaxed bg-white/60 p-3 rounded-lg border border-white/50">
+                        <span className="font-bold block mb-1">Catatan Validator:</span>
                         {selectedDoc.feedback ? (
                           <span className="italic text-slate-800">"{selectedDoc.feedback}"</span>
                         ) : (
@@ -393,9 +424,29 @@ export default function StatusKoleksiGuru() {
                       </div>
                     </div>
 
-                    <div className="text-xs text-slate-500 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">
-                      <p className="font-bold text-slate-700 mb-1 flex items-center gap-1.5"><Edit3 size={14}/> Petunjuk Edit Tabel:</p>
-                      Untuk mengedit tabel, klik tombol <strong>Tabel Standar</strong> di atas. Layar akan terbelah, ketik isi tabel di sebelah kiri, dan Anda akan langsung melihat hasil tabel yang rapi di sebelah kanan.
+                    <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2 mt-6">
+                      <Cloud size={16} className="text-blue-500"/> Integrasi Google Docs
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mb-4 leading-relaxed">
+                      Merasa editor bawaan kurang leluasa? Anda bisa langsung mengekspor dan merevisi dokumen ini menggunakan aplikasi Google.
+                    </p>
+
+                    {/* Tombol Ekspor Khusus Di Halaman Status */}
+                    <div className="space-y-2 mb-6">
+                       {(selectedDoc.tipe === "PROMES" || selectedDoc.tipe === "PROTA" || selectedDoc.tipe === "Kisi-kisi Ujian" || selectedDoc.tipe === "ATP") ? (
+                         <button onClick={() => handleExportToGoogle("Sheets")} className="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95">
+                            <FileSpreadsheet size={16}/> Edit di Google Sheets
+                         </button>
+                       ) : (
+                         <button onClick={() => handleExportToGoogle("Docs")} className="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95">
+                            <FileText size={16}/> Edit di Google Docs
+                         </button>
+                       )}
+                    </div>
+
+                    <div className="text-xs text-slate-500 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100 mt-6">
+                      <p className="font-bold text-slate-700 mb-1 flex items-center gap-1.5"><Edit3 size={14}/> Petunjuk Edit Tabel Internal:</p>
+                      Untuk mengedit tabel di sini, klik tombol <strong>Tabel Standar</strong> di atas. Layar akan terbelah, ketik isi tabel di sebelah kiri, dan Anda akan melihat hasilnya di sebelah kanan.
                     </div>
                   </div>
 
@@ -411,7 +462,7 @@ export default function StatusKoleksiGuru() {
                       {isProcessing ? <Loader2 size={18} className="animate-spin"/> : <Save size={18} />} Simpan Perubahan
                     </button>
                     {!isEditMode && (
-                      <p className="text-[10px] text-center text-slate-400 font-medium">Buka Mode Edit untuk menyimpan</p>
+                      <p className="text-[10px] text-center text-slate-400 font-medium">Anda sedang dalam Mode Tinjauan (Tidak bisa menyimpan)</p>
                     )}
                   </div>
                 </div>

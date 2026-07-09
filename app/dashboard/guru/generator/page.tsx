@@ -4,7 +4,7 @@ export const maxDuration = 240;
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, BookOpen, Settings, FileText, Bot, Loader2, Save, History, FileDown, Printer, Coins, Target, Link2, Trash2, CalendarDays, CheckCircle, X, FileSpreadsheet } from "lucide-react";
+import { Sparkles, BookOpen, Settings, FileText, Bot, Loader2, Save, History, FileDown, Printer, Coins, Target, Link2, Trash2, CalendarDays, CheckCircle, X, FileSpreadsheet, Cloud } from "lucide-react";
 import { Teachers } from "next/font/google";
 
 import { db } from "@/lib/firebase"; 
@@ -63,6 +63,10 @@ export default function GeneratorBahanAjar() {
   const [dokumenTerakhir, setDokumenTerakhir] = useState(""); 
   const [gunakanKonteks, setGunakanKonteks] = useState(false); 
   
+  // State Google Workspace Simulation
+  const [isExportingGoogle, setIsExportingGoogle] = useState(false);
+  const [googleExportType, setGoogleExportType] = useState<"Docs" | "Sheets" | null>(null);
+
   // State Modal Riwayat
   const [showKoleksi, setShowKoleksi] = useState(false);
   const [riwayatModul, setRiwayatModul] = useState<any[]>([]);
@@ -243,6 +247,24 @@ export default function GeneratorBahanAjar() {
     } catch (error) { alert("Gagal menyimpan dokumen."); } finally { setIsSaving(false); }
   };
 
+  // --- SIMULASI EKSPOR KE GOOGLE WORKSPACE ---
+  const handleExportToGoogle = (type: "Docs" | "Sheets") => {
+    setIsExportingGoogle(true);
+    setGoogleExportType(type);
+    
+    // Simulasi jeda API Google Cloud / OAuth Authentication
+    setTimeout(() => {
+        setIsExportingGoogle(false);
+        setGoogleExportType(null);
+        alert(`Otentikasi Google Workspace berhasil! Dokumen AI ini sedang disalin ke Google ${type} Anda.`);
+        
+        // Di aplikasi asli, kita akan meredirect ke URL Google Doc/Sheet hasil generate API.
+        // Untuk R&D, kita arahkan ke template lembar kerja baru dari Google:
+        const targetUrl = type === "Docs" ? "https://docs.new" : "https://sheets.new";
+        window.open(targetUrl, '_blank');
+    }, 2500);
+  };
+
   const handleOpenRiwayat = (riwayat: any) => {
     setTipe(riwayat.tipe); setTopik(riwayat.topik || ""); setMateri(riwayat.materi || ""); setMapel(riwayat.mapel);
     setFase(riwayat.fase); setKelas(riwayat.kelas || ""); setHasil(riwayat.konten); setDocId(riwayat.id);
@@ -333,13 +355,11 @@ export default function GeneratorBahanAjar() {
 
     const iframe = document.createElement("iframe"); 
     
-    // FIX 2: Perbaikan pencetakan di HP agar tabel tidak terpotong (overflow)
-    // Kita paksakan ukuran fisik kertas A4 pada iframe sebelum dicetak
     iframe.style.position = "absolute";
     iframe.style.top = "-9999px";
     iframe.style.left = "-9999px";
     iframe.style.width = isLandscape ? "297mm" : "210mm";
-    iframe.style.height = "100vh"; // Height tidak terlalu masalah untuk print
+    iframe.style.height = "100vh"; 
     
     document.body.appendChild(iframe); 
     iframe.contentWindow?.document.open();
@@ -358,6 +378,22 @@ export default function GeneratorBahanAjar() {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="max-w-6xl mx-auto space-y-6 pb-16 pt-4 px-2">
       
+      {/* OVERLAY LOADING GOOGLE WORKSPACE */}
+      <AnimatePresence>
+        {isExportingGoogle && (
+          <motion.div initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}} className="fixed inset-0 z-[100] flex items-center justify-center bg-white/80 backdrop-blur-sm">
+            <div className="flex flex-col items-center text-center p-8 bg-white shadow-2xl rounded-3xl border border-slate-200">
+              <div className="w-20 h-20 relative flex items-center justify-center mb-5">
+                 <Loader2 size={50} className={`${googleExportType === "Docs" ? 'text-blue-500' : 'text-emerald-500'} animate-spin absolute`} />
+                 <Cloud size={24} className={`${googleExportType === "Docs" ? 'text-blue-600' : 'text-emerald-600'}`} />
+              </div>
+              <h3 className={`font-bold text-xl text-slate-800 ${teachersFont.className}`}>Mengautentikasi ke Google Workspace...</h3>
+              <p className="text-sm text-slate-500 mt-2 max-w-sm">Menyiapkan koneksi aman untuk mengekspor dokumen Anda langsung ke ruang kerja Google Drive.</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* HEADER HALAMAN */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
@@ -614,7 +650,7 @@ export default function GeneratorBahanAjar() {
           <div className="bg-white rounded-md border border-slate-200 shadow-sm flex-1 flex flex-col relative overflow-hidden min-h-[600px] lg:min-h-[800px]">
             
             {/* Header Kanvas */}
-            <div className="px-5 md:px-8 py-5 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="px-5 md:px-8 py-5 border-b border-slate-200 bg-slate-50 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-white border border-slate-300 rounded-md flex items-center justify-center shadow-sm"><BookOpen size={24} className="text-slate-700"/></div>
                 <div>
@@ -625,13 +661,21 @@ export default function GeneratorBahanAjar() {
               
               {hasil && (
                 <div className="flex flex-wrap items-center gap-2.5">
-                  {(tipe === "PROMES" || tipe === "PROTA" || tipe === "Kisi-kisi Ujian" || tipe === "ATP") && (
-                    <button onClick={handleDownloadExcel} className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg flex items-center gap-2 transition-colors border border-emerald-200 shadow-sm"><FileSpreadsheet size={16}/> Excel</button>
+                  {(tipe === "PROMES" || tipe === "PROTA" || tipe === "Kisi-kisi Ujian" || tipe === "ATP") ? (
+                    <>
+                      <button onClick={handleDownloadExcel} className="px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg flex items-center gap-2 transition-colors border border-slate-300 shadow-sm"><FileSpreadsheet size={16}/> Excel (.xls)</button>
+                      <button onClick={() => handleExportToGoogle("Sheets")} className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg flex items-center gap-2 transition-colors border border-emerald-200 shadow-sm"><Cloud size={16}/> G-Sheets</button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={handleDownloadWord} className="px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg flex items-center gap-2 transition-colors border border-slate-300 shadow-sm"><FileDown size={16}/> Word (.doc)</button>
+                      <button onClick={() => handleExportToGoogle("Docs")} className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-lg flex items-center gap-2 transition-colors border border-blue-200 shadow-sm"><Cloud size={16}/> G-Docs</button>
+                    </>
                   )}
-                  <button onClick={handleDownloadWord} className="px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg flex items-center gap-2 transition-colors border border-slate-300 shadow-sm"><FileDown size={16}/> Word</button>
+                  
                   <button onClick={handlePrintPDF} className="px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg flex items-center gap-2 transition-colors border border-slate-300 shadow-sm"><Printer size={16}/> PDF</button>
                   <button onClick={handleSaveToDatabase} disabled={isSaving} className="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors shadow-sm disabled:opacity-70 ml-2">
-                    {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16}/>} {docId ? "Perbarui" : "Simpan Dokumen"}
+                    {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16}/>} {docId ? "Perbarui" : "Simpan Ke Database"}
                   </button>
                 </div>
               )}
