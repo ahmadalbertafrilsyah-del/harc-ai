@@ -99,10 +99,9 @@ export default function GeneratorBahanAjar() {
           if (docSnap.exists()) {
             const data = docSnap.data();
             setUserName(data.nama || "Pendidik");
-            setNamaGuru(data.nama || ""); // Auto-fill Nama Guru
+            setNamaGuru(data.nama || ""); 
             setAiTokens(data.aiTokens || 0);
 
-            // LOGIKA CROSS-REFERENCING (Cari Nama Lembaga dari NPSN)
             const npsnUser = data.npsn || data.instansi;
             if (npsnUser) {
               const qLembaga = query(collection(db, "users"), where("role", "==", "lembaga"), where("npsn", "==", npsnUser));
@@ -111,7 +110,7 @@ export default function GeneratorBahanAjar() {
                   const dataLembaga = lembagaSnap.docs[0].data();
                   setNamaSekolah(dataLembaga.namaLembaga || dataLembaga.namaInstansi || `NPSN: ${npsnUser}`);
                 } else {
-                  setNamaSekolah(`NPSN: ${npsnUser}`); // Fallback jika lembaga belum buat akun
+                  setNamaSekolah(`NPSN: ${npsnUser}`); 
                 }
               });
             }
@@ -247,22 +246,41 @@ export default function GeneratorBahanAjar() {
     } catch (error) { alert("Gagal menyimpan dokumen."); } finally { setIsSaving(false); }
   };
 
-  // --- SIMULASI EKSPOR KE GOOGLE WORKSPACE ---
-  const handleExportToGoogle = (type: "Docs" | "Sheets") => {
+  // --- TRIK SMART CLIPBOARD KE GOOGLE WORKSPACE ---
+  const handleExportToGoogle = async (type: "Docs" | "Sheets") => {
+    if (!pdfRef.current) return;
     setIsExportingGoogle(true);
     setGoogleExportType(type);
     
-    // Simulasi jeda API Google Cloud / OAuth Authentication
-    setTimeout(() => {
-        setIsExportingGoogle(false);
-        setGoogleExportType(null);
-        alert(`Otentikasi Google Workspace berhasil! Dokumen AI ini sedang disalin ke Google ${type} Anda.`);
-        
-        // Di aplikasi asli, kita akan meredirect ke URL Google Doc/Sheet hasil generate API.
-        // Untuk R&D, kita arahkan ke template lembar kerja baru dari Google:
-        const targetUrl = type === "Docs" ? "https://docs.new" : "https://sheets.new";
-        window.open(targetUrl, '_blank');
-    }, 2500);
+    try {
+      // 1. Ambil HTML lengkap dari dokumen yang ter-render
+      const htmlContent = pdfRef.current.innerHTML;
+      
+      // Bungkus dengan font default agar saat di-paste di Docs terlihat rapi
+      const formattedHtml = `<div style="font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5;">${htmlContent}</div>`;
+      
+      // 2. Salin ke memori Clipboard sebagai Rich Text (HTML)
+      const blobHtml = new Blob([formattedHtml], { type: "text/html" });
+      const clipboardItem = new window.ClipboardItem({ "text/html": blobHtml });
+      await navigator.clipboard.write([clipboardItem]);
+
+      // 3. Jeda sedikit untuk animasi, lalu buka tab baru
+      setTimeout(() => {
+          setIsExportingGoogle(false);
+          setGoogleExportType(null);
+          
+          alert(`✅ BERHASIL!\n\nFormat dokumen telah tersalin ke memori perangkat (Clipboard).\n\nSilakan tekan CTRL + V (atau CMD + V) pada lembar kosong Google ${type} yang akan terbuka.`);
+          
+          const targetUrl = type === "Docs" ? "https://docs.new" : "https://sheets.new";
+          window.open(targetUrl, '_blank');
+      }, 2000);
+
+    } catch (error) {
+      console.error("Gagal menyalin ke clipboard:", error);
+      setIsExportingGoogle(false);
+      setGoogleExportType(null);
+      alert("Browser Anda tidak mendukung penyalinan otomatis. Silakan gunakan fitur 'Download Word' sebagai alternatif.");
+    }
   };
 
   const handleOpenRiwayat = (riwayat: any) => {
@@ -270,7 +288,6 @@ export default function GeneratorBahanAjar() {
     setFase(riwayat.fase); setKelas(riwayat.kelas || ""); setHasil(riwayat.konten); setDocId(riwayat.id);
     setDokumenTerakhir(riwayat.konten); 
     setShowKoleksi(false);
-    // Scroll dengan sedikit delay agar UI me-render height kanvas terlebih dahulu
     setTimeout(() => {
         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     }, 100);
@@ -343,7 +360,7 @@ export default function GeneratorBahanAjar() {
     fileDownload.href = source; fileDownload.download = `${tipe}_${mapel || 'Dokumen'}.doc`.replace(/[^a-zA-Z0-9.\-_]/g, "_"); fileDownload.click(); document.body.removeChild(fileDownload);
   };
 
-  // --- FITUR DOWNLOAD PDF (DIPERBAIKI UNTUK HP) ---
+  // --- FITUR DOWNLOAD PDF ---
   const handlePrintPDF = () => {
     if (!pdfRef.current) return;
     const printNode = pdfRef.current.cloneNode(true) as HTMLElement;
@@ -387,8 +404,8 @@ export default function GeneratorBahanAjar() {
                  <Loader2 size={50} className={`${googleExportType === "Docs" ? 'text-blue-500' : 'text-emerald-500'} animate-spin absolute`} />
                  <Cloud size={24} className={`${googleExportType === "Docs" ? 'text-blue-600' : 'text-emerald-600'}`} />
               </div>
-              <h3 className={`font-bold text-xl text-slate-800 ${teachersFont.className}`}>Mengautentikasi ke Google Workspace...</h3>
-              <p className="text-sm text-slate-500 mt-2 max-w-sm">Menyiapkan koneksi aman untuk mengekspor dokumen Anda langsung ke ruang kerja Google Drive.</p>
+              <h3 className={`font-bold text-xl text-slate-800 ${teachersFont.className}`}>Menyiapkan Format Dokumen...</h3>
+              <p className="text-sm text-slate-500 mt-2 max-w-sm">Menyalin elemen tabel dan struktur teks ke dalam memori untuk ditempelkan di Google {googleExportType}.</p>
             </div>
           </motion.div>
         )}

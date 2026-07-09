@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Search, Clock, CheckCircle2, XCircle, Eye, X, 
@@ -54,6 +54,9 @@ export default function StatusKoleksiGuru() {
   // State Simulasi Ekspor Google
   const [isExportingGoogle, setIsExportingGoogle] = useState(false);
   const [googleExportType, setGoogleExportType] = useState<"Docs" | "Sheets" | null>(null);
+
+  // Ref untuk mengambil HTML Dokumen
+  const previewRef = useRef<HTMLDivElement>(null);
 
   // Mengambil data secara REAL-TIME dari koleksi "modul_ajar"
   useEffect(() => {
@@ -141,18 +144,41 @@ export default function StatusKoleksiGuru() {
     setEditValue(prev => prev + tableTag);
   };
 
-  // --- SIMULASI BUKA DI GOOGLE WORKSPACE ---
-  const handleExportToGoogle = (type: "Docs" | "Sheets") => {
+  // --- TRIK SMART CLIPBOARD KE GOOGLE WORKSPACE ---
+  const handleExportToGoogle = async (type: "Docs" | "Sheets") => {
+    if (!previewRef.current) return;
     setIsExportingGoogle(true);
     setGoogleExportType(type);
     
-    setTimeout(() => {
-        setIsExportingGoogle(false);
-        setGoogleExportType(null);
-        alert(`Dokumen AI berhasil disalin ke Google ${type} Anda. Siap untuk diedit!`);
-        const targetUrl = type === "Docs" ? "https://docs.new" : "https://sheets.new";
-        window.open(targetUrl, '_blank');
-    }, 2500);
+    try {
+      // 1. Ambil HTML lengkap dari dokumen yang sedang di-preview
+      const htmlContent = previewRef.current.innerHTML;
+      
+      // Bungkus dengan font default agar rapi saat di-paste
+      const formattedHtml = `<div style="font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5;">${htmlContent}</div>`;
+      
+      // 2. Salin ke memori Clipboard
+      const blobHtml = new Blob([formattedHtml], { type: "text/html" });
+      const clipboardItem = new window.ClipboardItem({ "text/html": blobHtml });
+      await navigator.clipboard.write([clipboardItem]);
+
+      // 3. Jeda sedikit, lalu buka tab baru
+      setTimeout(() => {
+          setIsExportingGoogle(false);
+          setGoogleExportType(null);
+          
+          alert(`✅ BERHASIL!\n\nFormat dokumen telah tersalin ke memori perangkat (Clipboard).\n\nSilakan tekan CTRL + V (atau CMD + V) pada lembar kosong Google ${type} yang akan terbuka.`);
+          
+          const targetUrl = type === "Docs" ? "https://docs.new" : "https://sheets.new";
+          window.open(targetUrl, '_blank');
+      }, 2000);
+
+    } catch (error) {
+      console.error("Gagal menyalin ke clipboard:", error);
+      setIsExportingGoogle(false);
+      setGoogleExportType(null);
+      alert("Browser Anda tidak mendukung penyalinan otomatis. Silakan gunakan fitur 'Download Word' sebagai alternatif.");
+    }
   };
 
   const formatDate = (timestamp: any) => {
@@ -176,8 +202,8 @@ export default function StatusKoleksiGuru() {
                  <Loader2 size={50} className={`${googleExportType === "Docs" ? 'text-blue-500' : 'text-emerald-500'} animate-spin absolute`} />
                  <Cloud size={24} className={`${googleExportType === "Docs" ? 'text-blue-600' : 'text-emerald-600'}`} />
               </div>
-              <h3 className={`font-bold text-xl text-slate-800 ${teachersFont.className}`}>Mengekspor ke Google Workspace...</h3>
-              <p className="text-sm text-slate-500 mt-2 max-w-sm">Menyiapkan lembar kerja cerdas di Google Drive Anda agar lebih mudah direvisi.</p>
+              <h3 className={`font-bold text-xl text-slate-800 ${teachersFont.className}`}>Menyiapkan Format Dokumen...</h3>
+              <p className="text-sm text-slate-500 mt-2 max-w-sm">Menyalin elemen tabel dan struktur teks ke dalam memori untuk ditempelkan di Google {googleExportType}.</p>
             </div>
           </motion.div>
         )}
@@ -344,7 +370,7 @@ export default function StatusKoleksiGuru() {
                   ) : (
                     // MODE PREVIEW
                     <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-                      <div className={`bg-white shadow-lg border border-slate-300 rounded p-8 md:p-14 mx-auto min-h-full ${isLandscape ? 'w-full max-w-none' : 'max-w-4xl'}`}>
+                      <div ref={previewRef} className={`bg-white shadow-lg border border-slate-300 rounded p-8 md:p-14 mx-auto min-h-full ${isLandscape ? 'w-full max-w-none' : 'max-w-4xl'}`}>
                         <div className="markdown-body">
                           <style>{`
                             .markdown-body { font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.6; color: #000; text-align: justify; }
@@ -398,7 +424,7 @@ export default function StatusKoleksiGuru() {
 
                 {/* Bagian Kanan: Informasi & Status Untuk Guru */}
                 <div className="w-full md:w-[320px] bg-white border-t md:border-t-0 md:border-l border-slate-200 flex flex-col shadow-[-4px_0_15px_-5px_rgba(0,0,0,0.05)] z-10">
-                  <div className="p-6 flex-1 overflow-y-auto">
+                  <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
                     
                     {/* Kotak Info Status & Catatan Kepsek */}
                     <div className={`p-4 rounded-xl mb-6 border ${
@@ -425,7 +451,7 @@ export default function StatusKoleksiGuru() {
                     </div>
 
                     <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2 mt-6">
-                      <Cloud size={16} className="text-blue-500"/> Integrasi Google Docs
+                      <Cloud size={16} className="text-blue-500"/> Integrasi Google
                     </h4>
                     <p className="text-[11px] text-slate-500 mb-4 leading-relaxed">
                       Merasa editor bawaan kurang leluasa? Anda bisa langsung mengekspor dan merevisi dokumen ini menggunakan aplikasi Google.
@@ -451,7 +477,7 @@ export default function StatusKoleksiGuru() {
                   </div>
 
                   {/* Tombol Simpan Guru */}
-                  <div className="p-5 bg-slate-50 border-t border-slate-200 space-y-3">
+                  <div className="p-5 bg-slate-50 border-t border-slate-200 space-y-3 shrink-0">
                     <button 
                       onClick={handleSaveEdit}
                       disabled={isProcessing || !isEditMode}
