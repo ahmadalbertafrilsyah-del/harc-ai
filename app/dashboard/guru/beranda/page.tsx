@@ -7,10 +7,9 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-// IMPORT FIREBASE
 import { db } from "@/lib/firebase"; 
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { collection, onSnapshot, query, doc, deleteDoc, orderBy } from "firebase/firestore";
+import { collection, onSnapshot, query, doc, deleteDoc, orderBy, where } from "firebase/firestore";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -31,25 +30,36 @@ export default function BerandaGuru() {
     const auth = getAuth();
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
-        // 1. Fetch Statistik Pribadi
+        // 1. Fetch Profil Guru untuk dapatkan NPSN & Token AI
         const unsubStats = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
           if (docSnap.exists()) {
-            setStats({
-              siswaAktif: docSnap.data().siswaAktif || 0,
-              indeksKesantunan: docSnap.data().indeksKesantunan || 0,
-              tokenAI: docSnap.data().aiTokens || 0,
-              rataRataKelas: docSnap.data().rataRataKelas || 0
-            });
+            const data = docSnap.data();
+            const npsn = data.npsn || data.instansi;
+
+            setStats(prev => ({
+              ...prev,
+              indeksKesantunan: data.indeksKesantunan || 0,
+              tokenAI: data.aiTokens || 0,
+              rataRataKelas: data.rataRataKelas || 0
+            }));
+
+            // 2. Fetch Total Siswa Berdasarkan NPSN secara Real-time
+            if (npsn) {
+              const qSiswa = query(collection(db, "users"), where("role", "==", "siswa"), where("npsn", "==", npsn));
+              onSnapshot(qSiswa, (siswaSnap) => {
+                setStats(prev => ({ ...prev, siswaAktif: siswaSnap.size }));
+              });
+            }
           }
         });
 
-        // 2. Fetch Antrean Asli
+        // 3. Fetch Antrean Asli
         const qAntrean = query(collection(db, "antrean_validasi"), orderBy("timestamp", "desc"));
         const unsubAntrean = onSnapshot(qAntrean, (snapshot) => {
           setAntrean(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
         });
 
-        // 3. Fetch Grafik
+        // 4. Fetch Grafik
         const qGrafik = query(collection(db, "grafik_nilai"), orderBy("urutanBulan", "asc"));
         const unsubGrafik = onSnapshot(qGrafik, (snapshot) => {
           setDataStatistik(snapshot.docs.map(d => d.data()));
@@ -95,14 +105,13 @@ export default function BerandaGuru() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
-        <StatCard title="Total Siswa" value={stats.siswaAktif.toString()} icon={Users} color="blue" trend="Di kelas Anda" />
+        <StatCard title="Total Siswa" value={stats.siswaAktif.toString()} icon={Users} color="blue" trend="Terhubung via NPSN" />
         <StatCard title="Tugas Tertunda" value={antrean.length.toString()} icon={AlertCircle} color="amber" highlight={antrean.length > 0} trend={antrean.length === 0 ? "Tuntas" : "Perlu tinjauan"} />
         <StatCard title="Indeks Kesantunan" value={`${stats.indeksKesantunan}%`} icon={Activity} color="emerald" trend="Rata-rata kelas" />
         <StatCard title="Sisa Token AI" value={stats.tokenAI.toLocaleString('id-ID')} icon={Coins} color="indigo" trend="Siklus aktif" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Grafik */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border border-slate-200/80 p-6 flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <div>
@@ -133,14 +142,12 @@ export default function BerandaGuru() {
           </div>
         </div>
 
-        {/* Antrean Validasi (Di HP jadi 2 kolom) */}
         <div className="bg-white rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border border-slate-200/80 flex flex-col overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <h3 className={`text-base font-bold text-slate-800 flex items-center gap-2 ${teachersFont.className}`}><FileWarning size={18} className="text-amber-500" /> Tugas ({antrean.length})</h3>
             <Link href="/dashboard/guru/validasi" className="text-xs font-bold text-blue-600 hover:text-blue-800">Semua <ChevronRight size={14} className="inline -mt-0.5" /></Link>
           </div>
           
-          {/* Perubahan Layout Grid 2 Kolom untuk Mobile (sm:grid-cols-2) */}
           <div className="flex-1 overflow-y-auto p-4 md:p-0">
             <AnimatePresence>
               {antrean.length > 0 ? (
