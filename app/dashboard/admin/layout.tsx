@@ -31,7 +31,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: "Korpus", icon: Database, path: "/dashboard/admin/korpus" },
     { name: "Asisten AI", icon: Bot, path: "/dashboard/admin/chat" },
     { name: "Monitoring", icon: Activity, path: "/dashboard/admin/monitoring" },
-    { name: "Pengaturan", icon: Settings, path: "/dashboard/admin/pengaturan" },
+    { name: "Sistem Logs", icon: Activity, path: "/dashboard/admin/logs" },
+    { name: "Pengaturan", icon: Settings, path: "/dashboard/admin/pengaturan" }
   ];
 
   useEffect(() => {

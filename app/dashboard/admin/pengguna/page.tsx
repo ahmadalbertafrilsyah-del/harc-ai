@@ -236,7 +236,7 @@ export default function ManajemenPenggunaAdmin() {
           {activeTab === "siswa" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-emerald-600 rounded-t-full"></span>}
         </button>
         <button onClick={() => setActiveTab("pengajuan")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${activeTab === "pengajuan" ? "text-amber-700" : "text-slate-500 hover:text-slate-700"}`}>
-          Antrean Pengajuan
+          ACC Akun
           {filteredPengajuan.length > 0 && <span className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{filteredPengajuan.length}</span>}
           {activeTab === "pengajuan" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-amber-600 rounded-t-full"></span>}
         </button>
