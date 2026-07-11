@@ -9,7 +9,6 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Teachers, Lato } from "next/font/google";
 
-// IMPORT FIREBASE
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase"; 
@@ -22,20 +21,17 @@ export default function LoginPage() {
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
-  // State Pengaturan Global dari Firestore
   const [adminPhone, setAdminPhone] = useState("6281234567890"); 
   const [isRegOpen, setIsRegOpen] = useState(true);
   const [isMaintenance, setIsMaintenance] = useState(false);
 
-  // State Login & Register
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   
-  // State Input Pendaftaran (Sesuai Permintaan Baru)
-  const [regNama, setRegNama] = useState(""); // Nama Lengkap / Nama Penanggung Jawab
-  const [regNamaLembaga, setRegNamaLembaga] = useState(""); // Khusus Lembaga
-  const [regNPSN, setRegNPSN] = useState(""); // Kunci Penghubung
+  const [regNama, setRegNama] = useState(""); 
+  const [regNamaLembaga, setRegNamaLembaga] = useState(""); 
+  const [regNPSN, setRegNPSN] = useState(""); 
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
 
@@ -46,7 +42,6 @@ export default function LoginPage() {
     { id: "siswa", name: "Siswa", icon: User, desc: "Asesmen & belajar", activeColor: "bg-emerald-50 border-emerald-500 text-emerald-900 ring-2 ring-emerald-500/20" }
   ];
 
-  // REAL-TIME FETCH PENGATURAN GLOBAL
   useEffect(() => {
     const unsubConfig = onSnapshot(doc(db, "sistem_stats", "pengaturan_global"), (docSnap) => {
       if (docSnap.exists()) {
@@ -89,6 +84,9 @@ export default function LoginPage() {
         }
 
         if (userData.role === selectedRole) {
+          // SET COOKIE UNTUK MIDDLEWARE
+          document.cookie = `userRole=${userData.role}; path=/; max-age=86400; SameSite=Strict`;
+          
           window.location.href = `/dashboard/${selectedRole}/beranda`;
         } else {
           await signOut(auth);
@@ -119,25 +117,22 @@ export default function LoginPage() {
 
       const roleDiajukan = selectedRole || "guru";
       
-      // Susun Data Sesuai Format Baru (Kunci Relasi: npsn)
       const dataPengajuan: any = {
         uid: newUser.uid,
         nama: regNama,
         email: regEmail,
         npsn: regNPSN,
-        instansi: regNPSN, // Disimpan sebagai instansi agar kodingan dashboard (where instansi == instansi) langsung berfungsi
+        instansi: regNPSN, 
         role: roleDiajukan, 
         status: "pending",
         timestamp: serverTimestamp()
       };
 
-      // Jika role Lembaga, tambahkan nama lembaganya
       if (roleDiajukan === "lembaga") {
         dataPengajuan.namaLembaga = regNamaLembaga;
-        dataPengajuan.namaInstansi = regNamaLembaga; // Untuk kompatibilitas
+        dataPengajuan.namaInstansi = regNamaLembaga; 
       }
 
-      // Simpan ke Antrean ACC
       await setDoc(doc(db, "pengajuan_akun", newUser.uid), dataPengajuan);
 
       const namaPeran = roleDiajukan === "lembaga" ? "Lembaga" : roleDiajukan === "guru" ? "Guru" : "Siswa";
@@ -152,7 +147,6 @@ export default function LoginPage() {
       alert("Pendaftaran berhasil direkam! Anda akan dialihkan ke WhatsApp Admin.");
       window.open(waUrl, '_blank');
       
-      // Reset Form
       setStep(1);
       setSelectedRole(null);
       setRegPassword(""); 
@@ -181,12 +175,11 @@ export default function LoginPage() {
   return (
     <div className={`h-screen w-full bg-slate-50 flex flex-col md:flex-row ${latoFont.className} overflow-hidden`}>
       
-      {/* Panel Kiri - Dekorasi */}
-      <div className="hidden md:flex md:w-5/12 lg:w-1/2 bg-blue-950 p-8 flex-col justify-between relative">
+      <div className="hidden md:flex md:w-5/12 lg:w-1/2 bg-blue-950 p-8 flex-col justify-between relative" aria-hidden="true">
         <div className="absolute -top-24 -left-24 w-80 h-80 bg-blue-900/50 rounded-full blur-3xl"></div>
         <div className="absolute -bottom-24 -right-24 w-80 h-80 bg-amber-600/20 rounded-full blur-3xl"></div>
         <div className="relative z-10">
-          <Link href="/" className="flex items-center gap-2 w-fit hover:opacity-80 transition-opacity">
+          <Link href="/" className="flex items-center gap-2 w-fit hover:opacity-80 transition-opacity" tabIndex={-1}>
             <GraduationCap className="w-7 h-7 text-amber-400" />
             <span className={`text-xl font-bold text-white tracking-wide ${teachersFont.className}`}>HARC-AI</span>
           </Link>
@@ -205,14 +198,14 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Panel Kanan - Dinamis */}
-      <div className="w-full md:w-7/12 lg:w-1/2 h-full flex items-center justify-center p-6 bg-slate-50 relative overflow-y-auto">
+      <main className="w-full md:w-7/12 lg:w-1/2 h-full flex items-center justify-center p-6 bg-slate-50 relative overflow-y-auto" role="main">
         {step !== 1 && (
           <button 
             onClick={handleBack}
-            className="absolute top-6 left-6 md:top-6 md:right-6 md:left-auto text-slate-500 hover:text-slate-900 flex items-center gap-1.5 transition-colors text-xs font-bold bg-white px-3 py-1.5 rounded-full shadow-sm border border-slate-200 z-20"
+            aria-label={step === 3 ? 'Batal Mengajukan dan kembali' : 'Ganti Peran login'}
+            className="absolute top-6 left-6 md:top-6 md:right-6 md:left-auto text-slate-500 hover:text-slate-900 flex items-center gap-1.5 transition-colors text-xs font-bold bg-white px-3 py-1.5 rounded-full shadow-sm border border-slate-200 z-20 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
           >
-            <ArrowLeft size={14} /> {step === 3 ? 'Batal Mengajukan' : 'Ganti Peran'}
+            <ArrowLeft size={14} aria-hidden="true" /> {step === 3 ? 'Batal Mengajukan' : 'Ganti Peran'}
           </button>
         )}
 
@@ -220,8 +213,8 @@ export default function LoginPage() {
           
           <AnimatePresence>
             {isMaintenance && step === 1 && (
-              <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 shadow-sm">
-                <Wrench className="text-amber-600 shrink-0 mt-0.5" size={20} />
+              <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 shadow-sm" role="alert" aria-live="assertive">
+                <Wrench className="text-amber-600 shrink-0 mt-0.5" size={20} aria-hidden="true" />
                 <div>
                   <h3 className="text-sm font-bold text-amber-900 mb-1">Mode Pemeliharaan Aktif</h3>
                   <p className="text-xs text-amber-700 leading-relaxed">Sistem saat ini hanya dapat diakses oleh Administrator. Proses evaluasi ditutup sementara.</p>
@@ -232,24 +225,25 @@ export default function LoginPage() {
 
           <AnimatePresence mode="wait">
             
-            {/* STEP 1: Pilih Peran */}
             {step === 1 && (
               <motion.div key="step1" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                 <div className="text-center md:text-left mb-6">
-                  <h1 className={`text-2xl font-bold text-blue-950 mb-1 ${teachersFont.className}`}>Selamat Datang</h1>
+                  <h1 className={`text-2xl font-bold text-blue-950 mb-1 ${teachersFont.className}`} tabIndex={0}>Selamat Datang</h1>
                   <p className="text-slate-500 font-medium text-xs">Silakan pilih peran Anda untuk mengakses sistem.</p>
                 </div>
     
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3" role="group" aria-label="Pilihan Peran Pengguna">
                   {roles.map((role) => (
                     <motion.button 
                       key={role.id} 
                       whileHover={{ scale: 1.02 }} 
                       whileTap={{ scale: 0.98 }} 
                       onClick={() => setSelectedRole(role.id)} 
-                      className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all duration-200 text-center ${selectedRole === role.id ? role.activeColor : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'}`}
+                      aria-pressed={selectedRole === role.id}
+                      aria-label={`Masuk sebagai ${role.name}`}
+                      className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all duration-200 text-center focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${selectedRole === role.id ? role.activeColor : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'}`}
                     >
-                      <div className={`p-2 rounded-lg mb-2 ${selectedRole === role.id ? 'bg-white shadow-sm' : 'bg-slate-100 text-slate-600'}`}>
+                      <div className={`p-2 rounded-lg mb-2 ${selectedRole === role.id ? 'bg-white shadow-sm' : 'bg-slate-100 text-slate-600'}`} aria-hidden="true">
                         <role.icon className="w-6 h-6" />
                       </div>
                       <div className={`text-sm font-bold ${teachersFont.className} ${selectedRole === role.id ? 'text-inherit' : 'text-slate-800'}`}>
@@ -262,140 +256,140 @@ export default function LoginPage() {
                   ))}
                 </div>
                 
-                <button onClick={() => setStep(2)} disabled={!selectedRole} className={`w-full mt-6 py-3 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 ${selectedRole ? 'bg-blue-900 hover:bg-blue-800 text-white shadow-lg shadow-blue-900/20' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
-                  Lanjutkan <ArrowRight size={16} />
+                <button 
+                  onClick={() => setStep(2)} 
+                  disabled={!selectedRole} 
+                  aria-disabled={!selectedRole}
+                  aria-label="Lanjutkan ke tahap login"
+                  className={`w-full mt-6 py-3 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${selectedRole ? 'bg-blue-900 hover:bg-blue-800 text-white shadow-lg shadow-blue-900/20' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                >
+                  Lanjutkan <ArrowRight size={16} aria-hidden="true" />
                 </button>
               </motion.div>
             )}
 
-            {/* STEP 2: Form Login */}
             {step === 2 && (
               <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                 <div className="text-center md:text-left mb-6">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-[10px] font-bold mb-2 border border-blue-100 uppercase tracking-wide">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-[10px] font-bold mb-2 border border-blue-100 uppercase tracking-wide" aria-hidden="true">
                     Login {roles.find(r => r.id === selectedRole)?.name}
                   </div>
-                  <h1 className={`text-2xl font-bold text-blue-950 mb-1 ${teachersFont.className}`}>Masuk Sistem</h1>
+                  <h1 className={`text-2xl font-bold text-blue-950 mb-1 ${teachersFont.className}`} tabIndex={0}>Masuk Sistem</h1>
                 </div>
-                <form onSubmit={handleLogin} className="space-y-4">
+                <form onSubmit={handleLogin} className="space-y-4" noValidate>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Alamat Email</label>
+                    <label htmlFor="login-email" className="block text-[11px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Alamat Email</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Mail className="h-4 w-4 text-slate-400" /></div>
-                      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 outline-none text-slate-700 text-sm shadow-sm" />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" aria-hidden="true"><Mail className="h-4 w-4 text-slate-400" /></div>
+                      <input id="login-email" type="email" aria-required="true" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 outline-none text-slate-700 text-sm shadow-sm" />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Kata Sandi</label>
+                    <label htmlFor="login-password" className="block text-[11px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">Kata Sandi</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Lock className="h-4 w-4 text-slate-400" /></div>
-                      <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full pl-9 pr-9 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 outline-none text-slate-700 text-sm shadow-sm" />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600">
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" aria-hidden="true"><Lock className="h-4 w-4 text-slate-400" /></div>
+                      <input id="login-password" type={showPassword ? "text" : "password"} aria-required="true" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full pl-9 pr-9 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 outline-none text-slate-700 text-sm shadow-sm" />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"} className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none focus:text-blue-600">
+                        {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
                       </button>
                     </div>
                   </div>
-                  <button type="submit" disabled={isLoading} className="w-full mt-2 py-3 rounded-xl font-bold text-sm text-white bg-blue-900 hover:bg-blue-800 shadow-md transition-all flex justify-center items-center gap-2">
-                    {isLoading ? <><Loader2 size={16} className="animate-spin" /> Verifikasi...</> : "Masuk ke Dashboard"}
+                  <button type="submit" disabled={isLoading} aria-disabled={isLoading} aria-live="polite" className="w-full mt-2 py-3 rounded-xl font-bold text-sm text-white bg-blue-900 hover:bg-blue-800 shadow-md transition-all flex justify-center items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2">
+                    {isLoading ? <><Loader2 size={16} className="animate-spin" aria-hidden="true" /> Verifikasi...</> : "Masuk ke Dashboard"}
                   </button>
                 </form>
 
                 {(selectedRole !== "admin") && isRegOpen && (
                   <div className="mt-5 pt-4 border-t border-slate-200 text-center">
-                    <button onClick={() => setStep(3)} className="w-full py-2.5 rounded-lg font-bold text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all">
+                    <button onClick={() => setStep(3)} className="w-full py-2.5 rounded-lg font-bold text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2">
                       Ajukan Akun {selectedRole === "lembaga" ? "Lembaga" : selectedRole === "guru" ? "Guru" : "Siswa"} Baru
                     </button>
                   </div>
                 )}
                 {(selectedRole !== "admin") && !isRegOpen && (
-                  <div className="mt-5 pt-4 border-t border-slate-200 text-center flex items-center justify-center gap-2 text-rose-600">
-                    <AlertCircle size={14} />
+                  <div className="mt-5 pt-4 border-t border-slate-200 text-center flex items-center justify-center gap-2 text-rose-600" role="alert">
+                    <AlertCircle size={14} aria-hidden="true" />
                     <span className="text-xs font-bold">Pendaftaran Sedang Ditutup</span>
                   </div>
                 )}
               </motion.div>
             )}
 
-            {/* STEP 3: Form Pengajuan (Disesuaikan Penuh) */}
             {step === 3 && (
               <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                 <div className="text-center md:text-left mb-5">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full text-[10px] font-bold mb-2 border border-amber-100 uppercase tracking-wide">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-full text-[10px] font-bold mb-2 border border-amber-100 uppercase tracking-wide" aria-hidden="true">
                     Pengajuan Akun
                   </div>
-                  <h1 className={`text-xl font-bold text-blue-950 mb-1 ${teachersFont.className}`}>
+                  <h1 className={`text-xl font-bold text-blue-950 mb-1 ${teachersFont.className}`} tabIndex={0}>
                     {selectedRole === "lembaga" ? "Akun Lembaga" : selectedRole === "guru" ? "Akun Guru" : "Akun Siswa"}
                   </h1>
                 </div>
                 
-                <form onSubmit={handleRegister} className="space-y-3">
-                  
-                  {/* FIELD 1: Nama (Penanggung Jawab / Lengkap) */}
+                <form onSubmit={handleRegister} className="space-y-3" noValidate>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">
+                    <label htmlFor="reg-nama" className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">
                       {selectedRole === "lembaga" ? "Nama Penanggung Jawab" : "Nama Lengkap"}
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><User className="h-3.5 w-3.5 text-slate-400" /></div>
-                      <input type="text" value={regNama} onChange={(e) => setRegNama(e.target.value)} required className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none text-sm shadow-sm" />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" aria-hidden="true"><User className="h-3.5 w-3.5 text-slate-400" /></div>
+                      <input id="reg-nama" type="text" aria-required="true" value={regNama} onChange={(e) => setRegNama(e.target.value)} required className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-sm shadow-sm transition-all" />
                     </div>
                   </div>
 
-                  {/* FIELD 2: Nama Lembaga (KHUSUS LEMBAGA) */}
                   {selectedRole === "lembaga" && (
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">
+                      <label htmlFor="reg-lembaga" className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">
                         Nama Lembaga/Instansi
                       </label>
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Building className="h-3.5 w-3.5 text-slate-400" /></div>
-                        <input type="text" value={regNamaLembaga} onChange={(e) => setRegNamaLembaga(e.target.value)} required className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none text-sm shadow-sm" />
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" aria-hidden="true"><Building className="h-3.5 w-3.5 text-slate-400" /></div>
+                        <input id="reg-lembaga" type="text" aria-required="true" value={regNamaLembaga} onChange={(e) => setRegNamaLembaga(e.target.value)} required className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-sm shadow-sm transition-all" />
                       </div>
                     </div>
                   )}
 
-                  {/* FIELD 3: NPSN (Untuk Semua) */}
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider flex items-center justify-between">
+                    <label htmlFor="reg-npsn" className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider flex items-center justify-between">
                       <span>NPSN</span>
                       {selectedRole !== "lembaga" && <span className="text-[9px] text-slate-400 normal-case">(Samakan dengan NPSN Lembaga)</span>}
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Hash className="h-3.5 w-3.5 text-slate-400" /></div>
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" aria-hidden="true"><Hash className="h-3.5 w-3.5 text-slate-400" /></div>
                       <input 
-                        type="text" // Menggunakan text untuk keamanan format angka
+                        id="reg-npsn"
+                        type="text" 
+                        aria-required="true"
                         value={regNPSN} 
                         onChange={(e) => setRegNPSN(e.target.value)} 
                         required 
                         placeholder="Contoh: 69725804"
-                        className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none text-sm shadow-sm" 
+                        className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-sm shadow-sm transition-all" 
                       />
                     </div>
                   </div>
                   
-                  {/* FIELD 4: Email */}
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">Alamat Email</label>
+                    <label htmlFor="reg-email" className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">Alamat Email</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Mail className="h-3.5 w-3.5 text-slate-400" /></div>
-                      <input type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} required className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none text-sm shadow-sm" />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" aria-hidden="true"><Mail className="h-3.5 w-3.5 text-slate-400" /></div>
+                      <input id="reg-email" type="email" aria-required="true" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} required className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-sm shadow-sm transition-all" />
                     </div>
                   </div>
 
-                  {/* FIELD 5: Password */}
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">Buat Kata Sandi</label>
+                    <label htmlFor="reg-password" className="block text-[10px] font-bold text-slate-700 mb-1 uppercase tracking-wider">Buat Kata Sandi</label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Lock className="h-3.5 w-3.5 text-slate-400" /></div>
-                      <input type={showPassword ? "text" : "password"} value={regPassword} onChange={(e) => setRegPassword(e.target.value)} minLength={6} placeholder="Minimal 6 karakter" required className="w-full pl-8 pr-9 py-2 bg-white border border-slate-200 rounded-lg outline-none text-sm shadow-sm" />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600">
-                        {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none" aria-hidden="true"><Lock className="h-3.5 w-3.5 text-slate-400" /></div>
+                      <input id="reg-password" type={showPassword ? "text" : "password"} aria-required="true" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} minLength={6} placeholder="Minimal 6 karakter" required className="w-full pl-8 pr-9 py-2 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-sm shadow-sm transition-all" />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"} className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none focus:text-amber-600">
+                        {showPassword ? <EyeOff className="h-3.5 w-3.5" aria-hidden="true" /> : <Eye className="h-3.5 w-3.5" aria-hidden="true" />}
                       </button>
                     </div>
                   </div>
                   
-                  <button type="submit" disabled={isLoading} className="w-full mt-3 py-2.5 rounded-xl font-bold text-sm text-white bg-amber-600 hover:bg-amber-700 shadow-md transition-all flex justify-center items-center gap-2">
-                    {isLoading ? <Loader2 size={16} className="animate-spin" /> : <>Kirim Pengajuan <Send size={14} /></>}
+                  <button type="submit" disabled={isLoading} aria-disabled={isLoading} aria-live="polite" className="w-full mt-3 py-2.5 rounded-xl font-bold text-sm text-white bg-amber-600 hover:bg-amber-700 shadow-md transition-all flex justify-center items-center gap-2 focus:outline-none focus:ring-2 focus:ring-amber-600 focus:ring-offset-2">
+                    {isLoading ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <>Kirim Pengajuan <Send size={14} aria-hidden="true" /></>}
                   </button>
                 </form>
               </motion.div>
@@ -403,7 +397,7 @@ export default function LoginPage() {
 
           </AnimatePresence>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
