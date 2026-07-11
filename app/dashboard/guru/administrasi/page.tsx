@@ -8,7 +8,8 @@ import {
 import { Teachers } from "next/font/google";
 import { useState, useEffect, FormEvent } from "react";
 import { db } from "@/lib/firebase"; 
-import { collection, onSnapshot, query, where, addDoc, doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+// PERBAIKAN IMPORT: Menambahkan getDocs
+import { collection, onSnapshot, query, where, addDoc, doc, setDoc, getDoc, getDocs, serverTimestamp } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
@@ -35,6 +36,7 @@ export default function AdministrasiKelasGuru() {
   const [isSubmittingJurnal, setIsSubmittingJurnal] = useState(false);
   const [statusPesan, setStatusPesan] = useState<{tipe: "sukses"|"error", teks: string} | null>(null);
 
+  // 1. Tarik Data Kelas yang Diajar Guru
   useEffect(() => {
     const auth = getAuth();
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
@@ -54,7 +56,7 @@ export default function AdministrasiKelasGuru() {
     return () => unsubscribeAuth();
   }, []);
 
-  // PERBAIKAN: Menarik Absensi yang sudah ada di tanggal yang dipilih
+  // 2. PERBAIKAN: Menarik Siswa ASLI dari Database dan Riwayat Absensi
   useEffect(() => {
     const fetchSiswaDanAbsensi = async () => {
       if (!kelasTerpilih) return;
@@ -62,17 +64,38 @@ export default function AdministrasiKelasGuru() {
       const kelas = daftarKelas.find(k => k.id === kelasTerpilih);
       if (!kelas) return;
 
-      const mockSiswa = Array.from({ length: kelas.siswa || 0 }).map((_, i) => ({
-        id: `siswa-${i}`,
-        nama: `Siswa ${i + 1} (${kelas.nama})`,
-        nisn: `00${Math.floor(Math.random() * 100000000)}`
-      }));
-      setDaftarSiswa(mockSiswa);
-      
-      let currentAbsen: Record<string, string> = {};
-      mockSiswa.forEach(s => currentAbsen[s.id] = "Hadir");
-
       try {
+        // A. Tarik Data Siswa Asli yang memiliki role 'siswa'
+        const qSiswa = query(collection(db, "users"), where("role", "==", "siswa"));
+        const siswaSnap = await getDocs(qSiswa);
+        
+        let realSiswa = siswaSnap.docs
+          .map(d => ({ id: d.id, ...d.data() as any }))
+          // Filter manual: mencocokkan ID Kelas atau Nama Kelas
+          .filter(s => s.kelasId === kelas.id || s.kelas === kelas.nama);
+
+        // Fallback R&D: Jika di database benar-benar kosong, buatkan data dummy agar UI tidak error
+        if (realSiswa.length === 0) {
+          realSiswa = Array.from({ length: kelas.siswa || 0 }).map((_, i) => ({
+            id: `siswa-dummy-${i}`,
+            nama: `Siswa Dummy ${i + 1} (${kelas.nama})`,
+            nisn: `00${Math.floor(Math.random() * 100000000)}`
+          }));
+        }
+
+        const formattedSiswa = realSiswa.map(s => ({
+          id: s.id,
+          nama: s.nama || "Siswa Tanpa Nama",
+          nisn: s.nisn || `00${Math.floor(Math.random() * 100000000)}`
+        }));
+        
+        setDaftarSiswa(formattedSiswa);
+        
+        // B. Siapkan Absensi Default (Hadir)
+        let currentAbsen: Record<string, string> = {};
+        formattedSiswa.forEach(s => currentAbsen[s.id] = "Hadir");
+
+        // C. Tarik Riwayat Absen Jika Hari Ini Sudah Pernah Disimpan
         const absenId = `${kelasTerpilih}_${tanggal}`;
         const absenRef = doc(db, "absensi_siswa", absenId);
         const absenSnap = await getDoc(absenRef);
@@ -83,15 +106,15 @@ export default function AdministrasiKelasGuru() {
             currentAbsen = { ...currentAbsen, ...dataServer.dataKehadiran };
           }
         }
-      } catch (error) {
-        console.error("Gagal menarik riwayat absensi:", error);
-      }
 
-      setAbsensi(currentAbsen);
+        setAbsensi(currentAbsen);
+      } catch (error) {
+        console.error("Gagal menarik data siswa dan riwayat absensi:", error);
+      }
     };
 
     fetchSiswaDanAbsensi();
-  }, [kelasTerpilih, daftarKelas, tanggal]); // Re-fetch jika tanggal diubah
+  }, [kelasTerpilih, daftarKelas, tanggal]);
 
   const handleSimpanAbsensi = async (e: FormEvent) => {
     e.preventDefault();
@@ -100,12 +123,9 @@ export default function AdministrasiKelasGuru() {
     setIsSubmittingAbsen(true);
     setStatusPesan(null);
 
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("Timeout")), 10000)
-    );
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 10000));
 
     try {
-      // PERBAIKAN: Gunakan setDoc dengan ID Spesifik Mencegah Duplikasi Dokumen
       const absenId = `${kelasTerpilih}_${tanggal}`;
       await Promise.race([
         setDoc(doc(db, "absensi_siswa", absenId), {
@@ -114,7 +134,7 @@ export default function AdministrasiKelasGuru() {
           tanggal: tanggal,
           dataKehadiran: absensi,
           timestamp: serverTimestamp()
-        }, { merge: true }), // Merge menjaga field lain jika ada
+        }, { merge: true }),
         timeoutPromise
       ]);
       
@@ -137,14 +157,11 @@ export default function AdministrasiKelasGuru() {
     setIsSubmittingJurnal(true);
     setStatusPesan(null);
 
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("Timeout")), 10000)
-    );
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 10000));
 
     try {
       const kelas = daftarKelas.find(k => k.id === kelasTerpilih);
       
-      // Jurnal tetap addDoc karena 1 hari bisa ada beberapa sesi jurnal
       await Promise.race([
         addDoc(collection(db, "jurnal_kbm"), {
           guruId: userUid,
@@ -223,20 +240,14 @@ export default function AdministrasiKelasGuru() {
 
       <nav aria-label="Tab Administrasi" className="flex border-b border-slate-200" role="tablist">
         <button 
-          role="tab"
-          aria-selected={activeTab === "absensi"}
-          aria-controls="panel-absensi"
-          id="tab-absensi"
+          role="tab" aria-selected={activeTab === "absensi"} aria-controls="panel-absensi" id="tab-absensi"
           onClick={() => setActiveTab("absensi")}
           className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all focus:outline-none focus:bg-slate-50 ${activeTab === "absensi" ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"}`}
         >
           <Users size={18} aria-hidden="true"/> Absensi Harian
         </button>
         <button 
-          role="tab"
-          aria-selected={activeTab === "jurnal"}
-          aria-controls="panel-jurnal"
-          id="tab-jurnal"
+          role="tab" aria-selected={activeTab === "jurnal"} aria-controls="panel-jurnal" id="tab-jurnal"
           onClick={() => setActiveTab("jurnal")}
           className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all focus:outline-none focus:bg-slate-50 ${activeTab === "jurnal" ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"}`}
         >
@@ -306,7 +317,7 @@ export default function AdministrasiKelasGuru() {
                         <td colSpan={3} className="px-6 py-10 text-center">
                           <Users size={32} className="mx-auto text-slate-300 mb-2" aria-hidden="true"/>
                           <p className="text-sm font-bold text-slate-600">Siswa tidak ditemukan.</p>
-                          <p className="text-xs text-slate-500 mt-1">Pilih kelas lain atau pastikan kelas memiliki peserta.</p>
+                          <p className="text-xs text-slate-500 mt-1">Sistem tidak menemukan siswa untuk kelas ini di database.</p>
                         </td>
                       </tr>
                     )}

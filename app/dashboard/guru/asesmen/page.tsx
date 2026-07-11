@@ -57,6 +57,28 @@ export default function ModulAsesmenGuru() {
     }, 3000);
   };
 
+  const handleSimpanKeBankSoal = async () => {
+    if (!userUid || !hasilAI) return;
+    try {
+      await addDoc(collection(db, "modul_ajar"), {
+        userId: userUid, // ID Guru pembuat
+        pembuat: "Guru", // Bisa diganti profil.namaLengkap jika ada state-nya
+        mapel: formData.mapel,
+        topik: formData.kompetensiDasar,
+        tipe: formData.jenisSoal,
+        kisiKisi: hasilAI.kisiKisi,
+        soalTeks: hasilAI.soalTeks,
+        statusValidasi: "menunggu", // Penting agar masuk ke antrean validasi Lembaga
+        timestamp: serverTimestamp()
+      });
+      alert("Berhasil disimpan ke Bank Soal & masuk antrean validasi Kepala Sekolah!");
+      setHasilAI(null); // Kosongkan layar setelah berhasil
+    } catch (error) {
+      console.error(error);
+      alert("Gagal menyimpan dokumen ke database.");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="w-full h-[60vh] flex flex-col items-center justify-center text-slate-500" role="status" aria-live="polite">
@@ -171,9 +193,7 @@ export default function ModulAsesmenGuru() {
                     <h3 className="text-lg font-bold text-slate-800">Draf Dokumen Asesmen</h3>
                     <p className="text-xs text-emerald-600 font-bold flex items-center gap-1 mt-1"><CheckCircle2 size={14}/> Berhasil digenerate oleh AI</p>
                   </div>
-                  <button className="text-xs font-bold bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg border border-blue-200 hover:bg-blue-100 flex items-center gap-1.5 transition-colors">
-                    <Save size={14}/> Simpan ke Bank Soal
-                  </button>
+                  <button onClick={handleSimpanKeBankSoal} className="text-xs font-bold bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg border border-blue-200 hover:bg-blue-100 flex items-center gap-1.5 transition-colors"><Save size={14}/> Simpan ke Bank Soal </button>
                 </div>
                 
                 <div className="space-y-6">
