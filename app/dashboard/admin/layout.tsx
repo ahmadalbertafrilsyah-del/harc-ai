@@ -53,7 +53,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           className="absolute -right-3 top-20 bg-[#0c0a1f] border border-indigo-900/50 text-slate-400 hover:text-white rounded-full p-1 z-50 shadow-md transition-colors"
           aria-label={isSidebarCollapsed ? "Buka Sidebar" : "Tutup Sidebar"}
         >
-          {isSidebarCollapsed ? <ChevronRight size={14} aria-hidden="true"/> : <ChevronLeft size={14} aria-hidden="true"/>}
+          {isSidebarCollapsed ? <ChevronRight size={12} aria-hidden="true"/> : <ChevronLeft size={14} aria-hidden="true"/>}
         </button>
 
         <div className="h-16 flex items-center justify-center px-4 border-b border-indigo-900/40 bg-[#070514] shrink-0">
@@ -68,7 +68,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* SEMANTIK A11Y: Menggunakan <nav> dengan aria-label */}
         <nav aria-label="Navigasi Utama Admin" className="flex-1 py-6 flex flex-col gap-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
           {!isSidebarCollapsed && (
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 px-6 truncate" aria-hidden="true">Kontrol Utama</div>
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 px-6 truncate" aria-hidden="true">Kontrol Utama</div>
           )}
           
           {menuItems.map((item) => {

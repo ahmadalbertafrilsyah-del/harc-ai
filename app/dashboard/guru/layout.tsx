@@ -31,11 +31,10 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
   const menuItems = [
     { name: "Beranda", icon: LayoutDashboard, path: "/dashboard/guru/beranda" },
     { name: "Profil", icon: Users, path: "/dashboard/guru/profil" },
-    { name: "Kelas & Siswa", icon: Users, path: "/dashboard/guru/kelas" }, 
+    { name: "Kelas & Siswa", icon: FileSpreadsheet, path: "/dashboard/guru/kelas" }, 
     { name: "Jurnal & Absensi", icon: CalendarDays, path: "/dashboard/guru/administrasi" },
     { name: "Perangkat Ajar", icon: BookOpen, path: "/dashboard/guru/generator" },
     { name: "Asesmen & Ujian", icon: Target, path: "/dashboard/guru/asesmen" },
-    { name: "Rekap Nilai", icon: FileSpreadsheet, path: "/dashboard/guru/rekap-nilai" },
     { name: "Chat AI", icon: Bot, path: "/dashboard/guru/chat" },
     { name: "Validasi", icon: CheckCircle, path: "/dashboard/guru/validasi" },
     { name: "Analitik", icon: BarChart3, path: "/dashboard/guru/analitik" },

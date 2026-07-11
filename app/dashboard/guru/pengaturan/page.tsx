@@ -104,7 +104,7 @@ export default function PengaturanSistem() {
           className="bg-blue-900 hover:bg-blue-800 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-sm flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
         >
           {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
+          {isSaving ? "Menyimpan..." : "Simpan"}
         </button>
       </div>
 

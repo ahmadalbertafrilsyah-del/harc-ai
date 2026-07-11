@@ -222,7 +222,7 @@ export default function ManajemenPenggunaAdmin() {
       </div>
 
       {/* TABS KONTROL */}
-      <div className="flex flex-wrap gap-6 border-b border-slate-200 overflow-x-auto custom-scrollbar">
+      <div className="flex flex-wrap gap-6 border-b border-slate-200 custom-scrollbar">
         <button onClick={() => setActiveTab("lembaga")} className={`pb-3 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${activeTab === "lembaga" ? "text-blue-700" : "text-slate-500 hover:text-slate-700"}`}>
           <Building2 size={16} /> Lembaga ({countLembaga})
           {activeTab === "lembaga" && <span className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-blue-600 rounded-t-full"></span>}
