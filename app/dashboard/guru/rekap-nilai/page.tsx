@@ -8,12 +8,11 @@ import {
 import { Teachers } from "next/font/google";
 import { useState, useEffect, FormEvent } from "react";
 import { db } from "@/lib/firebase"; 
-import { collection, onSnapshot, query, where, doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { collection, onSnapshot, query, where, doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
-// Tipe Data untuk Nilai
 interface NilaiSiswa {
   harian: number;
   pts: number;
@@ -25,13 +24,11 @@ export default function RekapNilaiGuru() {
   const [isLoading, setIsLoading] = useState(true);
   const [userUid, setUserUid] = useState<string | null>(null);
   
-  // State Data Master
   const [daftarKelas, setDaftarKelas] = useState<any[]>([]);
   const [kelasTerpilih, setKelasTerpilih] = useState("");
   const [daftarSiswa, setDaftarSiswa] = useState<any[]>([]);
-  const [kkm, setKkm] = useState(75); // Standar KKM
+  const [kkm, setKkm] = useState(75); 
 
-  // State Pengolahan Nilai
   const [nilai, setNilai] = useState<Record<string, NilaiSiswa>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusPesan, setStatusPesan] = useState<{tipe: "sukses"|"error", teks: string} | null>(null);
@@ -41,7 +38,6 @@ export default function RekapNilaiGuru() {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUserUid(user.uid);
-        // Tarik kelas yang diajar
         const qKelas = query(collection(db, "manajemen_kelas"), where("guruId", "==", user.uid));
         const unsubKelas = onSnapshot(qKelas, (snapshot) => {
           const kelasData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -49,41 +45,60 @@ export default function RekapNilaiGuru() {
           if (kelasData.length > 0) setKelasTerpilih(kelasData[0].id);
           setIsLoading(false);
         });
-
         return () => unsubKelas();
       }
     });
     return () => unsubscribeAuth();
   }, []);
 
-  // Tarik daftar siswa (Simulasi Data untuk R&D)
+  // PERBAIKAN: Menarik Data Historis Nilai dari Firestore
   useEffect(() => {
-    if (kelasTerpilih) {
+    const fetchSiswaDanNilai = async () => {
+      if (!kelasTerpilih) return;
+      
       const kelas = daftarKelas.find(k => k.id === kelasTerpilih);
-      if (kelas && kelas.peserta) {
-        const mockSiswa = Array.from({ length: kelas.siswa || 0 }).map((_, i) => ({
-          id: `siswa-${kelasTerpilih}-${i}`,
-          nama: `Siswa ${i + 1} (${kelas.nama})`,
-          nisn: `00${Math.floor(Math.random() * 100000000)}`
-        }));
-        setDaftarSiswa(mockSiswa);
+      if (!kelas) return;
+
+      // 1. Siapkan daftar siswa (Simulasi/Relasi)
+      const mockSiswa = Array.from({ length: kelas.siswa || 0 }).map((_, i) => ({
+        id: `siswa-${kelasTerpilih}-${i}`,
+        nama: `Siswa ${i + 1} (${kelas.nama})`,
+        nisn: `00${Math.floor(Math.random() * 100000000)}`
+      }));
+      setDaftarSiswa(mockSiswa);
+      
+      // 2. Siapkan Nilai Kosong
+      let currentNilai: Record<string, NilaiSiswa> = {};
+      mockSiswa.forEach(s => {
+        currentNilai[s.id] = { harian: 0, pts: 0, pas: 0, praktik: 0 };
+      });
+
+      // 3. Tarik Data Historis dari Firestore untuk Mencegah Timpa Data
+      try {
+        const rekapRef = doc(db, "rekap_nilai", kelasTerpilih);
+        const rekapSnap = await getDoc(rekapRef);
         
-        // Inisialisasi form nilai kosong (angka 0)
-        const defaultNilai: Record<string, NilaiSiswa> = {};
-        mockSiswa.forEach(s => {
-          defaultNilai[s.id] = { harian: 0, pts: 0, pas: 0, praktik: 0 };
-        });
-        setNilai(defaultNilai);
-      } else {
-        setDaftarSiswa([]);
+        if (rekapSnap.exists()) {
+          const dataServer = rekapSnap.data();
+          if (dataServer.kkm) setKkm(dataServer.kkm);
+          if (dataServer.dataNilai) {
+            // Gabungkan nilai lama dengan format nilai kosong
+            currentNilai = { ...currentNilai, ...dataServer.dataNilai };
+          }
+        }
+      } catch (error) {
+        console.error("Gagal menarik data nilai historis:", error);
       }
-    }
+
+      setNilai(currentNilai);
+    };
+
+    fetchSiswaDanNilai();
   }, [kelasTerpilih, daftarKelas]);
 
-  // Fungsi Update Nilai per Kolom
   const handleUbahNilai = (idSiswa: string, jenis: keyof NilaiSiswa, value: string) => {
     let numValue = parseInt(value) || 0;
-    if (numValue > 100) numValue = 100; // Mencegah nilai lebih dari 100
+    if (numValue > 100) numValue = 100; 
     if (numValue < 0) numValue = 0;
 
     setNilai(prev => ({
@@ -95,30 +110,41 @@ export default function RekapNilaiGuru() {
     }));
   };
 
-  // Fungsi Kalkulasi Nilai Akhir (Rumus Standar: 40% Harian, 30% PTS, 30% PAS)
   const hitungNilaiAkhir = (dataNilai: NilaiSiswa) => {
     return Math.round((dataNilai.harian * 0.4) + (dataNilai.pts * 0.3) + (dataNilai.pas * 0.3));
   };
 
+  // PERBAIKAN: Penanganan Error Timeout untuk Mencegah Infinite Loading
   const handleSimpanRekap = async (e: FormEvent) => {
     e.preventDefault();
     if (!userUid || !kelasTerpilih) return;
     
     setIsSubmitting(true);
+    setStatusPesan(null);
+
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("Timeout")), 10000)
+    );
+
     try {
-      // Menyimpan data rekap dalam 1 dokumen berdasarkan ID Kelas (untuk performa R&D)
-      await setDoc(doc(db, "rekap_nilai", kelasTerpilih), {
-        guruId: userUid,
-        kelasId: kelasTerpilih,
-        kkm: kkm,
-        dataNilai: nilai,
-        terakhirDiperbarui: serverTimestamp()
-      }, { merge: true });
+      await Promise.race([
+        setDoc(doc(db, "rekap_nilai", kelasTerpilih), {
+          guruId: userUid,
+          kelasId: kelasTerpilih,
+          kkm: kkm,
+          dataNilai: nilai, // Sekarang menyimpan seluruh nilai lama + baru
+          terakhirDiperbarui: serverTimestamp()
+        }, { merge: true }),
+        timeoutPromise
+      ]);
       
       setStatusPesan({ tipe: "sukses", teks: "Rekap Nilai berhasil disimpan dan disinkronisasi ke server." });
-      setTimeout(() => setStatusPesan(null), 3000);
-    } catch (error) {
-      setStatusPesan({ tipe: "error", teks: "Gagal menyimpan rekap nilai." });
+    } catch (error: any) {
+      if (error.message === "Timeout") {
+        setStatusPesan({ tipe: "error", teks: "Koneksi lambat. Gagal terhubung ke server." });
+      } else {
+        setStatusPesan({ tipe: "error", teks: "Gagal menyimpan rekap nilai. Pastikan koneksi stabil." });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -133,14 +159,12 @@ export default function RekapNilaiGuru() {
     );
   }
 
-  // Analitik Cepat
   const siswaDievaluasi = daftarSiswa.filter(s => hitungNilaiAkhir(nilai[s.id] || {harian:0,pts:0,pas:0,praktik:0}) > 0);
   const siswaRemedial = siswaDievaluasi.filter(s => hitungNilaiAkhir(nilai[s.id]) < kkm).length;
 
   return (
     <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto space-y-6 pb-20 md:pb-10">
       
-      {/* Header Halaman */}
       <header className="border-b border-slate-200 pb-5 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2 ${teachersFont.className}`} tabIndex={0}>
@@ -157,7 +181,6 @@ export default function RekapNilaiGuru() {
         </div>
       </header>
 
-      {/* Kontrol Kelas & KKM */}
       <section aria-label="Pengaturan Tabel Nilai" className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-5">
         <div className="flex-1">
           <label htmlFor="pilih-kelas" className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Filter Kelas</label>
@@ -188,7 +211,6 @@ export default function RekapNilaiGuru() {
           />
         </div>
         
-        {/* Indikator Cepat */}
         <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex-1 flex items-center gap-4">
           <div className="p-3 bg-blue-100 text-blue-600 rounded-xl shrink-0" aria-hidden="true"><Calculator size={20}/></div>
           <div>
@@ -204,7 +226,6 @@ export default function RekapNilaiGuru() {
         </div>
       </section>
 
-      {/* Pesan Sukses/Error */}
       <AnimatePresence>
         {statusPesan && (
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className={`p-4 rounded-xl flex items-center gap-3 border ${statusPesan.tipe === 'sukses' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`} role="alert" aria-live="assertive">
@@ -214,7 +235,6 @@ export default function RekapNilaiGuru() {
         )}
       </AnimatePresence>
 
-      {/* FORM TABEL NILAI */}
       <section aria-label="Tabel Input Rekap Nilai" className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <form onSubmit={handleSimpanRekap}>
           <div className="overflow-x-auto custom-scrollbar min-h-[400px]">
@@ -247,7 +267,6 @@ export default function RekapNilaiGuru() {
                           <p className="text-xs text-slate-500 mt-0.5">NISN: {siswa.nisn}</p>
                         </td>
                         
-                        {/* Input Harian */}
                         <td className="px-4 py-4">
                           <label htmlFor={`harian-${siswa.id}`} className="sr-only">Nilai Harian {siswa.nama}</label>
                           <input 
@@ -258,7 +277,6 @@ export default function RekapNilaiGuru() {
                           />
                         </td>
                         
-                        {/* Input PTS */}
                         <td className="px-4 py-4">
                           <label htmlFor={`pts-${siswa.id}`} className="sr-only">Nilai PTS {siswa.nama}</label>
                           <input 
@@ -269,7 +287,6 @@ export default function RekapNilaiGuru() {
                           />
                         </td>
 
-                        {/* Input PAS */}
                         <td className="px-4 py-4">
                           <label htmlFor={`pas-${siswa.id}`} className="sr-only">Nilai PAS {siswa.nama}</label>
                           <input 
@@ -280,7 +297,6 @@ export default function RekapNilaiGuru() {
                           />
                         </td>
 
-                        {/* Input Praktik */}
                         <td className="px-4 py-4">
                           <label htmlFor={`praktik-${siswa.id}`} className="sr-only">Nilai Praktik {siswa.nama}</label>
                           <input 
@@ -291,7 +307,6 @@ export default function RekapNilaiGuru() {
                           />
                         </td>
 
-                        {/* Hasil Nilai Akhir Otomatis */}
                         <td className={`px-6 py-4 text-center border-l border-slate-100 ${dinilai ? (tuntas ? 'bg-emerald-50/50' : 'bg-rose-50/50') : 'bg-slate-50/50'}`}>
                           <div className="flex flex-col items-center justify-center">
                             <span className={`text-lg font-black ${dinilai ? (tuntas ? 'text-emerald-700' : 'text-rose-700') : 'text-slate-400'}`}>

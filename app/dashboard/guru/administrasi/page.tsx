@@ -8,7 +8,7 @@ import {
 import { Teachers } from "next/font/google";
 import { useState, useEffect, FormEvent } from "react";
 import { db } from "@/lib/firebase"; 
-import { collection, onSnapshot, query, where, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, onSnapshot, query, where, addDoc, doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
@@ -18,17 +18,14 @@ export default function AdministrasiKelasGuru() {
   const [activeTab, setActiveTab] = useState<"absensi" | "jurnal">("absensi");
   const [userUid, setUserUid] = useState<string | null>(null);
   
-  // Data Master
   const [daftarKelas, setDaftarKelas] = useState<any[]>([]);
   const [kelasTerpilih, setKelasTerpilih] = useState("");
   const [tanggal, setTanggal] = useState(new Date().toISOString().split('T')[0]);
 
-  // State Absensi
   const [daftarSiswa, setDaftarSiswa] = useState<any[]>([]);
   const [absensi, setAbsensi] = useState<Record<string, string>>({});
   const [isSubmittingAbsen, setIsSubmittingAbsen] = useState(false);
 
-  // State Jurnal KBM
   const [jurnal, setJurnal] = useState({
     materi: "",
     kegiatan: "",
@@ -43,7 +40,6 @@ export default function AdministrasiKelasGuru() {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUserUid(user.uid);
-        // Tarik daftar kelas yang diajar oleh guru ini
         const qKelas = query(collection(db, "manajemen_kelas"), where("guruId", "==", user.uid));
         const unsubKelas = onSnapshot(qKelas, (snapshot) => {
           const kelasData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -58,47 +54,77 @@ export default function AdministrasiKelasGuru() {
     return () => unsubscribeAuth();
   }, []);
 
-  // Tarik data siswa jika kelas terpilih berubah (Simulasi: Menarik dari relasi peserta kelas)
+  // PERBAIKAN: Menarik Absensi yang sudah ada di tanggal yang dipilih
   useEffect(() => {
-    if (kelasTerpilih) {
+    const fetchSiswaDanAbsensi = async () => {
+      if (!kelasTerpilih) return;
+      
       const kelas = daftarKelas.find(k => k.id === kelasTerpilih);
-      if (kelas && kelas.peserta) {
-        // Di aplikasi nyata, Anda bisa melakukan query ke 'users' dengan where('uid', 'in', kelas.peserta)
-        // Untuk UI demo R&D, kita buat mock data berdasarkan jumlah peserta
-        const mockSiswa = Array.from({ length: kelas.siswa || 0 }).map((_, i) => ({
-          id: `siswa-${i}`,
-          nama: `Siswa ${i + 1} (${kelas.nama})`,
-          nisn: `00${Math.floor(Math.random() * 100000000)}`
-        }));
-        setDaftarSiswa(mockSiswa);
+      if (!kelas) return;
+
+      const mockSiswa = Array.from({ length: kelas.siswa || 0 }).map((_, i) => ({
+        id: `siswa-${i}`,
+        nama: `Siswa ${i + 1} (${kelas.nama})`,
+        nisn: `00${Math.floor(Math.random() * 100000000)}`
+      }));
+      setDaftarSiswa(mockSiswa);
+      
+      let currentAbsen: Record<string, string> = {};
+      mockSiswa.forEach(s => currentAbsen[s.id] = "Hadir");
+
+      try {
+        const absenId = `${kelasTerpilih}_${tanggal}`;
+        const absenRef = doc(db, "absensi_siswa", absenId);
+        const absenSnap = await getDoc(absenRef);
         
-        // Reset state absensi default ke "Hadir"
-        const defaultAbsen: Record<string, string> = {};
-        mockSiswa.forEach(s => defaultAbsen[s.id] = "Hadir");
-        setAbsensi(defaultAbsen);
-      } else {
-        setDaftarSiswa([]);
+        if (absenSnap.exists()) {
+          const dataServer = absenSnap.data();
+          if (dataServer.dataKehadiran) {
+            currentAbsen = { ...currentAbsen, ...dataServer.dataKehadiran };
+          }
+        }
+      } catch (error) {
+        console.error("Gagal menarik riwayat absensi:", error);
       }
-    }
-  }, [kelasTerpilih, daftarKelas]);
+
+      setAbsensi(currentAbsen);
+    };
+
+    fetchSiswaDanAbsensi();
+  }, [kelasTerpilih, daftarKelas, tanggal]); // Re-fetch jika tanggal diubah
 
   const handleSimpanAbsensi = async (e: FormEvent) => {
     e.preventDefault();
     if (!userUid || !kelasTerpilih) return;
     
     setIsSubmittingAbsen(true);
+    setStatusPesan(null);
+
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("Timeout")), 10000)
+    );
+
     try {
-      await addDoc(collection(db, "absensi_siswa"), {
-        guruId: userUid,
-        kelasId: kelasTerpilih,
-        tanggal: tanggal,
-        dataKehadiran: absensi,
-        timestamp: serverTimestamp()
-      });
-      setStatusPesan({ tipe: "sukses", teks: "Data absensi harian berhasil disimpan." });
-      setTimeout(() => setStatusPesan(null), 3000);
-    } catch (error) {
-      setStatusPesan({ tipe: "error", teks: "Gagal menyimpan absensi." });
+      // PERBAIKAN: Gunakan setDoc dengan ID Spesifik Mencegah Duplikasi Dokumen
+      const absenId = `${kelasTerpilih}_${tanggal}`;
+      await Promise.race([
+        setDoc(doc(db, "absensi_siswa", absenId), {
+          guruId: userUid,
+          kelasId: kelasTerpilih,
+          tanggal: tanggal,
+          dataKehadiran: absensi,
+          timestamp: serverTimestamp()
+        }, { merge: true }), // Merge menjaga field lain jika ada
+        timeoutPromise
+      ]);
+      
+      setStatusPesan({ tipe: "sukses", teks: "Data absensi harian berhasil diperbarui." });
+    } catch (error: any) {
+      if (error.message === "Timeout") {
+        setStatusPesan({ tipe: "error", teks: "Koneksi lambat. Gagal terhubung." });
+      } else {
+        setStatusPesan({ tipe: "error", teks: "Gagal menyimpan absensi." });
+      }
     } finally {
       setIsSubmittingAbsen(false);
     }
@@ -109,22 +135,36 @@ export default function AdministrasiKelasGuru() {
     if (!userUid || !kelasTerpilih) return;
     
     setIsSubmittingJurnal(true);
+    setStatusPesan(null);
+
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("Timeout")), 10000)
+    );
+
     try {
       const kelas = daftarKelas.find(k => k.id === kelasTerpilih);
-      await addDoc(collection(db, "jurnal_kbm"), {
-        guruId: userUid,
-        kelasId: kelasTerpilih,
-        mapel: kelas?.mapel || "Umum",
-        tanggal: tanggal,
-        ...jurnal,
-        timestamp: serverTimestamp()
-      });
+      
+      // Jurnal tetap addDoc karena 1 hari bisa ada beberapa sesi jurnal
+      await Promise.race([
+        addDoc(collection(db, "jurnal_kbm"), {
+          guruId: userUid,
+          kelasId: kelasTerpilih,
+          mapel: kelas?.mapel || "Umum",
+          tanggal: tanggal,
+          ...jurnal,
+          timestamp: serverTimestamp()
+        }),
+        timeoutPromise
+      ]);
       
       setJurnal({ materi: "", kegiatan: "", hambatan: "", solusi: "" });
-      setStatusPesan({ tipe: "sukses", teks: "Jurnal KBM berhasil dikirim ke Kepala Sekolah." });
-      setTimeout(() => setStatusPesan(null), 3000);
-    } catch (error) {
-      setStatusPesan({ tipe: "error", teks: "Gagal menyimpan jurnal KBM." });
+      setStatusPesan({ tipe: "sukses", teks: "Jurnal KBM berhasil dikirim." });
+    } catch (error: any) {
+      if (error.message === "Timeout") {
+        setStatusPesan({ tipe: "error", teks: "Koneksi lambat. Gagal terhubung." });
+      } else {
+        setStatusPesan({ tipe: "error", teks: "Gagal menyimpan jurnal KBM." });
+      }
     } finally {
       setIsSubmittingJurnal(false);
     }
@@ -142,7 +182,6 @@ export default function AdministrasiKelasGuru() {
   return (
     <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-5xl mx-auto space-y-6 pb-20 md:pb-10">
       
-      {/* Header Halaman */}
       <header className="border-b border-slate-200 pb-5">
         <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2 ${teachersFont.className}`} tabIndex={0}>
           <CalendarDays className="text-blue-600" aria-hidden="true"/> Administrasi Kelas
@@ -152,7 +191,6 @@ export default function AdministrasiKelasGuru() {
         </p>
       </header>
 
-      {/* Kontrol Utama: Pilih Kelas & Tanggal */}
       <section aria-label="Pengaturan Administrasi" className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4">
         <div className="flex-1">
           <label htmlFor="pilih-kelas" className="block text-xs font-bold text-slate-600 uppercase tracking-widest mb-2">Pilih Kelas</label>
@@ -183,7 +221,6 @@ export default function AdministrasiKelasGuru() {
         </div>
       </section>
 
-      {/* Tab Navigasi */}
       <nav aria-label="Tab Administrasi" className="flex border-b border-slate-200" role="tablist">
         <button 
           role="tab"
@@ -207,7 +244,6 @@ export default function AdministrasiKelasGuru() {
         </button>
       </nav>
 
-      {/* Status Pesan Aksesibel */}
       <AnimatePresence>
         {statusPesan && (
           <motion.div 
@@ -222,7 +258,6 @@ export default function AdministrasiKelasGuru() {
       </AnimatePresence>
 
       <div className="mt-6">
-        {/* PANEL 1: ABSENSI */}
         {activeTab === "absensi" && (
           <section id="panel-absensi" role="tabpanel" aria-labelledby="tab-absensi" className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <form onSubmit={handleSimpanAbsensi}>
@@ -293,7 +328,6 @@ export default function AdministrasiKelasGuru() {
           </section>
         )}
 
-        {/* PANEL 2: JURNAL KBM */}
         {activeTab === "jurnal" && (
           <section id="panel-jurnal" role="tabpanel" aria-labelledby="tab-jurnal" className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <form onSubmit={handleSimpanJurnal} className="p-5 md:p-8 space-y-6">
