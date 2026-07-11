@@ -10,7 +10,7 @@ import remarkGfm from "remark-gfm";
 // IMPORT FIREBASE
 import { db } from "@/lib/firebase"; 
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, getDocs, collection, addDoc, updateDoc, increment, serverTimestamp, setDoc, onSnapshot, query, orderBy, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, getDocs, collection, addDoc, updateDoc, increment, serverTimestamp, setDoc, onSnapshot, query, orderBy, deleteDoc, where } from "firebase/firestore";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -60,7 +60,7 @@ export default function ChatbotGuruGeminiStyle() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  // Klik di luar dropdown
+  // Klik di luar dropdown model
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setShowModelDropdown(false);
@@ -120,30 +120,44 @@ export default function ChatbotGuruGeminiStyle() {
     return () => unsubscribeAuth();
   }, []);
 
-  // MANAJEMEN ROOM CHAT (Load & Hapus yang Kedaluwarsa)
+  // PERBAIKAN 2: MANAJEMEN ROOM CHAT (Privasi Ketat & Hapus Kedaluwarsa)
   useEffect(() => {
     if (!userUid) return;
-    const q = query(collection(db, "ai_chat_sessions"), orderBy("updatedAt", "desc"));
+    
+    // Hanya tarik riwayat chat yang userId-nya sama dengan userUid (Keamanan Database)
+    const q = query(
+      collection(db, "ai_chat_sessions"), 
+      where("userId", "==", userUid), 
+      orderBy("updatedAt", "desc")
+    );
+    
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const now = Date.now();
       const loadedSessions: ChatSession[] = [];
       
-      snapshot.docs.forEach(async (document) => {
+      snapshot.docs.forEach((document) => {
         const data = document.data();
+        // Hapus chat yang sudah kadaluarsa otomatis tanpa nge-block UI
         if (data.expiresAt && data.expiresAt < now) {
-          await deleteDoc(doc(db, "ai_chat_sessions", document.id));
+          deleteDoc(doc(db, "ai_chat_sessions", document.id));
           if (currentSessionId === document.id) handleNewChat(); 
-        } else if (data.userId === userUid) { // FILTER HANYA MILIK GURU INI
+        } else {
           loadedSessions.push({ id: document.id, ...data } as ChatSession);
         }
       });
       setSessions(loadedSessions);
     });
+    
     return () => unsubscribe();
   }, [userUid, currentSessionId]);
 
   const handleNewChat = () => { setCurrentSessionId(null); setMessages([]); setIsSidebarOpen(false); };
-  const handleSelectSession = (session: ChatSession) => { setCurrentSessionId(session.id); setMessages(session.messages); setIsSidebarOpen(false); };
+  
+  const handleSelectSession = (session: ChatSession) => { 
+    setCurrentSessionId(session.id); 
+    setMessages(session.messages); 
+    setIsSidebarOpen(false); // Otomatis tutup sidebar di HP saat chat dipilih
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -179,11 +193,12 @@ export default function ChatbotGuruGeminiStyle() {
     const startTime = Date.now();
     let activeSessionId = currentSessionId;
 
+    // Buat Room Chat Baru jika belum ada
     if (!activeSessionId) {
       const newSessionRef = doc(collection(db, "ai_chat_sessions"));
       activeSessionId = newSessionRef.id;
       setCurrentSessionId(activeSessionId);
-      const expiryTime = Date.now() + (7 * 24 * 60 * 60 * 1000); 
+      const expiryTime = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 Hari
       
       await setDoc(newSessionRef, {
         userId: userUid,
@@ -199,10 +214,16 @@ export default function ChatbotGuruGeminiStyle() {
     try {
       const apiMessages = [{ role: "system", content: systemPromptContext }, ...newChatHistory];
 
-      // PANGGIL KE ROUTE.TS SERVER SIDE KITA
+      // PERBAIKAN 1: MENDAPATKAN DAN MENGIRIM TOKEN FIREBASE KE API
+      const auth = getAuth();
+      const idToken = await auth.currentUser?.getIdToken();
+
       const response = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}` // Kunci keamanan berlapis
+        },
         body: JSON.stringify({ model: selectedModel, messages: apiMessages })
       });
 
@@ -216,10 +237,8 @@ export default function ChatbotGuruGeminiStyle() {
         setMessages(finalChatHistory);
         await updateDoc(doc(db, "ai_chat_sessions", activeSessionId), { messages: finalChatHistory, updatedAt: serverTimestamp() });
 
-        // POTONG TOKEN GURU & CATAT LOG ADMIN
+        // Log Aktivitas Sisi Klien (opsional karena token sudah dipotong di server)
         if (tokenUsed > 0) {
-          await updateDoc(doc(db, "users", userUid), { aiTokens: increment(-tokenUsed) });
-          await updateDoc(doc(db, "ai_monitoring", "token_stats"), { tokenTerpakai: increment(tokenUsed) });
           await addDoc(collection(db, "ai_logs"), {
             aksi: `Chat (${selectedModel})`, pengguna: userName, role: "guru", status: "Sukses",
             latensi: Date.now() - startTime, tokenDipakai: tokenUsed, timestamp: serverTimestamp()
@@ -246,8 +265,8 @@ export default function ChatbotGuruGeminiStyle() {
   return (
     <div className="flex h-[calc(100vh-128px)] md:h-[calc(100vh-64px)] -m-4 md:-m-6 lg:-m-8 bg-[#f8fafc] relative overflow-hidden">
       
-      {/* SIDEBAR RIWAYAT CHAT */}
-      <div className={`absolute md:relative z-40 bg-white/90 backdrop-blur-md md:bg-white border-r border-slate-200 h-full transition-all duration-300 flex flex-col ${isSidebarOpen ? 'w-64 left-0' : '-left-64 md:left-0 md:w-64 w-0'}`}>
+      {/* PERBAIKAN 3: SIDEBAR RIWAYAT CHAT (Mobile Friendly) */}
+      <div className={`absolute md:relative z-40 bg-white/90 backdrop-blur-md md:bg-white border-r border-slate-200 h-full transition-transform duration-300 flex flex-col w-64 shrink-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
           <button onClick={handleNewChat} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-sm py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
             <Plus size={16} /> Chat Baru
@@ -273,11 +292,21 @@ export default function ChatbotGuruGeminiStyle() {
         </div>
       </div>
 
-      {/* OVERLAY UNTUK MOBILE */}
-      {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="md:hidden absolute inset-0 bg-slate-900/20 z-30 backdrop-blur-sm" />}
+      {/* OVERLAY GELAP UNTUK MOBILE SAAT SIDEBAR DIBUKA */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setIsSidebarOpen(false)}
+            className="md:hidden absolute inset-0 bg-slate-900/40 z-30 backdrop-blur-sm"
+          />
+        )}
+      </AnimatePresence>
 
       {/* AREA CHAT UTAMA */}
-      <div className="flex-1 flex flex-col relative w-full">
+      <div className="flex-1 flex flex-col relative w-full min-w-0">
+        
+        {/* Tombol Buka Sidebar di HP */}
         <button onClick={() => setIsSidebarOpen(true)} className="md:hidden absolute top-4 left-4 z-20 p-2 bg-white rounded-xl shadow-sm border border-slate-200 text-slate-600">
           <Menu size={20} />
         </button>
