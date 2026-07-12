@@ -535,7 +535,7 @@ export default function ManajemenKelas() {
             </div>
           </div>
 
-          <div className="flex gap-4 md:gap-8 border-b border-slate-200 pt-2 px-2 w-full whitespace-nowrap">
+          <div className="flex gap-4 md:gap-8 border-b overflow-x-auto border-slate-200 pt-2 px-2 w-full whitespace-nowrap">
             {["siswa", "absensi", "jurnal", "rekap", "cbt", "koreksi"].map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-3 text-sm font-bold shrink-0 relative transition-colors ${activeTab === tab ? "text-blue-600" : "text-slate-500 hover:text-slate-700"}`}>
                 {tab === "siswa" ? "Daftar Siswa" : tab === "absensi" ? "Absensi" : tab === "jurnal" ? "Jurnal KBM" : tab === "rekap" ? "Rekap Nilai" : tab === "cbt" ? "E-Ujian (CBT)" : "Koreksi AI"} 
