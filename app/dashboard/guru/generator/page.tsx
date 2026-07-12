@@ -136,7 +136,6 @@ export default function GeneratorBahanAjar() {
     setIsGenerating(true);
     setHasil("");
     setDocId(""); 
-    const startTime = Date.now();
     
     let sistemPrompt = `Anda adalah Ahli Penyusun Kurikulum Pendidikan Nasional Indonesia. Buatlah dokumen menggunakan format Markdown (tabel, bold, list) yang sangat rapi dan terstruktur secara formal.\n`;
     sistemPrompt += `ATURAN FORMAT JARAK: Setiap Sub-bab atau Judul Poin WAJIB diberi baris baru (ENTER dua kali) sebelum menuliskan isinya. DILARANG KERAS MENGGUNAKAN TAG HTML SEPERTI <br> ATAU <br/>.\n`;
@@ -204,28 +203,60 @@ export default function GeneratorBahanAjar() {
       topikKirim += `\n\n[KONTEKS SINKRONISASI]:\nSelaraskan materi pada dokumen ini dengan referensi dokumen berikut agar nyambung:\n"""\n${dokumenTerakhir.substring(0, 2000)}\n"""\n`;
     }
 
+    // Deklarasikan finalPrompt DI SINI agar topikKirim terbaca dengan sempurna
+    const finalPrompt = `
+      Anda adalah Asisten Akademik Ahli. Buatlah ${tipe} untuk mata pelajaran ${mapel} kelas ${kelas}.
+      Topik/Materi Utama: ${materi}.
+      Fokus Pembahasan & Struktur Wajib: ${topikKirim}.
+      Kurikulum: ${sumber}.
+      Identitas Sekolah: Kepala Sekolah (${namaKepsek}, NIP: ${nipKepsek}), Guru (${namaGuru}, NIP: ${nipGuru}).
+      Berikan output dalam format Markdown yang rapi, terstruktur, dan komprehensif. Jangan berikan kalimat pengantar, langsung berikan dokumennya.
+    `;
+
     try {
-      const apiMessages = [{ role: "system", content: sistemPrompt }, { role: "user", content: topikKirim }];
+      const auth = getAuth();
+      const idToken = await auth.currentUser?.getIdToken();
+
       const response = await fetch("/api/chat", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "gemini-2.5-pro", messages: apiMessages })
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          model: "gemini-2.5-pro",
+          messages: [
+            { role: "system", content: sistemPrompt },
+            { role: "user", content: finalPrompt }
+          ]
+        })
       });
+
       const data = await response.json();
       
+      if (!response.ok) {
+        throw new Error(data.error || "Gagal menghubungi AI");
+      }
+
       if (data.choices && data.choices.length > 0) {
-        const aiResponseContent = data.choices[0].message.content;
-        const tokenUsed = data.usage?.total_tokens || 0;
-
-        setHasil(aiResponseContent);
-        setDokumenTerakhir(aiResponseContent);
-
-        if (tokenUsed > 0) {
-          await updateDoc(doc(db, "users", userUid), { aiTokens: increment(-tokenUsed) });
-          await updateDoc(doc(db, "ai_monitoring", "token_stats"), { tokenTerpakai: increment(tokenUsed) });
-          await addDoc(collection(db, "ai_logs"), { aksi: `Generate ${tipe}`, pengguna: userName, role: "guru", status: "Sukses", latensi: Date.now() - startTime, tokenDipakai: tokenUsed, timestamp: serverTimestamp() });
+        setHasil(data.choices[0].message.content);
+        
+        // Pengecekan data.usage menggunakan operator && agar aman dari garis merah TypeScript
+        if (data.usage && data.usage.total_tokens > 0) {
+          await addDoc(collection(db, "ai_logs"), {
+            aksi: `Generate ${tipe}`, pengguna: userName, role: "guru", status: "Sukses",
+            tokenDipakai: data.usage.total_tokens, timestamp: serverTimestamp()
+          });
         }
-      } else { throw new Error(data.error || "Respons AI kosong atau API Key belum diset."); }
-    } catch (error: any) { alert("Gagal memproses AI: " + error.message); } finally { setIsGenerating(false); }
+      } else {
+        throw new Error("Respons AI kosong.");
+      }
+    } catch (error: any) {
+      console.error("Generate Error:", error);
+      alert(`Terjadi kesalahan: ${error.message}`);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleSaveToDatabase = async () => {

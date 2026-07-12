@@ -1,16 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useRef, FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Users, BookOpen, Plus, ChevronRight, GraduationCap, Loader2, Key, 
   ArrowLeft, UploadCloud, BrainCircuit, CheckCircle2, FileText, X, Clock, 
-  CalendarDays, Save, Trash2, Target, Settings2, Database, Edit3, FileSpreadsheet, 
+  CalendarDays, Save, Trash2, Target, Settings2, Edit3, FileSpreadsheet, 
   ArrowDownToLine, Calculator, AlertCircle, ClipboardCheck, List, Eye, Printer, 
   SlidersHorizontal, Percent, FileCheck, Bold, Italic, Underline, AlignLeft, ListOrdered
 } from "lucide-react";
 import { Teachers } from "next/font/google";
-import { useState, useEffect, useRef, FormEvent } from "react";
 import { db } from "@/lib/firebase"; 
 import { collection, onSnapshot, query, addDoc, serverTimestamp, deleteDoc, doc, where, getDoc, setDoc } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
@@ -33,6 +32,9 @@ export default function ManajemenKelas() {
   const [selectedClass, setSelectedClass] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState("siswa"); 
   const [daftarUjian, setDaftarUjian] = useState<any[]>([]);
+
+  // === STATE KOLEKSI AI (Sinkronisasi dengan collection modul_ajar) ===
+  const [koleksiAI, setKoleksiAI] = useState<any[]>([]);
 
   // === STATE ADMINISTRASI (ABSENSI & JURNAL) ===
   const [tanggal, setTanggal] = useState(new Date().toISOString().split('T')[0]);
@@ -66,8 +68,8 @@ export default function ManajemenKelas() {
   const [hasilUjianData, setHasilUjianData] = useState<any[]>([]);
 
   const [cbtForm, setCbtForm] = useState({
-    judul: "", jenisUjian: "Asesmen Formatif", sumberSoal: "Buat Manual", bahanBacaan: "", opsiPG: "A - D (4 Opsi)",
-    waktuMenit: 60, waktuMulai: "", waktuSelesai: ""
+    judul: "", jenisUjian: "Asesmen Formatif", sumberSoal: "Buat Manual (Ketik Sendiri)", bahanBacaan: "", opsiPG: "A - D (4 Opsi)",
+    waktuMenit: 60, waktuMulai: "", waktuSelesai: "", koleksiId: "" 
   });
 
   // === STATE REKAP NILAI ===
@@ -98,6 +100,13 @@ export default function ManajemenKelas() {
         onSnapshot(qKelas, (snapshot) => {
           setKelasData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
           setIsLoading(false);
+        });
+
+        // TARIK DATA DARI modul_ajar SESUAI GENERATOR (userId)
+        const qKoleksiAI = query(collection(db, "modul_ajar"), where("userId", "==", user.uid));
+        onSnapshot(qKoleksiAI, (snapshot) => {
+          const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setKoleksiAI(docs);
         });
       }
     });
@@ -267,9 +276,9 @@ export default function ManajemenKelas() {
       return [idx + 1, `="${s.nisn || '-'}"`, `"${s.nama}"`, ...rowNilai, na, na >= kkm ? "Tuntas" : "Remedial"].join(",");
     });
     
-    const csvContent = [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a"); link.setAttribute("href", URL.createObjectURL(blob)); link.setAttribute("download", `Rekap_Nilai_${selectedClass.nama}.csv`);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
+    const link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent)); 
+    link.setAttribute("download", `Rekap_Nilai_${selectedClass.nama}.csv`);
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
@@ -278,14 +287,94 @@ export default function ManajemenKelas() {
     if (siswaKelasAsli.length === 0) return alert("Tidak ada data siswa untuk diunduh.");
     const headers = ["No", "Nama Lengkap", "NISN", "Email", "Status"];
     const csvRows = [headers.join(","), ...siswaKelasAsli.map((s, i) => [i + 1, `"${s.nama}"`, `="${s.nisn}"`, `"${s.email}"`, "Aktif"].join(","))];
-    const blob = new Blob([csvRows.join("\n")], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a"); link.setAttribute("href", URL.createObjectURL(blob)); link.setAttribute("download", `Data_Siswa_${selectedClass.nama}.csv`);
+    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+    const link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent)); 
+    link.setAttribute("download", `Data_Siswa_${selectedClass.nama}.csv`);
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
+  const handleDownloadAbsenExcel = () => {
+    const siswaKelasAsli = selectedClass ? daftarSiswaGlobal.filter(s => selectedClass.peserta?.includes(s.id) || s.kelas === selectedClass.nama) : [];
+    if (siswaKelasAsli.length === 0) return alert("Belum ada data siswa.");
+    
+    let csvRows = [];
+    if (absenViewMode === "bulan") {
+      const [yearStr, monthStr] = filterBulan.split('-');
+      const daysInMonth = new Date(parseInt(yearStr), parseInt(monthStr), 0).getDate();
+      const headers = ["No", "NISN", "Nama", ...Array.from({length: daysInMonth}).map((_, i) => `${i+1}`), "Sakit", "Izin", "Alpha"];
+      csvRows.push(headers.join(","));
+      
+      siswaKelasAsli.forEach((siswa, idx) => {
+        let s=0, i=0, a=0;
+        const rowData = [idx + 1, `="${siswa.nisn || '-'}"`, `"${siswa.nama}"`];
+        
+        Array.from({length: daysInMonth}).map((_, d) => {
+          const dateStr = `${yearStr}-${monthStr}-${(d+1).toString().padStart(2, '0')}`;
+          const record = riwayatAbsenData.find(r => r.tanggal === dateStr);
+          let status = "";
+          if (record && record.dataKehadiran && record.dataKehadiran[siswa.id]) {
+            const val = record.dataKehadiran[siswa.id];
+            if (val === "Hadir") status = "H";
+            else if (val === "Sakit") { status = "S"; s++; }
+            else if (val === "Izin") { status = "I"; i++; }
+            else if (val === "Alpha") { status = "A"; a++; }
+          }
+          rowData.push(status);
+        });
+        rowData.push(s.toString(), i.toString(), a.toString());
+        csvRows.push(rowData.join(","));
+      });
+    } else {
+      const months = filterSemester === "Ganjil" ? [7,8,9,10,11,12] : [1,2,3,4,5,6];
+      const startYear = parseInt(filterTahunAjaran.split('/')[0]);
+      const endYear = parseInt(filterTahunAjaran.split('/')[1]);
+      const headers = ["No", "NISN", "Nama", "L/P", ...months.map(m => `Bulan ${m} (S)`), ...months.map(m => `Bulan ${m} (I)`), ...months.map(m => `Bulan ${m} (A)`), "Total S", "Total I", "Total A", "Kehadiran (%)"];
+      csvRows.push(headers.join(","));
+      
+      siswaKelasAsli.forEach((siswa, idx) => {
+        const jk = siswa.jenisKelamin === 'Perempuan' ? 'P' : (siswa.jenisKelamin === 'Laki-laki' ? 'L' : '-');
+        const rowData = [idx + 1, `="${siswa.nisn || '-'}"`, `"${siswa.nama}"`, jk];
+        
+        let totalS=0, totalI=0, totalA=0, totalHadir=0, totalHari=0;
+        let sArr:number[]=[], iArr:number[]=[], aArr:number[]=[];
+        
+        months.forEach(m => {
+          const y = m >= 7 ? startYear : endYear;
+          const prefix = `${y}-${m.toString().padStart(2, '0')}`;
+          let s=0, i=0, a=0;
+          riwayatAbsenData.forEach(record => {
+            if (record.tanggal && record.tanggal.startsWith(prefix) && record.dataKehadiran?.[siswa.id]) {
+               totalHari++;
+               const val = record.dataKehadiran[siswa.id];
+               if (val === "Sakit") s++; else if (val === "Izin") i++; else if (val === "Alpha") a++; else if(val === "Hadir") totalHadir++;
+            }
+          });
+          sArr.push(s); iArr.push(i); aArr.push(a);
+          totalS+=s; totalI+=i; totalA+=a;
+        });
+        
+        const persentaseHadir = totalHari === 0 ? 100 : Math.round((totalHadir / totalHari) * 100);
+        rowData.push(...sArr.map(String), ...iArr.map(String), ...aArr.map(String), totalS.toString(), totalI.toString(), totalA.toString(), `${persentaseHadir}%`);
+        csvRows.push(rowData.join(","));
+      });
+    }
+
+    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+    const link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent)); 
+    link.setAttribute("download", `Rekap_Absensi_${selectedClass.nama}_${absenViewMode}.csv`);
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  };
+
+  const handlePrintAbsenPDF = () => {
+    alert("Mempersiapkan dokumen PDF untuk dicetak...");
+    window.print();
+  };
+
+  // --- HANDLERS INDIKATOR NILAI ---
   const handleTambahIndikator = () => setIndikatorNilai([...indikatorNilai, { id: `ind_${Date.now()}`, nama: "Indikator Baru", bobot: 0 }]);
   const handleHapusIndikator = (id: string) => setIndikatorNilai(indikatorNilai.filter(i => i.id !== id));
 
+  // --- HANDLERS UJIAN CBT ---
   const hapusUjian = async (id: string) => { 
     if(confirm("Yakin ingin menghapus ujian ini?")) await deleteDoc(doc(db, "bank_soal", id)); 
   };
@@ -309,10 +398,121 @@ export default function ManajemenKelas() {
   };
   const hapusSoal = (id: string) => setDaftarSoal(daftarSoal.filter(s => s.id !== id));
 
+  // --- FUNGSI PARSER AI MARKDOWN KE FORM EDITOR (SUPER AKURAT) ---
   const prosesLanjutPembuatan = () => {
-    if(!cbtForm.judul || !cbtForm.waktuMulai || !cbtForm.waktuSelesai) { alert("Mohon isi Judul Ujian dan Jadwal Pelaksanaan."); return; }
-    setDaftarSoal([{ id: Date.now().toString(), tipe: "PG", pertanyaan: "", opsi: getInitialOpsi(), kunci: "A", panduanAI: "" }]);
-    setIsCbtModalOpen(false); setIsEditorOpen(true);
+    if(!cbtForm.judul || !cbtForm.waktuMulai || !cbtForm.waktuSelesai) { 
+      alert("Mohon isi Judul Ujian dan Jadwal Pelaksanaan."); return; 
+    }
+    if((cbtForm.sumberSoal === "Tarik dari Bank Soal AI (Generator)" || cbtForm.sumberSoal === "Upload dari Kisi-kisi / LKPD (Word/PDF)") && !cbtForm.koleksiId) {
+      alert("Harap pilih Koleksi Hasil Generate AI terlebih dahulu."); return;
+    }
+
+    let initialSoal: any[] = [];
+
+    // Jika Menarik dari AI (Otomatis memetakan PG, Uraian, Isian, Kunci Jawaban)
+    if (cbtForm.sumberSoal === "Tarik dari Bank Soal AI (Generator)" && cbtForm.koleksiId) {
+       const selectedKol = koleksiAI.find(k => k.id === cbtForm.koleksiId);
+       if (selectedKol && selectedKol.konten) {
+          const content = selectedKol.konten;
+          
+          // 1. Ekstrak Area Kunci Jawaban di bagian bawah file (untuk mencocokkan kunci otomatis)
+          let kunciJawabanSection = "";
+          const kunciMatch = content.match(/(?:Kunci Jawaban|KUNCI JAWABAN|Pedoman Penskoran)[\s\S]*/i);
+          if (kunciMatch) {
+              kunciJawabanSection = kunciMatch[0];
+          }
+
+          // 2. Memecah blok soal berdasarkan penomoran urut (Contoh: "1. ", "**1.** ")
+          const blockRegex = /(?:\n|^)(?:\*\*)?(?:[A-Z]\.\s+)?(\d+)\.\s(?:\*\*)?/g;
+          let match;
+          let lastIndex = 0;
+          let soalMatches = [];
+
+          while ((match = blockRegex.exec(content)) !== null) {
+              if (soalMatches.length > 0) {
+                  soalMatches[soalMatches.length - 1].text = content.substring(lastIndex, match.index).trim();
+              }
+              soalMatches.push({ num: match[1], text: "" });
+              lastIndex = blockRegex.lastIndex;
+          }
+          if (soalMatches.length > 0) {
+              soalMatches[soalMatches.length - 1].text = content.substring(lastIndex).trim();
+          }
+
+          // 3. Ekstrak data untuk setiap blok soal yang ditemukan
+          soalMatches.forEach((sMatch) => {
+              let blockText = sMatch.text;
+              
+              // Hapus bagian teks yang masuk ke area kunci jawaban agar tidak ikut jadi pertanyaan
+              if (kunciMatch && blockText.includes(kunciMatch[0])) {
+                  blockText = blockText.replace(kunciMatch[0], "").trim();
+              }
+              
+              if (!blockText) return;
+
+              let tipe = "Uraian";
+              let opsi: any[] = [];
+              let pertanyaan = blockText;
+              let kunci = "A";
+              let panduanAI = "";
+
+              // Cari opsi format A., B., C., D. menurun
+              const optionRegex = /(?:\n|^)(?:\*\*)?([A-E])\.(?:\*\*)?\s(.*?)(?=(?:\n(?:\*\*)?[A-E]\.(?:\*\*)?\s)|$)/g;
+              let optMatch;
+              let firstOptIndex = -1;
+              while ((optMatch = optionRegex.exec(blockText)) !== null) {
+                  if (firstOptIndex === -1) firstOptIndex = optMatch.index;
+                  opsi.push({ id: optMatch[1].toUpperCase(), teks: optMatch[2].trim() });
+              }
+
+              // Deteksi Tipe Soal Berdasarkan Teks dan Opsi
+              if (opsi.length >= 3) {
+                  tipe = "PG";
+                  pertanyaan = blockText.substring(0, firstOptIndex > -1 ? firstOptIndex : blockText.length).trim();
+              } else if (blockText.toLowerCase().includes("benar") && blockText.toLowerCase().includes("salah")) {
+                  tipe = "Benar/Salah";
+                  opsi = [{ id: "A", teks: "Benar" }, { id: "B", teks: "Salah" }];
+              } else if (blockText.toLowerCase().includes("jodohkan") || blockText.toLowerCase().includes("pasangkan")) {
+                  tipe = "Jodohkan";
+              } else if (blockText.toLowerCase().includes("isian") || blockText.includes("....") || blockText.includes("___")) {
+                  tipe = "Isian";
+              }
+
+              // Mapping Kunci Jawaban dengan Cerdas ke UI Form
+              if (kunciJawabanSection) {
+                  const kunciRegex = new RegExp(`(?:\\n|^)(?:\\*\\*)?${sMatch.num}\\.(?:\\*\\*)?\\s*(.*)`, 'i');
+                  const kMatch = kunciJawabanSection.match(kunciRegex);
+                  if (kMatch) {
+                      let rawKunci = kMatch[1].trim();
+                      if (tipe === "PG" || tipe === "Benar/Salah") {
+                          const parsedLetter = rawKunci.match(/^[A-E]/i);
+                          if (parsedLetter) kunci = parsedLetter[0].toUpperCase();
+                      } else {
+                          panduanAI = `Otomatis AI: Pastikan jawaban relevan dengan: "${rawKunci.substring(0, 150)}..."`;
+                      }
+                  }
+              }
+
+              initialSoal.push({
+                  id: `soal_${Date.now()}_${sMatch.num}_${Math.random()}`,
+                  tipe,
+                  pertanyaan,
+                  opsi,
+                  kunci,
+                  panduanAI
+              });
+          });
+       }
+    }
+
+    // Fallback Manual jika gagal parse atau pilih mode manual
+    if (initialSoal.length === 0) {
+       initialSoal = [{ id: Date.now().toString(), tipe: "PG", pertanyaan: "", opsi: getInitialOpsi(), kunci: "A", panduanAI: "" }];
+    }
+
+    setDaftarSoal(initialSoal);
+    setIsCbtModalOpen(false); 
+    setIsEditorOpen(true);
   };
 
   const simpanUjianKeDatabase = async () => {
@@ -322,57 +522,73 @@ export default function ManajemenKelas() {
     } catch (error) { alert("Gagal menyimpan soal."); }
   };
 
-  // --- GENERATOR PDF / PRINT ---
+  // --- GENERATOR LJK FORMAL & PRINT SOAL ---
   const handlePrintLJK = (ujian: any) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return alert("Izinkan pop-up browser untuk mencetak LJK.");
 
-    const jmlSoal = ujian.soal?.length || 50;
-    const renderBulatan = (nomor: number) => `
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-family: monospace; font-size: 11px;">
-        <span style="width: 20px; text-align: right; padding-right: 5px;">${nomor}.</span>
-        <div style="display: flex; gap: 5px;">
-          <span style="border: 1px solid black; border-radius: 50%; width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; font-size: 9px;">A</span>
-          <span style="border: 1px solid black; border-radius: 50%; width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; font-size: 9px;">B</span>
-          <span style="border: 1px solid black; border-radius: 50%; width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; font-size: 9px;">C</span>
-          <span style="border: 1px solid black; border-radius: 50%; width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; font-size: 9px;">D</span>
-          <span style="border: 1px solid black; border-radius: 50%; width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; font-size: 9px;">E</span>
-        </div>
-      </div>
-    `;
+    const totalSoal = ujian.soal?.length || 50; 
+    const numOptions = ujian.pengaturan?.opsiPG?.includes("5") ? 5 : 4;
+    const optionsArr = ["A", "B", "C", "D", "E"].slice(0, numOptions);
 
-    let soalHtml = '';
-    for(let i=0; i<Math.ceil(jmlSoal/10); i++){
-      soalHtml += `<div style="flex: 1; padding: 0 10px;">`;
-      for(let j=1; j<=10; j++) {
-        let num = (i*10)+j;
-        if(num <= jmlSoal) soalHtml += renderBulatan(num);
-      }
-      soalHtml += `</div>`;
+    let soalHtml = '<div class="jawaban-grid">';
+    for (let i = 1; i <= totalSoal; i++) {
+      soalHtml += `
+        <div class="soal-row">
+          <span class="soal-num">${i}.</span>
+          <div class="bubble-group">
+            ${optionsArr.map(opt => `<div class="bubble">${opt}</div>`).join('')}
+          </div>
+        </div>
+      `;
     }
+    soalHtml += '</div>';
 
     const html = `
-      <html><head><title>LJK - ${ujian.pengaturan.judul}</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 20px; color: black; max-width: 800px; margin: auto; }
-          .header { text-align: center; border-bottom: 3px solid black; padding-bottom: 10px; margin-bottom: 20px; }
-          .header h2 { margin: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 1px; }
-          .header h3 { margin: 5px 0 0 0; font-size: 14px; font-weight: normal; }
-          .box-outline { border: 2px solid black; padding: 15px; margin-bottom: 20px; }
-          .info-grid { display: flex; gap: 20px; margin-bottom: 20px; }
-          .info-col { flex: 1; border: 1px solid black; padding: 10px; }
-          .judul-info { font-size: 12px; font-weight: bold; border-bottom: 1px dashed black; padding-bottom: 5px; margin-bottom: 10px; }
-          .isian-titik { border-bottom: 1px dotted black; width: 100%; height: 20px; margin-bottom: 10px; }
-        </style>
-      </head><body>
-        <div class="header"><h2>LEMBAR JAWABAN KOMPUTER (LJK)</h2><h3>SIMULASI UJIAN BERBASIS KERTAS DAN SCAN AI</h3></div>
-        <div class="info-grid">
-          <div class="info-col" style="flex: 2;"><div class="judul-info">IDENTITAS PESERTA</div><div style="display: flex; margin-bottom: 10px;"><span style="width: 100px; font-size: 12px;">Nama Lengkap</span><div class="isian-titik"></div></div><div style="display: flex; margin-bottom: 10px;"><span style="width: 100px; font-size: 12px;">Nomor Ujian</span><div class="isian-titik"></div></div><div style="display: flex; margin-bottom: 10px;"><span style="width: 100px; font-size: 12px;">Kelas</span><div class="isian-titik"></div></div></div>
-          <div class="info-col"><div class="judul-info">DATA UJIAN</div><div style="font-size: 11px; margin-bottom: 5px;">Mata Pelajaran: <b>${selectedClass?.mapel || '-'}</b></div><div style="font-size: 11px; margin-bottom: 5px;">Judul: <b>${ujian.pengaturan.judul}</b></div><div style="font-size: 11px; margin-bottom: 5px;">Waktu: <b>${ujian.pengaturan.waktuMenit} Menit</b></div><div style="font-size: 11px;">Tanggal: ......................</div></div>
-        </div>
-        <div class="box-outline"><div style="text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 15px; border-bottom: 1px solid black; padding-bottom: 5px;">JAWABAN (Hitamkan salah satu pilihan yang benar)</div><div style="display: flex; justify-content: space-between;">${soalHtml}</div></div>
-        <div style="text-align: center; font-size: 10px; margin-top: 20px;">Gunakan Pensil 2B atau Pulpen Hitam Pekat. Jangan melipat atau mencoret area luar kotak.<br/>LJK ini akan dipindai menggunakan teknologi AI Vision.</div>
-      </body></html>
+      <html><head><title>Cetak LJK - ${ujian.pengaturan?.judul || 'Ujian'}</title><style>
+          body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 1.5; color: black; padding: 20px; }
+          .container { max-width: 800px; margin: 0 auto; border: 2px solid black; padding: 20px; }
+          .header { text-align: center; border-bottom: 3px solid black; padding-bottom: 15px; margin-bottom: 20px; }
+          .header h1 { margin: 0 0 5px 0; font-size: 20px; text-transform: uppercase; letter-spacing: 1px;}
+          .header h2 { margin: 0; font-size: 14px; font-weight: normal; }
+          .petunjuk { font-size: 11px; border: 1px solid black; padding: 10px 15px; margin-bottom: 20px; background-color: #fafafa; }
+          .info-container { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+          .info-box { flex: 1; border: 1px solid black; padding: 15px; }
+          .info-title { font-weight: bold; text-transform: uppercase; border-bottom: 1px dashed black; padding-bottom: 5px; margin-bottom: 12px; font-size: 13px; }
+          .info-row { display: flex; margin-bottom: 12px; align-items: flex-end; }
+          .info-label { width: 110px; font-weight: bold; font-size: 12px; }
+          .info-line { flex: 1; border-bottom: 1px dotted black; height: 18px; }
+          .jawaban-section { border: 2px solid black; padding: 20px; }
+          .jawaban-title { text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 20px; text-transform: uppercase; border-bottom: 1px solid #ccc; padding-bottom: 10px;}
+          .jawaban-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px 20px; }
+          .soal-row { display: flex; align-items: center; }
+          .soal-num { width: 25px; text-align: right; font-weight: bold; padding-right: 10px; font-size: 13px; }
+          .bubble-group { display: flex; gap: 6px; }
+          .bubble { width: 16px; height: 16px; border: 1px solid black; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 9px; font-weight: bold; }
+          .footer { text-align: center; margin-top: 20px; font-size: 10px; font-style: italic; color: #555; }
+        </style></head><body>
+        <div class="container">
+          <div class="header"><h1>LEMBAR JAWABAN KOMPUTER (LJK)</h1><h2>${ujian.pengaturan?.judul || 'Simulasi Ujian Berbasis Kertas dan Scan AI'}</h2></div>
+          <div class="petunjuk"><b>PETUNJUK PENGISIAN:</b><br/>1. Gunakan pensil 2B atau pulpen tinta hitam pekat.<br/>2. Isilah data identitas peserta pada kotak yang disediakan.<br/>3. Hitamkan bulatan (⬤) secara penuh pada jawaban yang dianggap paling benar.<br/>4. Lembar jawaban ini tidak boleh kotor, basah, robek, atau terlipat karena akan dipindai menggunakan teknologi AI.</div>
+          <div class="info-container">
+            <div class="info-box" style="flex: 1.5;">
+              <div class="info-title">Identitas Peserta</div>
+              <div class="info-row"><div class="info-label">Nama Lengkap</div><div class="info-line"></div></div>
+              <div class="info-row"><div class="info-label">Nomor Ujian</div><div class="info-line"></div></div>
+              <div class="info-row"><div class="info-label">Kelas / Ruang</div><div class="info-line"></div></div>
+              <div class="info-row"><div class="info-label">Tanda Tangan</div><div class="info-line" style="height: 30px;"></div></div>
+            </div>
+            <div class="info-box" style="flex: 1;">
+              <div class="info-title">Data Ujian</div>
+              <div style="margin-bottom: 8px;"><b>Mata Pelajaran:</b><br/>${selectedClass?.mapel || '-'}</div>
+              <div style="margin-bottom: 8px;"><b>Durasi Ujian:</b><br/>${ujian.pengaturan?.waktuMenit || 60} Menit</div>
+              <div style="margin-bottom: 8px;"><b>Jumlah Soal:</b><br/>${totalSoal} Butir</div>
+              <div style="margin-bottom: 8px;"><b>Tanggal:</b><br/>.........................................</div>
+            </div>
+          </div>
+          <div class="jawaban-section"><div class="jawaban-title">Kolom Jawaban</div>${soalHtml}</div>
+          <div class="footer">Digenerate oleh Sistem Manajemen Kelas Terpadu | Mode Cetak LJK Pemindai AI</div>
+        </div></body></html>
     `;
     printWindow.document.write(html); printWindow.document.close(); printWindow.focus();
     setTimeout(() => { printWindow.print(); }, 800);
@@ -409,83 +625,6 @@ export default function ManajemenKelas() {
     setTimeout(() => { printWindow.print(); }, 800);
   };
 
-  const handleDownloadAbsenExcel = () => {
-    const siswaKelasAsli = selectedClass ? daftarSiswaGlobal.filter(s => selectedClass.peserta?.includes(s.id) || s.kelas === selectedClass.nama) : [];
-    if (siswaKelasAsli.length === 0) return alert("Belum ada data siswa.");
-    
-    // Simple CSV export based on view mode
-    const [yearStr, monthStr] = filterBulan.split('-');
-    const daysInMonth = new Date(parseInt(yearStr), parseInt(monthStr), 0).getDate();
-    
-    let csvRows = [];
-    if (absenViewMode === "bulan") {
-      const headers = ["No", "NISN", "Nama", ...Array.from({length: daysInMonth}).map((_, i) => `${i+1}`), "S", "I", "A"];
-      csvRows.push(headers.join(","));
-      
-      siswaKelasAsli.forEach((siswa, idx) => {
-        let s=0, i=0, a=0;
-        const rowData = [idx + 1, `="${siswa.nisn || '-'}"`, `"${siswa.nama}"`];
-        
-        Array.from({length: daysInMonth}).map((_, d) => {
-          const dateStr = `${yearStr}-${monthStr}-${(d+1).toString().padStart(2, '0')}`;
-          const record = riwayatAbsenData.find(r => r.tanggal === dateStr);
-          let status = "";
-          if (record && record.dataKehadiran && record.dataKehadiran[siswa.id]) {
-            const val = record.dataKehadiran[siswa.id];
-            if (val === "Hadir") status = "H";
-            else if (val === "Sakit") { status = "S"; s++; }
-            else if (val === "Izin") { status = "I"; i++; }
-            else if (val === "Alpha") { status = "A"; a++; }
-          }
-          rowData.push(status);
-        });
-        rowData.push(s.toString(), i.toString(), a.toString());
-        csvRows.push(rowData.join(","));
-      });
-    } else {
-      const months = filterSemester === "Ganjil" ? [7,8,9,10,11,12] : [1,2,3,4,5,6];
-      const startYear = parseInt(filterTahunAjaran.split('/')[0]);
-      const endYear = parseInt(filterTahunAjaran.split('/')[1]);
-      
-      const headers = ["No", "NISN", "Nama", "L/P", ...months.map(m => `Bulan ${m} (S)`), ...months.map(m => `Bulan ${m} (I)`), ...months.map(m => `Bulan ${m} (A)`), "Total S", "Total I", "Total A"];
-      csvRows.push(headers.join(","));
-      
-      siswaKelasAsli.forEach((siswa, idx) => {
-        const jk = siswa.jenisKelamin === 'Perempuan' ? 'P' : (siswa.jenisKelamin === 'Laki-laki' ? 'L' : '-');
-        const rowData = [idx + 1, `="${siswa.nisn || '-'}"`, `"${siswa.nama}"`, jk];
-        
-        let totalS=0, totalI=0, totalA=0;
-        let sArr:number[]=[], iArr:number[]=[], aArr:number[]=[];
-        
-        months.forEach(m => {
-          const y = m >= 7 ? startYear : endYear;
-          const prefix = `${y}-${m.toString().padStart(2, '0')}`;
-          let s=0, i=0, a=0;
-          riwayatAbsenData.forEach(record => {
-            if (record.tanggal && record.tanggal.startsWith(prefix) && record.dataKehadiran?.[siswa.id]) {
-               const val = record.dataKehadiran[siswa.id];
-               if (val === "Sakit") s++; else if (val === "Izin") i++; else if (val === "Alpha") a++;
-            }
-          });
-          sArr.push(s); iArr.push(i); aArr.push(a);
-          totalS+=s; totalI+=i; totalA+=a;
-        });
-        
-        rowData.push(...sArr.map(String), ...iArr.map(String), ...aArr.map(String), totalS.toString(), totalI.toString(), totalA.toString());
-        csvRows.push(rowData.join(","));
-      });
-    }
-
-    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
-    const link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent)); 
-    link.setAttribute("download", `Rekap_Absensi_${selectedClass.nama}_${absenViewMode}.csv`);
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
-  };
-
-  const handlePrintAbsenPDF = () => {
-    alert("Mempersiapkan dokumen PDF untuk dicetak...");
-    window.print();
-  };
 
   if (isLoading) return <div className="w-full h-[70vh] flex flex-col justify-center items-center"><Loader2 size={40} className="animate-spin text-blue-600 mb-4" /></div>;
 
@@ -693,7 +832,7 @@ export default function ManajemenKelas() {
               </motion.div>
             )}
 
-            {/* === TAB 3: JURNAL === */}
+            {/* TAB 3: JURNAL */}
             {activeTab === "jurnal" && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col space-y-5 w-full min-w-0">
                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
@@ -750,7 +889,7 @@ export default function ManajemenKelas() {
               </motion.div>
             )}
 
-            {/* === TAB 4: REKAP NILAI === */}
+            {/* TAB 4: REKAP NILAI */}
             {activeTab === "rekap" && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col space-y-5 w-full min-w-0">
                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
@@ -759,14 +898,14 @@ export default function ManajemenKelas() {
                     <p className="text-xs text-slate-500 mt-1">Sistem otomatis menghitung Nilai Akhir Kognitif berdasar bobot indikator.</p>
                   </div>
                   <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 overflow-x-auto custom-scrollbar pb-1 sm:pb-0 w-full sm:w-auto">
-                    <button type="button" onClick={() => setIsPengaturanNilaiOpen(true)} className="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-md text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap">
+                    <button type="button" onClick={() => setIsPengaturanNilaiOpen(true)} className="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-lg text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap">
                       <SlidersHorizontal size={14} /> Indikator
                     </button>
-                    <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-50 border border-slate-200 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md justify-center whitespace-nowrap">
+                    <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-50 border border-slate-200 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg justify-center whitespace-nowrap">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">KKM:</label>
                       <input type="number" value={kkm} onChange={(e) => setKkm(Number(e.target.value))} className="w-10 sm:w-12 bg-white border border-slate-300 rounded text-center text-[10px] sm:text-xs font-bold outline-none py-0.5" />
                     </div>
-                    <button type="button" onClick={handleDownloadExcel} className="bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-md text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap">
+                    <button type="button" onClick={handleDownloadExcel} className="bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-lg text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap">
                       <ArrowDownToLine size={14} /> CSV
                     </button>
                   </div>
@@ -836,7 +975,7 @@ export default function ManajemenKelas() {
               </motion.div>
             )}
 
-            {/* === TAB 5: CBT === */}
+            {/* TAB 5: CBT (BANK SOAL & UJIAN) */}
             {activeTab === "cbt" && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
@@ -881,7 +1020,7 @@ export default function ManajemenKelas() {
               </motion.div>
             )}
 
-            {/* === TAB 6: KOREKSI AI === */}
+            {/* TAB 6: KOREKSI AI */}
             {activeTab === "koreksi" && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10">
                 <div>
@@ -987,254 +1126,8 @@ export default function ManajemenKelas() {
 
 
       {/* ========================================================
-          SEMUA MODAL (POP-UP) 
+          MODAL: PENGATURAN CBT & PILIH KOLEKSI AI
       ======================================================== */}
-      
-      {/* 1. Modal Buat Kelas Baru */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50"><h3 className="font-bold text-slate-800">Buat Kelas Baru</h3></div>
-            <form onSubmit={handleBuatKelas} className="p-6 space-y-4">
-              <div><label className="block text-xs font-bold text-slate-500 mb-1">Nama Kelas</label><input type="text" required value={newClass.nama} onChange={(e) => setNewClass({...newClass, nama: e.target.value})} className="w-full p-2.5 border rounded-md outline-none focus:border-blue-500" /></div>
-              <div><label className="block text-xs font-bold text-slate-500 mb-1">Mata Pelajaran</label><input type="text" required value={newClass.mapel} onChange={(e) => setNewClass({...newClass, mapel: e.target.value})} className="w-full p-2.5 border rounded-md outline-none focus:border-blue-500" /></div>
-              <div className="pt-4 flex justify-end gap-2">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-bold text-slate-500 rounded-md">Batal</button>
-                <button type="submit" disabled={isSubmitting} className="px-5 py-2 bg-blue-600 text-white text-sm font-bold rounded-md">Simpan</button>
-              </div>
-            </form>
-          </motion.div>
-        </div>
-      )}
-
-      {/* 2. Modal Riwayat Absensi (Bulan & Semester) */}
-      <AnimatePresence>
-        {isRiwayatAbsenOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-xl shadow-2xl w-full max-w-6xl overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="px-4 md:px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between sm:items-center bg-white shrink-0 gap-4">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg"><FileSpreadsheet size={20} className="text-indigo-600" /> Daftar Hadir Peserta Didik</h3>
-                <div className="flex items-center gap-2">
-                  <div className="flex bg-slate-100 p-1 rounded-md">
-                    <button onClick={() => setAbsenViewMode("bulan")} className={`px-4 py-1.5 text-xs font-bold rounded ${absenViewMode === 'bulan' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Data Per Bulan</button>
-                    <button onClick={() => setAbsenViewMode("semester")} className={`px-4 py-1.5 text-xs font-bold rounded ${absenViewMode === 'semester' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}>Data Semester</button>
-                  </div>
-                  <button type="button" onClick={() => setIsRiwayatAbsenOpen(false)} className="text-slate-400 bg-slate-100 p-1.5 rounded-md hover:bg-slate-200 ml-2"><X size={20}/></button>
-                </div>
-              </div>
-              <div className="p-4 md:p-6 overflow-y-auto bg-slate-50 w-full min-w-0">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-4">
-                  {absenViewMode === 'bulan' ? (
-                    <div className="flex items-center gap-2">
-                      <label className="text-xs font-bold text-slate-500">BULAN:</label>
-                      <input type="month" value={filterBulan} onChange={(e) => setFilterBulan(e.target.value)} className="bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded text-xs font-bold shadow-sm outline-none" />
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <select value={filterSemester} onChange={(e) => setFilterSemester(e.target.value)} className="bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded text-xs font-bold shadow-sm outline-none">
-                        <option value="Ganjil">Semester Ganjil</option>
-                        <option value="Genap">Semester Genap</option>
-                      </select>
-                      <select value={filterTahunAjaran} onChange={(e) => setFilterTahunAjaran(e.target.value)} className="bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded text-xs font-bold shadow-sm outline-none">
-                        <option value="2025/2026">2025/2026</option>
-                        <option value="2026/2027">2026/2027</option>
-                        <option value="2027/2028">2027/2028</option>
-                      </select>
-                    </div>
-                  )}
-                  
-                  <div className="flex gap-2">
-                    <button onClick={handlePrintAbsenPDF} className="bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded text-xs font-bold shadow-sm">Unduh PDF</button>
-                    <button onClick={handleDownloadAbsenExcel} className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded text-xs font-bold shadow-sm">Unduh Excel</button>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-slate-300 shadow-sm rounded-md w-full overflow-hidden">
-                  <div className="w-full overflow-x-auto custom-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
-                    
-                    {/* View Bulanan (Tabel 1-31 Hari) */}
-                    {absenViewMode === "bulan" && (
-                      <table className="w-full text-left border-collapse min-w-[1200px] text-xs">
-                        <thead>
-                          <tr className="bg-slate-100 font-bold text-slate-700 text-[10px] text-center">
-                            <th className="p-2 border border-slate-300 w-8" rowSpan={2}>NO</th>
-                            <th className="p-2 border border-slate-300 w-16" rowSpan={2}>NIS</th>
-                            <th className="p-2 border border-slate-300 text-left min-w-[200px]" rowSpan={2}>N A M A</th>
-                            <th className="p-1 border border-slate-300" colSpan={new Date(parseInt(filterBulan.split('-')[0]), parseInt(filterBulan.split('-')[1]), 0).getDate()}>TANGGAL</th>
-                            <th className="p-1 border border-slate-300" colSpan={3}>JUMLAH</th>
-                          </tr>
-                          <tr className="bg-slate-50 font-bold text-slate-600 text-[9px] text-center">
-                            {Array.from({length: new Date(parseInt(filterBulan.split('-')[0]), parseInt(filterBulan.split('-')[1]), 0).getDate()}).map((_, i) => <th key={i} className="p-1 border border-slate-300 w-6">{i+1}</th>)}
-                            <th className="p-1 border border-slate-300 w-8 text-rose-600">S</th>
-                            <th className="p-1 border border-slate-300 w-8 text-blue-600">I</th>
-                            <th className="p-1 border border-slate-300 w-8 text-rose-800">A</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {daftarSiswaGlobal.length > 0 ? daftarSiswaGlobal.map((siswa, idx) => {
-                            let totalS=0, totalI=0, totalA=0;
-                            const [y, m] = filterBulan.split('-');
-                            const days = new Date(parseInt(y), parseInt(m), 0).getDate();
-                            
-                            return (
-                              <tr key={siswa.id} className="hover:bg-blue-50/30 text-center">
-                                <td className="p-2 border border-slate-300">{idx + 1}</td>
-                                <td className="p-2 border border-slate-300">{siswa.nisn || "-"}</td>
-                                <td className="p-2 border border-slate-300 text-left font-bold truncate max-w-[200px]">{siswa.nama}</td>
-                                
-                                {Array.from({length: days}).map((_, d) => {
-                                  const dateStr = `${y}-${m}-${(d+1).toString().padStart(2, '0')}`;
-                                  const record = riwayatAbsenData.find(r => r.tanggal === dateStr);
-                                  let status = "";
-                                  if (record && record.dataKehadiran && record.dataKehadiran[siswa.id]) {
-                                    const val = record.dataKehadiran[siswa.id];
-                                    if (val === "Hadir") status = "•";
-                                    else if (val === "Sakit") { status = "S"; totalS++; }
-                                    else if (val === "Izin") { status = "I"; totalI++; }
-                                    else if (val === "Alpha") { status = "A"; totalA++; }
-                                  }
-                                  return (
-                                    <td key={d} className={`p-1 border border-slate-300 text-[10px] font-bold ${status === '•' ? 'text-emerald-600' : 'text-rose-600'}`}>{status}</td>
-                                  )
-                                })}
-                                
-                                <td className="p-1 border border-slate-300 font-bold text-rose-600 bg-rose-50/50">{totalS}</td>
-                                <td className="p-1 border border-slate-300 font-bold text-blue-600 bg-blue-50/50">{totalI}</td>
-                                <td className="p-1 border border-slate-300 font-bold text-rose-800 bg-rose-50/50">{totalA}</td>
-                              </tr>
-                            )
-                          }) : <tr><td colSpan={37} className="p-6 text-center text-slate-400">Data tidak tersedia.</td></tr>}
-                        </tbody>
-                      </table>
-                    )}
-
-                    {/* View Semester (Rekap Bulanan) */}
-                    {absenViewMode === "semester" && (
-                      <table className="w-full text-left border-collapse min-w-[900px] text-xs">
-                        <thead>
-                          <tr className="bg-slate-100 font-bold text-slate-700 text-[10px] text-center">
-                            <th className="p-2 border border-slate-300 w-8" rowSpan={2}>NO</th>
-                            <th className="p-2 border border-slate-300 w-16" rowSpan={2}>INDUK</th>
-                            <th className="p-2 border border-slate-300 text-left min-w-[200px]" rowSpan={2}>N A M A</th>
-                            <th className="p-2 border border-slate-300 w-8" rowSpan={2}>L/P</th>
-                            {(filterSemester === "Ganjil" ? ["JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"] : ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI"]).map(bln => (
-                              <th key={bln} className="p-1 border border-slate-300" colSpan={3}>{bln}</th>
-                            ))}
-                            <th className="p-1 border border-slate-300" colSpan={3}>TOTAL (S I A)</th>
-                            <th className="p-2 border border-slate-300" rowSpan={2}>HADIR (%)</th>
-                          </tr>
-                          <tr className="bg-slate-50 font-bold text-slate-600 text-[9px] text-center">
-                            {Array.from({length: 6}).map((_, i) => (
-                              <><th key={`s${i}`} className="p-1 border border-slate-300 w-6">S</th><th key={`i${i}`} className="p-1 border border-slate-300 w-6">I</th><th key={`a${i}`} className="p-1 border border-slate-300 w-6">A</th></>
-                            ))}
-                            <th className="p-1 border border-slate-300 w-8 text-rose-600">S</th><th className="p-1 border border-slate-300 w-8 text-blue-600">I</th><th className="p-1 border border-slate-300 w-8 text-rose-800">A</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {siswaKelasAsli.length > 0 ? siswaKelasAsli.map((siswa, idx) => {
-                            const months = filterSemester === "Ganjil" ? [7,8,9,10,11,12] : [1,2,3,4,5,6];
-                            const startY = parseInt(filterTahunAjaran.split('/')[0]);
-                            const endY = parseInt(filterTahunAjaran.split('/')[1]);
-    
-                            let totalS = 0, totalI = 0, totalA = 0, totalHadir = 0, totalHari = 0;
-    
-                            // Hitung data untuk tiap bulan
-                            const rowData = months.map(m => {
-                              const y = m >= 7 ? startY : endY;
-                              const prefix = `${y}-${m.toString().padStart(2, '0')}`;
-                              let s=0, i=0, a=0;
-                              riwayatAbsenData.forEach(record => {
-                                if (record.tanggal && record.tanggal.startsWith(prefix) && record.dataKehadiran?.[siswa.id]) {
-                                  totalHari++;
-                                  const val = record.dataKehadiran[siswa.id];
-                                  if (val === "Sakit") s++; else if (val === "Izin") i++; else if (val === "Alpha") a++; else if (val === "Hadir") totalHadir++;
-                                }
-                              });
-                              totalS += s; totalI += i; totalA += a;
-                              return { s, i, a };
-                            });
-                        
-                            const persentaseHadir = totalHari === 0 ? 100 : Math.round((totalHadir / totalHari) * 100);
-                        
-                            return (
-                              <tr key={siswa.id} className="hover:bg-blue-50/30 text-center">
-                                <td className="p-2 border border-slate-300">{idx + 1}</td>
-                                <td className="p-2 border border-slate-300">{siswa.nisn || "-"}</td>
-                                <td className="p-2 border border-slate-300 text-left font-bold truncate max-w-[200px]">{siswa.nama}</td>
-                                <td className="p-2 border border-slate-300">{siswa.jenisKelamin === 'Perempuan' ? 'P' : 'L'}</td>
-                                
-                                {/* Render cell S-I-A per bulan tanpa span ilegal */}
-                                {rowData.map((data, i) => (
-                                  <React.Fragment key={i}>
-                                    <td className="p-1 border border-slate-300 bg-amber-50/50 text-[10px]">{data.s}</td>
-                                    <td className="p-1 border border-slate-300 bg-amber-50/50 text-[10px]">{data.i}</td>
-                                    <td className="p-1 border border-slate-300 bg-amber-50/50 text-[10px]">{data.a}</td>
-                                  </React.Fragment>
-                                ))}
-                                
-                                <td className="p-1 border border-slate-300 font-bold text-rose-600 bg-slate-50">{totalS}</td>
-                                <td className="p-1 border border-slate-300 font-bold text-blue-600 bg-slate-50">{totalI}</td>
-                                <td className="p-1 border border-slate-300 font-bold text-rose-800 bg-slate-50">{totalA}</td>
-                                <td className="p-2 border border-slate-300 font-black text-emerald-600">{persentaseHadir}%</td>
-                              </tr>
-                            )
-                          }) : <tr><td colSpan={27} className="p-6 text-center text-slate-400">Data tidak tersedia.</td></tr>}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* 3. Modal Riwayat Jurnal */}
-      <AnimatePresence>
-        {isRiwayatJurnalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="px-4 md:px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg"><FileSpreadsheet size={20} className="text-indigo-600" /> Riwayat Jurnal Mengajar</h3>
-                <button type="button" onClick={() => setIsRiwayatJurnalOpen(false)} className="text-slate-400 bg-slate-100 p-1.5 rounded-md hover:bg-slate-200"><X size={20}/></button>
-              </div>
-              <div className="p-4 md:p-6 overflow-y-auto w-full min-w-0 bg-slate-50">
-                <div className="bg-white border border-slate-300 overflow-x-auto custom-scrollbar shadow-sm rounded-md" style={{ WebkitOverflowScrolling: 'touch' }}>
-                  <table className="w-full text-left border-collapse min-w-[800px] text-sm">
-                    <thead>
-                      <tr className="bg-slate-100 border-b border-slate-300 font-bold text-slate-700 text-[11px] uppercase">
-                        <th className="p-4 border-r border-slate-300 w-28">Tanggal</th>
-                        <th className="p-4 border-r border-slate-300 w-48">Materi</th>
-                        <th className="p-4 border-r border-slate-300 min-w-[250px]">Kegiatan KBM</th>
-                        <th className="p-4 border-r border-slate-300 min-w-[150px]">Hambatan</th>
-                        <th className="p-4 min-w-[150px]">Solusi / Tindak Lanjut</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      {riwayatJurnalData.length > 0 ? (
-                        riwayatJurnalData.map((item) => (
-                          <tr key={item.id} className="hover:bg-slate-50 transition-colors text-xs text-slate-700">
-                            <td className="p-4 border-r border-slate-200 whitespace-nowrap font-bold">{item.tanggal}</td>
-                            <td className="p-4 border-r border-slate-200 font-bold text-slate-800">{item.materi}</td>
-                            <td className="p-4 border-r border-slate-200 whitespace-pre-wrap leading-relaxed">{item.kegiatan}</td>
-                            <td className="p-4 border-r border-slate-200 text-rose-600 italic">{item.hambatan || "-"}</td>
-                            <td className="p-4 text-emerald-600 italic">{item.solusi || "-"}</td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr><td colSpan={5} className="p-6 text-center text-sm font-bold text-slate-400">Belum ada riwayat jurnal.</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* 4. Modal Pengaturan Ujian Baru (CBT) */}
       <AnimatePresence>
         {isCbtModalOpen && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
@@ -1253,12 +1146,41 @@ export default function ManajemenKelas() {
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-xs font-bold text-slate-700 mb-1.5">Metode Import Soal</label>
-                      <select value={cbtForm.sumberSoal} onChange={(e) => setCbtForm({...cbtForm, sumberSoal: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-md text-sm font-bold text-blue-700 focus:border-blue-500 outline-none">
-                        <option>Buat Manual (Ketik Sendiri)</option>
-                        <option>Tarik dari Bank Soal AI (Generator)</option>
-                        <option>Upload dari Kisi-kisi / LKPD (Word/PDF)</option>
+                      <select 
+                        value={cbtForm.sumberSoal} 
+                        onChange={(e) => setCbtForm({...cbtForm, sumberSoal: e.target.value, koleksiId: ""})} 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-md text-sm font-bold text-blue-700 focus:border-blue-500 outline-none"
+                      >
+                        <option value="Buat Manual (Ketik Sendiri)">Buat Manual (Ketik Sendiri)</option>
+                        <option value="Tarik dari Bank Soal AI (Generator)">Tarik dari Bank Soal AI (Generator)</option>
+                        <option value="Upload dari Kisi-kisi / LKPD (Word/PDF)">Upload dari Kisi-kisi / LKPD (Word/PDF)</option>
                       </select>
                     </div>
+
+                    {/* SINKRONISASI AI: MUNCUL JIKA METODE IMPORT BUKAN MANUAL */}
+                    {(cbtForm.sumberSoal === 'Tarik dari Bank Soal AI (Generator)' || cbtForm.sumberSoal === 'Upload dari Kisi-kisi / LKPD (Word/PDF)') && (
+                      <div className="md:col-span-2 mt-2 p-4 bg-blue-50/70 border border-blue-100 rounded-lg">
+                        <label className="block text-xs font-bold text-blue-800 mb-1.5">Pilih Koleksi Hasil Generate AI <span className="text-rose-500">*</span></label>
+                        <select 
+                          value={cbtForm.koleksiId || ''} 
+                          onChange={(e) => setCbtForm({...cbtForm, koleksiId: e.target.value})} 
+                          className="w-full px-4 py-2.5 bg-white border border-blue-200 rounded-md text-sm font-medium text-slate-700 focus:border-blue-500 outline-none"
+                        >
+                          <option value="" disabled>-- Pilih Koleksi AI yang Tersedia --</option>
+                          {koleksiAI.map(kol => (
+                            <option key={kol.id} value={kol.id}>
+                              {kol.tipe} - {kol.mapel} ({kol.materi || kol.topik || `ID: ${kol.id}`})
+                            </option>
+                          ))}
+                          {koleksiAI.length === 0 && (
+                            <option value="none" disabled>Belum ada data di koleksi Generator AI...</option>
+                          )}
+                        </select>
+                        <p className="text-[11px] text-blue-600 mt-2 flex items-center gap-1 font-medium">
+                          <Target size={12} /> Data soal dan kunci jawaban akan dipetakan secara otomatis.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1292,53 +1214,231 @@ export default function ManajemenKelas() {
         )}
       </AnimatePresence>
 
-      {/* 5. Modal Lihat Hasil Ujian CBT */}
+      {/* ========================================================
+          SEMUA MODAL TAMBAHAN (DIKEMBALIKAN 100%)
+      ======================================================== */}
+
+      {/* MODAL: PENGATURAN INDIKATOR NILAI */}
       <AnimatePresence>
-        {isHasilUjianOpen && selectedUjianView && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="px-4 md:px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
-                <div>
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg"><Target size={20} className="text-indigo-600" /> Analisis Hasil Jawaban Siswa</h3>
-                  <p className="text-xs text-slate-500 mt-1">{selectedUjianView.pengaturan.judul}</p>
-                </div>
-                <button type="button" onClick={() => setIsHasilUjianOpen(false)} className="text-slate-400 bg-slate-100 p-1.5 rounded-md hover:bg-slate-200"><X size={20}/></button>
+        {isPengaturanNilaiOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2"><SlidersHorizontal size={18} className="text-amber-600"/> Pengaturan Indikator & Bobot</h3>
+                <button onClick={() => setIsPengaturanNilaiOpen(false)} className="text-slate-400 hover:text-rose-500 transition-colors p-1"><X size={18}/></button>
               </div>
-              <div className="p-4 md:p-6 overflow-y-auto bg-slate-50">
-                <div className="bg-white border border-slate-300 shadow-sm rounded-md overflow-hidden">
-                  <table className="w-full text-left border-collapse min-w-[700px] text-sm">
-                    <thead>
-                      <tr className="bg-slate-200 border-b border-slate-300 font-bold text-slate-700 text-xs">
-                        <th className="p-3 border-r border-slate-300 w-10 text-center">No</th>
-                        <th className="p-3 border-r border-slate-300">Nama Siswa</th>
-                        <th className="p-3 border-r border-slate-300 text-center">Nilai Ujian</th>
-                        <th className="p-3 border-r border-slate-300 text-center">Jawaban Benar</th>
-                        <th className="p-3 border-r border-slate-300 text-center">Jawaban Salah</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {siswaKelasAsli.length > 0 ? (
-                        siswaKelasAsli.map((siswa, idx) => {
-                          const hasilSiswa = hasilUjianData.find(h => h.siswaId === siswa.id);
-                          const nilai = hasilSiswa ? hasilSiswa.nilai : "Belum Ujian";
-                          const benar = hasilSiswa ? hasilSiswa.benar : "-";
-                          const salah = hasilSiswa ? hasilSiswa.salah : "-";
-                          
-                          return (
-                            <tr key={siswa.id} className="border-b border-slate-200 hover:bg-slate-100 transition-colors">
-                              <td className="p-3 border-r border-slate-200 text-center font-bold text-slate-500">{idx + 1}</td>
-                              <td className="p-3 border-r border-slate-200 font-bold text-slate-800">{siswa.nama}</td>
-                              <td className={`p-3 border-r border-slate-200 text-center font-bold ${hasilSiswa ? 'text-blue-600' : 'text-slate-400 font-normal text-xs'}`}>{nilai}</td>
-                              <td className="p-3 border-r border-slate-200 text-center font-bold text-emerald-600">{benar}</td>
-                              <td className="p-3 text-center font-bold text-rose-600">{salah}</td>
-                            </tr>
-                          )
-                        })
-                      ) : (
-                        <tr><td colSpan={5} className="p-6 text-center text-sm font-bold text-slate-400">Belum ada siswa di kelas ini.</td></tr>
-                      )}
-                    </tbody>
-                  </table>
+              <div className="p-6 overflow-y-auto flex-1">
+                <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 font-medium">
+                  Total bobot indikator yang masuk perhitungan Nilai Akhir Kognitif sebaiknya 100%. Ubah bobot menjadi 0 jika indikator tidak dimasukkan ke dalam perhitungan akhir (misal: Praktik).
+                </div>
+                <div className="space-y-3">
+                  {indikatorNilai.map((ind, idx) => (
+                    <div key={ind.id} className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase">Nama Indikator</label>
+                        <input type="text" value={ind.nama} onChange={(e) => { const newInd = [...indikatorNilai]; newInd[idx].nama = e.target.value; setIndikatorNilai(newInd); }} className="w-full text-sm font-bold text-slate-800 outline-none border-b border-slate-200 focus:border-blue-500 pb-1 mt-1" />
+                      </div>
+                      <div className="w-20">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase text-center">Bobot (%)</label>
+                        <input type="number" value={ind.bobot} onChange={(e) => { const newInd = [...indikatorNilai]; newInd[idx].bobot = Number(e.target.value); setIndikatorNilai(newInd); }} className="w-full text-center text-sm font-bold text-slate-800 outline-none border-b border-slate-200 focus:border-blue-500 pb-1 mt-1" />
+                      </div>
+                      <button type="button" onClick={() => handleHapusIndikator(ind.id)} className="mt-4 p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-colors"><Trash2 size={16}/></button>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" onClick={handleTambahIndikator} className="w-full mt-6 border-2 border-dashed border-slate-300 text-slate-500 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all">
+                  <Plus size={16}/> Tambah Indikator
+                </button>
+              </div>
+              <div className="px-6 py-4 border-t border-slate-100 flex justify-end bg-slate-50 shrink-0">
+                <button onClick={() => setIsPengaturanNilaiOpen(false)} className="px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded-md hover:bg-blue-700 shadow-sm transition-colors">Selesai</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: RIWAYAT ABSEN (DAFTAR HADIR PESERTA DIDIK) */}
+      <AnimatePresence>
+        {isRiwayatAbsenOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-xl shadow-xl w-full max-w-6xl overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2"><FileSpreadsheet size={20} className="text-indigo-600"/> Daftar Hadir Peserta Didik</h3>
+                
+                {/* Mode Selector (Bulan/Semester) - Disatukan di Header Kanan seperti screenshot */}
+                <div className="flex items-center gap-4">
+                  <div className="flex bg-slate-50 p-1 border border-slate-200 rounded-md">
+                      <button onClick={() => setAbsenViewMode("bulan")} className={`px-4 py-1.5 text-xs font-bold rounded transition-colors ${absenViewMode === "bulan" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>Data Per Bulan</button>
+                      <button onClick={() => setAbsenViewMode("semester")} className={`px-4 py-1.5 text-xs font-bold rounded transition-colors ${absenViewMode === "semester" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>Data Semester</button>
+                  </div>
+                  <button onClick={() => setIsRiwayatAbsenOpen(false)} className="text-slate-400 hover:text-rose-500 transition-colors bg-slate-50 p-1.5 rounded-md border border-slate-200"><X size={18}/></button>
+                </div>
+              </div>
+
+              <div className="p-6 overflow-y-auto flex-1 bg-slate-50">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                  {/* Bagian Filter Kiri */}
+                  {absenViewMode === "bulan" ? (
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-bold text-slate-500 uppercase tracking-widest">BULAN:</span>
+                      <input type="month" value={filterBulan} onChange={(e) => setFilterBulan(e.target.value)} className="bg-white border border-slate-300 px-3 py-2 rounded-md text-sm font-bold text-slate-700 outline-none focus:border-indigo-500 shadow-sm" />
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <select value={filterSemester} onChange={(e) => setFilterSemester(e.target.value)} className="bg-white border border-slate-300 px-4 py-2 rounded-md text-sm font-bold text-slate-700 outline-none shadow-sm cursor-pointer">
+                        <option value="Ganjil">Semester Ganjil</option><option value="Genap">Semester Genap</option>
+                      </select>
+                      <select value={filterTahunAjaran} onChange={(e) => setFilterTahunAjaran(e.target.value)} className="bg-white border border-slate-300 px-4 py-2 rounded-md text-sm font-bold text-slate-700 outline-none shadow-sm cursor-pointer">
+                        <option value={`${currentYear}/${currentYear+1}`}>{currentYear}/{currentYear+1}</option>
+                        <option value={`${currentYear-1}/${currentYear}`}>{currentYear-1}/{currentYear}</option>
+                      </select>
+                    </div>
+                  )}
+                  
+                  {/* Tombol Unduh Kanan */}
+                  <div className="flex gap-3">
+                    <button onClick={handlePrintAbsenPDF} className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-md text-xs font-bold shadow-sm hover:bg-slate-50 transition-colors">Unduh PDF</button>
+                    <button onClick={handleDownloadAbsenExcel} className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-2 rounded-md text-xs font-bold shadow-sm hover:bg-emerald-100 transition-colors">Unduh Excel</button>
+                  </div>
+                </div>
+                
+                {/* TABEL DATA */}
+                <div className="bg-white border border-slate-300 rounded-md overflow-hidden shadow-sm w-full">
+                  <div className="w-full overflow-x-auto custom-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
+                    
+                    {/* View Bulanan (1-31 Hari) */}
+                    {absenViewMode === "bulan" && (
+                      <table className="w-full text-left border-collapse min-w-[1200px] text-xs">
+                        <thead>
+                          <tr className="bg-slate-100 font-bold text-slate-600 text-[10px] text-center uppercase tracking-widest">
+                            <th className="p-3 border-r border-b border-slate-300 w-12" rowSpan={2}>NO</th>
+                            <th className="p-3 border-r border-b border-slate-300 w-24" rowSpan={2}>NISN</th>
+                            <th className="p-3 border-r border-b border-slate-300 text-left min-w-[200px]" rowSpan={2}>N A M A</th>
+                            <th className="p-2 border-r border-b border-slate-300 bg-slate-50" colSpan={new Date(parseInt(filterBulan.split('-')[0]), parseInt(filterBulan.split('-')[1]), 0).getDate()}>TANGGAL</th>
+                            <th className="p-2 border-b border-slate-300 bg-slate-50" colSpan={3}>JUMLAH</th>
+                          </tr>
+                          <tr className="bg-slate-50 font-bold text-slate-500 text-[9px] text-center">
+                            {Array.from({length: new Date(parseInt(filterBulan.split('-')[0]), parseInt(filterBulan.split('-')[1]), 0).getDate()}).map((_, i) => <th key={i} className="p-1 border-r border-b border-slate-300 w-6">{i+1}</th>)}
+                            <th className="p-2 border-r border-b border-slate-300 w-8 text-rose-600">S</th>
+                            <th className="p-2 border-r border-b border-slate-300 w-8 text-blue-600">I</th>
+                            <th className="p-2 border-b border-slate-300 w-8 text-rose-800">A</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {daftarSiswaGlobal.length > 0 ? daftarSiswaGlobal.map((siswa, idx) => {
+                            let totalS=0, totalI=0, totalA=0;
+                            const [y, m] = filterBulan.split('-');
+                            const days = new Date(parseInt(y), parseInt(m), 0).getDate();
+                            
+                            return (
+                              <tr key={siswa.id} className="hover:bg-blue-50/30 text-center transition-colors">
+                                <td className="p-3 border-r border-slate-200 text-slate-500">{idx + 1}</td>
+                                <td className="p-3 border-r border-slate-200">{siswa.nisn || "-"}</td>
+                                <td className="p-3 border-r border-slate-200 text-left font-bold text-slate-800 truncate max-w-[200px]">{siswa.nama}</td>
+                                
+                                {Array.from({length: days}).map((_, d) => {
+                                  const dateStr = `${y}-${m}-${(d+1).toString().padStart(2, '0')}`;
+                                  const record = riwayatAbsenData.find(r => r.tanggal === dateStr);
+                                  let status = "";
+                                  if (record && record.dataKehadiran && record.dataKehadiran[siswa.id]) {
+                                    const val = record.dataKehadiran[siswa.id];
+                                    if (val === "Hadir") status = "•";
+                                    else if (val === "Sakit") { status = "S"; totalS++; }
+                                    else if (val === "Izin") { status = "I"; totalI++; }
+                                    else if (val === "Alpha") { status = "A"; totalA++; }
+                                  }
+                                  return (
+                                    <td key={d} className={`p-1 border-r border-slate-200 text-[12px] font-black ${status === '•' ? 'text-emerald-600 text-[18px]' : 'text-rose-600'}`}>{status}</td>
+                                  )
+                                })}
+                                
+                                <td className="p-2 border-r border-slate-200 font-bold text-rose-600 bg-rose-50/30">{totalS}</td>
+                                <td className="p-2 border-r border-slate-200 font-bold text-blue-600 bg-blue-50/30">{totalI}</td>
+                                <td className="p-2 border-slate-200 font-bold text-rose-800 bg-rose-50/30">{totalA}</td>
+                              </tr>
+                            )
+                          }) : <tr><td colSpan={37} className="p-10 text-center text-slate-400 font-medium">Data siswa tidak tersedia untuk kelas ini.</td></tr>}
+                        </tbody>
+                      </table>
+                    )}
+
+                    {/* View Semester (Rekap Bulanan Ganjil/Genap) */}
+                    {absenViewMode === "semester" && (
+                      <table className="w-full text-left border-collapse min-w-[1000px] text-xs">
+                        <thead>
+                          <tr className="bg-slate-100 font-bold text-slate-600 text-[10px] text-center uppercase tracking-widest">
+                            <th className="p-3 border-r border-b border-slate-300 w-10" rowSpan={2}>NO</th>
+                            <th className="p-3 border-r border-b border-slate-300 w-24" rowSpan={2}>NISN</th>
+                            <th className="p-3 border-r border-b border-slate-300 text-left min-w-[200px]" rowSpan={2}>N A M A</th>
+                            <th className="p-3 border-r border-b border-slate-300 w-12" rowSpan={2}>L/P</th>
+                            {(filterSemester === "Ganjil" ? ["JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"] : ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI"]).map(bln => (
+                              <th key={bln} className="p-2 border-r border-b border-slate-300 bg-slate-50" colSpan={3}>{bln}</th>
+                            ))}
+                            <th className="p-2 border-r border-b border-slate-300 bg-slate-50" colSpan={3}>TOTAL (S I A)</th>
+                            <th className="p-3 border-b border-slate-300" rowSpan={2}>HADIR (%)</th>
+                          </tr>
+                          <tr className="bg-slate-50 font-bold text-slate-500 text-[9px] text-center">
+                            {Array.from({length: 6}).map((_, i) => (
+                              <React.Fragment key={`bulan-${i}`}>
+                                <th className="p-1 border-r border-b border-slate-300 w-6">S</th><th className="p-1 border-r border-b border-slate-300 w-6">I</th><th className="p-1 border-r border-b border-slate-300 w-6">A</th>
+                              </React.Fragment>
+                            ))}
+                            <th className="p-2 border-r border-b border-slate-300 w-10 text-rose-600">S</th><th className="p-2 border-r border-b border-slate-300 w-10 text-blue-600">I</th><th className="p-2 border-r border-b border-slate-300 w-10 text-rose-800">A</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {daftarSiswaGlobal.length > 0 ? daftarSiswaGlobal.map((siswa, idx) => {
+                            const months = filterSemester === "Ganjil" ? [7,8,9,10,11,12] : [1,2,3,4,5,6];
+                            const startY = parseInt(filterTahunAjaran.split('/')[0]);
+                            const endY = parseInt(filterTahunAjaran.split('/')[1]);
+                            
+                            let totalS = 0, totalI = 0, totalA = 0, totalHadir = 0, totalHari = 0;
+                            
+                            // Generate data per bulan
+                            const rowData = months.map(m => {
+                              const y = m >= 7 ? startY : endY;
+                              const prefix = `${y}-${m.toString().padStart(2, '0')}`;
+                              let s=0, i=0, a=0;
+                              riwayatAbsenData.forEach(record => {
+                                if (record.tanggal && record.tanggal.startsWith(prefix) && record.dataKehadiran?.[siswa.id]) {
+                                  totalHari++;
+                                  const val = record.dataKehadiran[siswa.id];
+                                  if (val === "Sakit") s++; else if (val === "Izin") i++; else if (val === "Alpha") a++; else if (val === "Hadir") totalHadir++;
+                                }
+                              });
+                              totalS += s; totalI += i; totalA += a;
+                              return { s, i, a };
+                            });
+
+                            const persentaseHadir = totalHari === 0 ? 100 : Math.round((totalHadir / totalHari) * 100);
+
+                            return (
+                              <tr key={siswa.id} className="hover:bg-blue-50/30 text-center transition-colors">
+                                <td className="p-3 border-r border-slate-200 text-slate-500">{idx + 1}</td>
+                                <td className="p-3 border-r border-slate-200">{siswa.nisn || "-"}</td>
+                                <td className="p-3 border-r border-slate-200 text-left font-bold text-slate-800 truncate max-w-[200px]">{siswa.nama}</td>
+                                <td className="p-3 border-r border-slate-200 font-bold">{siswa.jenisKelamin === 'Perempuan' ? 'P' : (siswa.jenisKelamin === 'Laki-laki' ? 'L' : '-')}</td>
+                                
+                                {rowData.map((data, i) => (
+                                  <React.Fragment key={`data-${i}`}>
+                                    <td className="p-1 border-r border-slate-200 bg-slate-50/50">{data.s}</td>
+                                    <td className="p-1 border-r border-slate-200 bg-slate-50/50">{data.i}</td>
+                                    <td className="p-1 border-r border-slate-200 bg-slate-50/50">{data.a}</td>
+                                  </React.Fragment>
+                                ))}
+                                
+                                <td className="p-2 border-r border-slate-200 font-bold text-rose-600 bg-rose-50/30">{totalS}</td>
+                                <td className="p-2 border-r border-slate-200 font-bold text-blue-600 bg-blue-50/30">{totalI}</td>
+                                <td className="p-2 border-r border-slate-200 font-bold text-rose-800 bg-rose-50/30">{totalA}</td>
+                                <td className="p-3 border-slate-200 font-black text-emerald-600">{persentaseHadir}%</td>
+                              </tr>
+                            )
+                          }) : <tr><td colSpan={27} className="p-10 text-center text-slate-400 font-medium">Data siswa tidak tersedia untuk kelas ini.</td></tr>}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -1346,41 +1446,44 @@ export default function ManajemenKelas() {
         )}
       </AnimatePresence>
 
-      {/* 6. Modal Pengaturan Indikator Nilai Dinamis */}
+      {/* MODAL: RIWAYAT JURNAL MENGAJAR (Sesuai Gambar Referensi) */}
       <AnimatePresence>
-        {isPengaturanNilaiOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col">
+        {isRiwayatJurnalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh]">
               <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
-                <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2"><SlidersHorizontal size={20} className="text-amber-600" /> Atur Indikator Penilaian</h3>
-                <button type="button" onClick={() => setIsPengaturanNilaiOpen(false)} className="text-slate-400 bg-slate-100 p-1.5 rounded-md hover:bg-slate-200"><X size={20}/></button>
+                <h3 className="font-bold text-slate-800 flex items-center gap-2"><FileText size={20} className="text-indigo-600" /> Riwayat Jurnal Mengajar</h3>
+                <button type="button" onClick={() => setIsRiwayatJurnalOpen(false)} className="text-slate-400 hover:text-rose-500 transition-colors bg-slate-50 p-1.5 rounded-md border border-slate-200"><X size={18}/></button>
               </div>
-              <div className="p-6 space-y-4 overflow-y-auto max-h-[60vh] bg-slate-50">
-                <div className="bg-amber-50 border border-amber-200 p-3 rounded-md flex items-start gap-3 mb-2">
-                  <Percent size={18} className="text-amber-600 shrink-0 mt-0.5"/>
-                  <p className="text-xs text-amber-800 font-medium">Atur bobot persentase nilai (Total maksimal 100%). Jika bobot diisi 0, maka kolom tersebut bersifat opsional dan tidak masuk ke hitungan Nilai Akhir Kognitif.</p>
+              <div className="p-6 overflow-y-auto flex-1 bg-slate-50">
+                <div className="bg-white border border-slate-200 rounded-md overflow-x-auto shadow-sm" style={{ WebkitOverflowScrolling: 'touch' }}>
+                  <table className="w-full text-left border-collapse min-w-[800px] text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 font-bold text-slate-600 text-[11px] uppercase tracking-widest">
+                        <th className="p-4 border-r border-slate-200 w-32">TANGGAL</th>
+                        <th className="p-4 border-r border-slate-200 w-48">MATERI</th>
+                        <th className="p-4 border-r border-slate-200 min-w-[250px]">KEGIATAN KBM</th>
+                        <th className="p-4 border-r border-slate-200 w-48">HAMBATAN</th>
+                        <th className="p-4 w-48">SOLUSI / TINDAK LANJUT</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {riwayatJurnalData.length > 0 ? (
+                        riwayatJurnalData.map((item) => (
+                          <tr key={item.id} className="hover:bg-slate-50/50 transition-colors text-slate-700">
+                            <td className="p-4 border-r border-slate-100 font-bold">{item.tanggal}</td>
+                            <td className="p-4 border-r border-slate-100 font-bold text-slate-800">{item.materi}</td>
+                            <td className="p-4 border-r border-slate-100 whitespace-pre-wrap leading-relaxed text-xs">{item.kegiatan}</td>
+                            <td className="p-4 border-r border-slate-100 text-rose-500 italic text-xs">{item.hambatan || "-"}</td>
+                            <td className="p-4 text-emerald-600 italic text-xs">{item.solusi || "-"}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr><td colSpan={5} className="p-10 text-center text-slate-400 font-medium">Belum ada riwayat jurnal mengajar yang tersimpan.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-                
-                {indikatorNilai.map((ind, idx) => (
-                  <div key={ind.id} className="flex flex-wrap sm:flex-nowrap items-center gap-3 bg-white p-3 rounded-md border border-slate-200 shadow-sm">
-                    <div className="w-full sm:flex-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Nama Kolom/Indikator</label>
-                      <input type="text" value={ind.nama} onChange={(e) => { const newInd = [...indikatorNilai]; newInd[idx].nama = e.target.value; setIndikatorNilai(newInd); }} className="w-full font-bold text-slate-800 text-sm outline-none border-b border-slate-200 focus:border-blue-500 pb-1 mt-1" />
-                    </div>
-                    <div className="w-full sm:w-20">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase">Bobot (%)</label>
-                      <input type="number" value={ind.bobot} onChange={(e) => { const newInd = [...indikatorNilai]; newInd[idx].bobot = Number(e.target.value); setIndikatorNilai(newInd); }} className="w-full text-center font-bold text-slate-800 text-sm outline-none border-b border-slate-200 focus:border-blue-500 pb-1 mt-1" />
-                    </div>
-                    <button type="button" onClick={() => handleHapusIndikator(ind.id)} className="w-full sm:w-auto mt-2 sm:mt-4 p-2 flex justify-center items-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-md"><Trash2 size={16}/></button>
-                  </div>
-                ))}
-
-                <button type="button" onClick={handleTambahIndikator} className="w-full border-2 border-dashed border-slate-300 text-slate-500 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 py-3 rounded-md text-sm font-bold flex items-center justify-center gap-2 transition-all mt-4">
-                  <Plus size={16}/> Tambah Indikator Nilai
-                </button>
-              </div>
-              <div className="px-6 py-4 border-t border-slate-100 flex justify-end bg-white shrink-0">
-                <button type="button" onClick={() => setIsPengaturanNilaiOpen(false)} className="w-full sm:w-auto px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-md shadow-sm transition-colors">Terapkan Pengaturan</button>
               </div>
             </motion.div>
           </div>
