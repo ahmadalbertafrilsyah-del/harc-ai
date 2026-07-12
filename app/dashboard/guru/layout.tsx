@@ -32,7 +32,6 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
     { name: "Beranda", icon: LayoutDashboard, path: "/dashboard/guru/beranda" },
     { name: "Profil", icon: Users, path: "/dashboard/guru/profil" },
     { name: "Kelas & Siswa", icon: FileSpreadsheet, path: "/dashboard/guru/kelas" }, 
-    { name: "Jurnal & Absensi", icon: CalendarDays, path: "/dashboard/guru/administrasi" },
     { name: "Perangkat Ajar", icon: BookOpen, path: "/dashboard/guru/generator" },
     { name: "Asesmen & Ujian", icon: Target, path: "/dashboard/guru/asesmen" },
     { name: "Chat AI", icon: Bot, path: "/dashboard/guru/chat" },
@@ -109,7 +108,7 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
         
         <nav aria-label="Navigasi Utama Guru" className="flex-1 py-6 flex flex-col gap-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
           {!isSidebarCollapsed && (
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 px-6 truncate" aria-hidden="true">Menu Sistem AI</div>
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 px-6 truncate" aria-hidden="true"></div>
           )}
           {menuItems.map((item) => {
             const isActive = pathname.startsWith(item.path);
