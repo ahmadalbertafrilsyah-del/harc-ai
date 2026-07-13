@@ -435,8 +435,9 @@ export default function GeneratorBahanAjar() {
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="flex flex-col gap-8">
         
+        {/* --- BAGIAN ATAS: FORM PARAMETER AI --- */}
         <div className="w-full flex flex-col gap-6">
           <div className="bg-white p-6 md:p-8 rounded-md shadow-sm border border-slate-200">
             <div className="flex items-center gap-3 mb-8 border-b border-slate-100 pb-4">
@@ -446,6 +447,7 @@ export default function GeneratorBahanAjar() {
 
             <form onSubmit={handleGenerate} className="space-y-8">
               
+              {/* 1. JENIS DOKUMEN */}
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">1. Pilih Jenis Dokumen</label>
                 <div className="flex flex-wrap gap-2.5">
@@ -457,103 +459,110 @@ export default function GeneratorBahanAjar() {
                 </div>
               </div>
 
-              <div className="bg-slate-50/80 p-6 rounded-xl border border-slate-200 space-y-5">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-2">2. Kurikulum & Ruang Lingkup Materi</label>
-                  
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-2">Standar Kurikulum Nasional</label>
-                    <select value={sumber} onChange={(e) => setSumber(e.target.value)} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer">
-                      <option value="Kemendikdasmen (SK BSKAP 32/2024)">Kemendikdasmen (SK BSKAP 32/2024)</option>
-                      <option value="Kementerian Agama (KMA)">Kementerian Agama (KMA 1503 2025)</option>
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-2">Fase</label>
-                      <select value={fase} onChange={(e) => { setFase(e.target.value); setKelas(""); }} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer" required>
-                        <option value="">Pilih Fase</option>
-                        {Object.keys(opsiKelas).map(f => <option key={f} value={f}>{f}</option>)}
+              {/* GRID UNTUK KURIKULUM DAN IDENTITAS */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* 2. KURIKULUM & MATERI */}
+                <div className="bg-slate-50/80 p-6 rounded-xl border border-slate-200 space-y-5">
+                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-2">2. Kurikulum & Ruang Lingkup Materi</label>
+                   
+                   <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-2">Standar Kurikulum Nasional</label>
+                      <select value={sumber} onChange={(e) => setSumber(e.target.value)} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer">
+                        <option value="Kemendikdasmen (SK BSKAP 32/2024)">Kemendikdasmen (SK BSKAP 32/2024)</option>
+                        <option value="Kementerian Agama (KMA)">Kementerian Agama (KMA 1503 2025)</option>
                       </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-2">Kelas</label>
-                      <select value={kelas} onChange={(e) => setKelas(e.target.value)} disabled={!fase} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer disabled:bg-slate-100 disabled:text-slate-400" required>
-                        <option value="">Pilih Kelas</option>
-                        {fase && opsiKelas[fase]?.map((kls: string) => <option key={kls} value={kls}>{kls}</option>)}
-                      </select>
-                    </div>
-                  </div>
+                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-2">Mata Pelajaran</label>
-                    <input type="text" value={mapel} onChange={(e) => setMapel(e.target.value)} placeholder="Contoh: Pendidikan Pancasila / Biologi" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm" required />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-2">Elemen CP / Topik Utama <span className="text-slate-400 font-normal italic">(Opsional)</span></label>
-                    <input type="text" value={topik} onChange={(e) => setTopik(e.target.value)} placeholder="Contoh: Menyimak / Sistem Peredaran Darah" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-medium text-slate-800 outline-none focus:border-slate-500 shadow-sm" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-2">Materi Pembelajaran Spesifik</label>
-                    <input type="text" value={materi} onChange={(e) => setMateri(e.target.value)} placeholder="Contoh: Fungsi Jantung dan Pembuluh Darah" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-medium text-slate-800 outline-none focus:border-slate-500 shadow-sm" required />
-                  </div>
-              </div>
+                   <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-2">Fase Pembelajaran</label>
+                        <select value={fase} onChange={(e) => { setFase(e.target.value); setKelas(""); }} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer" required>
+                          <option value="">Pilih Fase</option>
+                          {Object.keys(opsiKelas).map(f => <option key={f} value={f}>{f}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-2">Spesifik Kelas</label>
+                        <select value={kelas} onChange={(e) => setKelas(e.target.value)} disabled={!fase} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer disabled:bg-slate-100 disabled:text-slate-400" required>
+                          <option value="">Pilih Kelas</option>
+                          {fase && opsiKelas[fase]?.map((kls: string) => <option key={kls} value={kls}>{kls}</option>)}
+                        </select>
+                      </div>
+                   </div>
 
-              <div className="flex flex-col gap-6">
-                <div className="p-6 bg-slate-50/80 border border-slate-200 rounded-xl space-y-4">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-2">3. Identitas Cetak (Opsional)</label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <input type="text" value={namaSekolah} onChange={(e) => setNamaSekolah(e.target.value)} placeholder="Nama Institusi/Sekolah" className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
-                    <input type="text" value={tahunPelajaran} onChange={(e) => setTahunPelajaran(e.target.value)} placeholder="Thn Ajaran (Contoh: 2025/2026)" className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
-                    <select value={semester} onChange={(e) => setSemester(e.target.value)} className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-bold text-slate-700 cursor-pointer">
-                      <option value="Ganjil">Semester Ganjil (Juli - Desember)</option><option value="Genap">Semester Genap (Januari - Juni)</option>
-                    </select>
-                    <input type="text" value={kotaSekolah} onChange={(e) => setKotaSekolah(e.target.value)} placeholder="Kota Penerbitan" className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
-                    <div className="col-span-2 grid grid-cols-2 gap-4">
-                      <input type="text" value={namaGuru} onChange={(e) => setNamaGuru(e.target.value)} placeholder="Nama Guru Penyusun" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
-                      <input type="text" value={nipGuru} onChange={(e) => setNipGuru(e.target.value)} placeholder="NIP Guru" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
-                    </div>
-                    <div className="col-span-2 grid grid-cols-2 gap-4">
-                      <input type="text" value={namaKepsek} onChange={(e) => setNamaKepsek(e.target.value)} placeholder="Nama Kepala Sekolah" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
-                      <input type="text" value={nipKepsek} onChange={(e) => setNipKepsek(e.target.value)} placeholder="NIP Kepala Sekolah" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
-                    </div>
-                  </div>
+                   <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-2">Mata Pelajaran</label>
+                      <input type="text" value={mapel} onChange={(e) => setMapel(e.target.value)} placeholder="Contoh: Pendidikan Pancasila / Biologi" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm" required />
+                   </div>
+                   <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-2">Elemen CP / Topik Utama <span className="text-slate-400 font-normal italic">(Opsional)</span></label>
+                      <input type="text" value={topik} onChange={(e) => setTopik(e.target.value)} placeholder="Contoh: Menyimak / Sistem Peredaran Darah" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-medium text-slate-800 outline-none focus:border-slate-500 shadow-sm" />
+                   </div>
+                   <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-2">Materi Pembelajaran Spesifik</label>
+                      <input type="text" value={materi} onChange={(e) => setMateri(e.target.value)} placeholder="Contoh: Fungsi Jantung dan Pembuluh Darah" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-medium text-slate-800 outline-none focus:border-slate-500 shadow-sm" required />
+                   </div>
                 </div>
 
-                <AnimatePresence mode="popLayout">
-                  {(tipe === "Modul Ajar" || tipe === "RPP") && (
-                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="p-6 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-4 overflow-hidden">
-                        <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-widest mb-2">4. Pengaturan Modul</h4>
-                        <div>
-                          <label className="block text-[10px] font-bold text-emerald-700 mb-1.5 uppercase">Model Pendekatan</label>
-                          <select value={metode} onChange={(e) => setMetode(e.target.value)} className="w-full p-3 bg-white border border-emerald-200 rounded-lg text-xs outline-none focus:border-emerald-500 cursor-pointer font-medium text-slate-700">
-                            <option value="">Rekomendasi AI (Otomatis)</option><option value="Problem Based Learning (PBL)">PBL</option><option value="Project Based Learning (PjBL)">PjBL</option><option value="Discovery Learning">Discovery Learning</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-emerald-700 mb-1.5 uppercase">Fokus Karakter P5/PPRA</label>
-                          <select value={profilPelajar} onChange={(e) => setProfilPelajar(e.target.value)} className="w-full p-3 bg-white border border-emerald-200 rounded-lg text-xs outline-none focus:border-emerald-500 cursor-pointer font-medium text-slate-700">
-                            <option value="">Pilih Fokus (Opsional)</option>
-                            {(sumber.includes("Agama") ? p5Kemenag : p5Kemendikbud).map((opt: string) => (<option key={opt} value={opt}>{opt}</option>))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-emerald-700 mb-1.5 uppercase">Alokasi Waktu</label>
-                          <input type="text" value={alokasiWaktu} onChange={(e) => setAlokasiWaktu(e.target.value)} placeholder="Contoh: 2 JP x 45 Menit" className="w-full p-3 bg-white border border-emerald-200 rounded-lg text-xs outline-none focus:border-emerald-500 font-medium" />
-                        </div>
-                      </motion.div>
-                  )}
+                {/* 3. IDENTITAS & SPESIFIKASI TAMBAHAN */}
+                <div className="flex flex-col gap-6">
+                  <div className="p-6 bg-slate-50/80 border border-slate-200 rounded-xl space-y-4">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-2">3. Identitas Cetak (Opsional)</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <input type="text" value={namaSekolah} onChange={(e) => setNamaSekolah(e.target.value)} placeholder="Nama Institusi/Sekolah" className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                      <input type="text" value={tahunPelajaran} onChange={(e) => setTahunPelajaran(e.target.value)} placeholder="Thn Ajaran (Contoh: 2025/2026)" className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                      <select value={semester} onChange={(e) => setSemester(e.target.value)} className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-bold text-slate-700 cursor-pointer">
+                        <option value="Ganjil">Semester Ganjil (Juli - Desember)</option><option value="Genap">Semester Genap (Januari - Juni)</option>
+                      </select>
+                      <input type="text" value={kotaSekolah} onChange={(e) => setKotaSekolah(e.target.value)} placeholder="Kota Penerbitan" className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                      <div className="col-span-2 grid grid-cols-2 gap-4">
+                        <input type="text" value={namaGuru} onChange={(e) => setNamaGuru(e.target.value)} placeholder="Nama Guru Penyusun" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                        <input type="text" value={nipGuru} onChange={(e) => setNipGuru(e.target.value)} placeholder="NIP Guru" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                      </div>
+                      <div className="col-span-2 grid grid-cols-2 gap-4">
+                        <input type="text" value={namaKepsek} onChange={(e) => setNamaKepsek(e.target.value)} placeholder="Nama Kepala Sekolah" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                        <input type="text" value={nipKepsek} onChange={(e) => setNipKepsek(e.target.value)} placeholder="NIP Kepala Sekolah" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                      </div>
+                    </div>
+                  </div>
 
-                  {(tipe === "PROMES" || tipe === "PROTA") && (
-                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="p-6 bg-slate-50/80 border border-slate-200 rounded-xl flex flex-col justify-center text-center overflow-hidden h-full min-h-[150px]">
-                        <CalendarDays size={40} className="mx-auto text-slate-400 mb-4" />
-                        <h4 className="text-sm font-bold text-slate-800 mb-2">Format Kaldik Terpadu</h4>
-                        <p className="text-xs text-slate-500 leading-relaxed px-4">Sistem akan menyusun matriks alokasi waktu per minggu efektif secara otomatis untuk format kalender pendidikan (Landscape).</p>
-                      </motion.div>
-                  )}
-                </AnimatePresence>
+                  {/* KONDISIONAL BERDASARKAN TIPE */}
+                  <AnimatePresence mode="popLayout">
+                    {(tipe === "Modul Ajar" || tipe === "RPP") && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="p-6 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-4 overflow-hidden">
+                          <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-widest mb-2">4. Pengaturan Modul</h4>
+                          <div>
+                            <label className="block text-[10px] font-bold text-emerald-700 mb-1.5 uppercase">Model Pendekatan</label>
+                            <select value={metode} onChange={(e) => setMetode(e.target.value)} className="w-full p-3 bg-white border border-emerald-200 rounded-lg text-xs outline-none focus:border-emerald-500 cursor-pointer font-medium text-slate-700">
+                              <option value="">Rekomendasi AI (Otomatis)</option><option value="Problem Based Learning (PBL)">PBL</option><option value="Project Based Learning (PjBL)">PjBL</option><option value="Discovery Learning">Discovery Learning</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-emerald-700 mb-1.5 uppercase">Fokus Karakter P5/PPRA</label>
+                            <select value={profilPelajar} onChange={(e) => setProfilPelajar(e.target.value)} className="w-full p-3 bg-white border border-emerald-200 rounded-lg text-xs outline-none focus:border-emerald-500 cursor-pointer font-medium text-slate-700">
+                              <option value="">Pilih Fokus (Opsional)</option>
+                              {(sumber.includes("Agama") ? p5Kemenag : p5Kemendikbud).map((opt: string) => (<option key={opt} value={opt}>{opt}</option>))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-emerald-700 mb-1.5 uppercase">Alokasi Waktu</label>
+                            <input type="text" value={alokasiWaktu} onChange={(e) => setAlokasiWaktu(e.target.value)} placeholder="Contoh: 2 JP x 45 Menit" className="w-full p-3 bg-white border border-emerald-200 rounded-lg text-xs outline-none focus:border-emerald-500 font-medium" />
+                          </div>
+                        </motion.div>
+                    )}
+
+                    {(tipe === "PROMES" || tipe === "PROTA") && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="p-6 bg-slate-50/80 border border-slate-200 rounded-xl flex flex-col justify-center text-center overflow-hidden h-full min-h-[150px]">
+                          <CalendarDays size={40} className="mx-auto text-slate-400 mb-4" />
+                          <h4 className="text-sm font-bold text-slate-800 mb-2">Format Kaldik Terpadu</h4>
+                          <p className="text-xs text-slate-500 leading-relaxed px-4">Sistem akan menyusun matriks alokasi waktu per minggu efektif secara otomatis untuk format kalender pendidikan (Landscape).</p>
+                        </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
 
+              {/* Checkbox Konteks Lanjutan */}
               {dokumenTerakhir && (
                 <label className="flex items-start gap-3 p-5 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors shadow-sm">
                   <input type="checkbox" checked={gunakanKonteks} onChange={(e) => setGunakanKonteks(e.target.checked)} className="mt-0.5 w-5 h-5 text-slate-800 rounded border-slate-300 focus:ring-slate-800 cursor-pointer" />
@@ -564,6 +573,7 @@ export default function GeneratorBahanAjar() {
                 </label>
               )}
 
+              {/* TOMBOL GENERATE */}
               <button type="submit" disabled={isGenerating} className={`w-full py-5 rounded-xl text-base font-black tracking-widest uppercase text-white transition-all shadow-md flex items-center justify-center gap-2 active:scale-95 mt-4 ${isGenerating ? 'bg-slate-400 cursor-not-allowed' : 'bg-slate-900 hover:bg-slate-800 hover:shadow-lg'}`}>
                 {isGenerating ? <><Loader2 size={22} className="animate-spin" /> Menganalisis Parameter Nasional...</> : <><Bot size={22} /> Generate Dokumen AI</>}
               </button>
@@ -571,9 +581,11 @@ export default function GeneratorBahanAjar() {
           </div>
         </div>
 
+        {/* --- BAGIAN BAWAH: KANVAS HASIL AI (FULL WIDTH) --- */}
         <div className="w-full flex flex-col mt-4 md:mt-0">
           <div className="bg-white rounded-md border border-slate-200 shadow-sm flex-1 flex flex-col relative overflow-hidden min-h-[600px] lg:min-h-[800px]">
             
+            {/* Header Kanvas */}
             <div className="px-5 md:px-8 py-5 border-b border-slate-200 bg-slate-50 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-white border border-slate-300 rounded-md flex items-center justify-center shadow-sm"><BookOpen size={24} className="text-slate-700"/></div>
@@ -605,6 +617,7 @@ export default function GeneratorBahanAjar() {
               )}
             </div>
 
+            {/* Isi Kanvas Markdown */}
             <div className="flex-1 overflow-y-auto bg-slate-100 p-4 md:p-10 relative custom-scrollbar">
               {isGenerating ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm z-10">
@@ -617,7 +630,7 @@ export default function GeneratorBahanAjar() {
                   <p className="text-sm text-slate-500 mt-2 font-medium">Mengkalibrasi standar {sumber.split(" ")[0]}</p>
                 </div>
               ) : hasil ? (
-                <div className={`bg-white shadow-xl border border-slate-300 p-6 md:p-14 mx-auto min-h-[1100px] overflow-x-auto ${isLandscape ? 'w-full max-w-none' : 'max-w-4xl'}`}>
+                <div className={`bg-white shadow-xl border border-slate-300 p-8 md:p-14 mx-auto min-h-[1100px] overflow-x-auto ${isLandscape ? 'w-full max-w-none' : 'max-w-4xl'}`}>
                   <div ref={pdfRef} className="pdf-container">
                     <style>{`
                       /* PENYESUAIAN FONT UNTUK MOBILE & DESKTOP */
