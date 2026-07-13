@@ -44,16 +44,6 @@ export default function GeneratorBahanAjar() {
   const [metode, setMetode] = useState("");
   const [alokasiWaktu, setAlokasiWaktu] = useState("");
   const [profilPelajar, setProfilPelajar] = useState("");
-  
-  // State Parameter Bank Soal
-  const [jenisUjian, setJenisUjian] = useState("Ulangan Harian");
-  const [tingkatKesulitan, setTingkatKesulitan] = useState("Campuran (Proporsional)");
-  const [opsiPG, setOpsiPG] = useState("A - D (4 Opsi)");
-  const [jmlPG, setJmlPG] = useState("10"); 
-  const [jmlBenarSalah, setJmlBenarSalah] = useState("0"); 
-  const [jmlMenjodohkan, setJmlMenjodohkan] = useState("0"); 
-  const [jmlIsianSingkat, setJmlIsianSingkat] = useState("0"); 
-  const [jmlUraian, setJmlUraian] = useState("5"); 
 
   // State UI, AI & Dokumen Terakhir
   const [isGenerating, setIsGenerating] = useState(false);
@@ -73,7 +63,7 @@ export default function GeneratorBahanAjar() {
 
   const pdfRef = useRef<HTMLDivElement>(null);
 
-  const isLandscape = tipe === "PROMES" || tipe === "PROTA" || tipe === "Kisi-kisi Ujian" || tipe === "ATP";
+  const isLandscape = tipe === "PROMES" || tipe === "PROTA" || tipe === "ATP";
 
   const p5Kemendikbud: string[] = ["Semua Dimensi P5", "Beriman, Bertakwa & Berakhlak Mulia", "Berkebinekaan Global", "Bergotong Royong", "Mandiri", "Bernalar Kritis", "Kreatif"];
   const p5Kemenag: string[] = ["Semua Nilai P5 & PPRA", "Berkeadaban (Ta'addub)", "Keteladanan (Qudwah)", "Kewarganegaraan (Muwatana)", "Mengambil jalan tengah (Tawassut)", "Berimbang (Tawazun)", "Lurus dan tegas (I'tidal)", "Kesetaraan (Musawa)"];
@@ -88,7 +78,7 @@ export default function GeneratorBahanAjar() {
     "Fase F": ["Kelas 11", "Kelas 12"],
   };
 
-  const opsiTipeDokumen = ["Modul Ajar", "RPP", "ATP", "PROMES", "PROTA", "LKPD", "Bahan Bacaan Siswa", "Kisi-kisi Ujian", "Rubrik Penilaian", "Bank Soal"];
+  const opsiTipeDokumen = ["Modul Ajar", "RPP", "ATP", "PROMES", "PROTA", "LKPD", "Bahan Bacaan Siswa", "Rubrik Penilaian"];
 
   useEffect(() => {
     const auth = getAuth();
@@ -118,7 +108,8 @@ export default function GeneratorBahanAjar() {
         });
         const qRiwayat = query(collection(db, "modul_ajar"), orderBy("createdAt", "desc"));
         const unsubRiwayat = onSnapshot(qRiwayat, (snapshot) => {
-          const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter((d: any) => d.userId === user.uid);
+          const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
+            .filter((d: any) => d.userId === user.uid && !d.tipe.includes("Asesmen") && !d.tipe.includes("Bank Soal") && !d.tipe.includes("Kisi"));
           setRiwayatModul(data);
         });
         return () => { unsubProfil(); unsubRiwayat(); };
@@ -136,6 +127,7 @@ export default function GeneratorBahanAjar() {
     setIsGenerating(true);
     setHasil("");
     setDocId(""); 
+    const startTime = Date.now();
     
     let sistemPrompt = `Anda adalah Ahli Penyusun Kurikulum Pendidikan Nasional Indonesia. Buatlah dokumen menggunakan format Markdown (tabel, bold, list) yang sangat rapi dan terstruktur secara formal.\n`;
     sistemPrompt += `ATURAN FORMAT JARAK: Setiap Sub-bab atau Judul Poin WAJIB diberi baris baru (ENTER dua kali) sebelum menuliskan isinya. DILARANG KERAS MENGGUNAKAN TAG HTML SEPERTI <br> ATAU <br/>.\n`;
@@ -162,17 +154,6 @@ export default function GeneratorBahanAjar() {
         topikKirim += `Setelah tabel identitas di atas, lanjutkan poin Informasi Umum dengan sub-judul: Kompetensi Awal, P5/PPRA (${profilPelajar || 'Sesuaikan'}), Sarpras, Target Peserta Didik, dan Model Pembelajaran (${metode || 'Sesuaikan'}).\n`;
         topikKirim += `2. KOMPONEN INTI (Tujuan Pembelajaran, Pemahaman Bermakna, Pertanyaan Pemantik, Tabel Kegiatan Pembelajaran [Pendahuluan, Inti, Penutup], Asesmen, Pengayaan & Remedial)\n`;
         topikKirim += `3. LAMPIRAN (Lembar Kerja Peserta Didik, Rubrik, Bahan Bacaan, Daftar Pustaka).\n`;
-    } else if (tipe === "Bank Soal") {
-        topikKirim += `IDENTITAS: Mata Pelajaran ${mapel}, Fase/Kelas ${fase}/${kelas}, Materi: ${materi}\n\n`;
-        topikKirim += `STRUKTUR WAJIB:\nBuatlah instrumen ${jenisUjian} dengan tingkat kesulitan soal rata-rata: ${tingkatKesulitan}.\n`;
-        topikKirim += `Komposisi soal terdiri dari:\n`;
-        if (Number(jmlPG) > 0) topikKirim += `- Pilihan Ganda (Opsi ${opsiPG}): ${jmlPG} butir.\n`;
-        if (Number(jmlBenarSalah) > 0) topikKirim += `- Benar/Salah: ${jmlBenarSalah} butir.\n`;
-        if (Number(jmlMenjodohkan) > 0) topikKirim += `- Menjodohkan: ${jmlMenjodohkan} butir.\n`;
-        if (Number(jmlIsianSingkat) > 0) topikKirim += `- Isian Singkat: ${jmlIsianSingkat} butir.\n`;
-        if (Number(jmlUraian) > 0) topikKirim += `- Uraian/Essay: ${jmlUraian} butir.\n`;
-        topikKirim += `ATURAN FORMAT OPSI JAWABAN: WAJIB pisahkan setiap pilihan ganda (A, B, C, D, E) ke baris baru yang menurun ke bawah (dengan list). JANGAN MENGGABUNGKAN opsi dalam satu baris paragraf.\n`;
-        topikKirim += `Buat Tabel Kunci Jawaban & Rubrik Penskoran di bagian paling bawah dokumen secara lengkap sesuai dengan komposisi soal di atas.\n`;
     } else if (tipe === "PROMES" || tipe === "PROTA") {
         const bulanGanjil = "Jul 1|Jul 2|Jul 3|Jul 4|Jul 5|Agu 1|Agu 2|Agu 3|Agu 4|Agu 5|Sep 1|Sep 2|Sep 3|Sep 4|Sep 5|Okt 1|Okt 2|Okt 3|Okt 4|Okt 5|Nov 1|Nov 2|Nov 3|Nov 4|Nov 5|Des 1|Des 2|Des 3|Des 4|Des 5";
         const bulanGenap = "Jan 1|Jan 2|Jan 3|Jan 4|Jan 5|Feb 1|Feb 2|Feb 3|Feb 4|Feb 5|Mar 1|Mar 2|Mar 3|Mar 4|Mar 5|Apr 1|Apr 2|Apr 3|Apr 4|Apr 5|Mei 1|Mei 2|Mei 3|Mei 4|Mei 5|Jun 1|Jun 2|Jun 3|Jun 4|Jun 5";
@@ -192,8 +173,6 @@ export default function GeneratorBahanAjar() {
             topikKirim += `STRUKTUR WAJIB:\nJudul LKPD, Tujuan Kegiatan, Alat & Bahan, Langkah Kerja (Sistematis), TABEL Pengamatan (No | Aspek | Hasil [Biarkan Kosong]), Pertanyaan Analisis.\n`;
         } else if (tipe === "Bahan Bacaan Siswa") {
             topikKirim += `STRUKTUR WAJIB:\nJudul Materi, Tujuan, Peta Konsep (Bulleted List), Uraian Materi (Lengkap dan menarik), Rangkuman, Latihan Mandiri.\n`;
-        } else if (tipe === "Kisi-kisi Ujian") {
-            topikKirim += `STRUKTUR WAJIB:\nBuatlah TABEL Kisi-kisi Ujian dengan kolom: Capaian Pembelajaran | Materi | Indikator Soal | Level Kognitif (C1-C6) | Bentuk Soal | Nomor Soal.\n`;
         } else if (tipe === "Rubrik Penilaian") {
             topikKirim += `STRUKTUR WAJIB:\nBuatlah TABEL Rubrik Penilaian dengan kolom: Aspek Penilaian | Skor 4 (Sangat Baik) | Skor 3 (Baik) | Skor 2 (Cukup) | Skor 1 (Kurang).\n`;
         }
@@ -203,60 +182,29 @@ export default function GeneratorBahanAjar() {
       topikKirim += `\n\n[KONTEKS SINKRONISASI]:\nSelaraskan materi pada dokumen ini dengan referensi dokumen berikut agar nyambung:\n"""\n${dokumenTerakhir.substring(0, 2000)}\n"""\n`;
     }
 
-    // Deklarasikan finalPrompt DI SINI agar topikKirim terbaca dengan sempurna
-    const finalPrompt = `
-      Anda adalah Asisten Akademik Ahli. Buatlah ${tipe} untuk mata pelajaran ${mapel} kelas ${kelas}.
-      Topik/Materi Utama: ${materi}.
-      Fokus Pembahasan & Struktur Wajib: ${topikKirim}.
-      Kurikulum: ${sumber}.
-      Identitas Sekolah: Kepala Sekolah (${namaKepsek}, NIP: ${nipKepsek}), Guru (${namaGuru}, NIP: ${nipGuru}).
-      Berikan output dalam format Markdown yang rapi, terstruktur, dan komprehensif. Jangan berikan kalimat pengantar, langsung berikan dokumennya.
-    `;
-
     try {
+      const apiMessages = [{ role: "system", content: sistemPrompt }, { role: "user", content: topikKirim }];
       const auth = getAuth();
       const idToken = await auth.currentUser?.getIdToken();
 
       const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${idToken}`
-        },
-        body: JSON.stringify({
-          model: "gemini-2.5-pro",
-          messages: [
-            { role: "system", content: sistemPrompt },
-            { role: "user", content: finalPrompt }
-          ]
-        })
+        method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${idToken}` },
+        body: JSON.stringify({ model: "gemini-2.5-pro", messages: apiMessages })
       });
-
       const data = await response.json();
       
-      if (!response.ok) {
-        throw new Error(data.error || "Gagal menghubungi AI");
-      }
-
       if (data.choices && data.choices.length > 0) {
-        setHasil(data.choices[0].message.content);
-        
-        // Pengecekan data.usage menggunakan operator && agar aman dari garis merah TypeScript
-        if (data.usage && data.usage.total_tokens > 0) {
-          await addDoc(collection(db, "ai_logs"), {
-            aksi: `Generate ${tipe}`, pengguna: userName, role: "guru", status: "Sukses",
-            tokenDipakai: data.usage.total_tokens, timestamp: serverTimestamp()
-          });
+        const aiResponseContent = data.choices[0].message.content;
+        const tokenUsed = data.usage?.total_tokens || 0;
+
+        setHasil(aiResponseContent);
+        setDokumenTerakhir(aiResponseContent);
+
+        if (tokenUsed > 0) {
+          await addDoc(collection(db, "ai_logs"), { aksi: `Generate ${tipe}`, pengguna: userName, role: "guru", status: "Sukses", latensi: Date.now() - startTime, tokenDipakai: tokenUsed, timestamp: serverTimestamp() });
         }
-      } else {
-        throw new Error("Respons AI kosong.");
-      }
-    } catch (error: any) {
-      console.error("Generate Error:", error);
-      alert(`Terjadi kesalahan: ${error.message}`);
-    } finally {
-      setIsGenerating(false);
-    }
+      } else { throw new Error(data.error || "Respons AI kosong atau API Key belum diset."); }
+    } catch (error: any) { alert("Gagal memproses AI: " + error.message); } finally { setIsGenerating(false); }
   };
 
   const handleSaveToDatabase = async () => {
@@ -269,33 +217,29 @@ export default function GeneratorBahanAjar() {
       } else {
         const docRef = await addDoc(collection(db, "modul_ajar"), {
           userId: userUid, sumber, tipe, fase, kelas, mapel, topik, materi, konten: hasil,
-          namaSekolah, kotaSekolah, namaKepsek, nipKepsek, namaGuru, nipGuru, createdAt: serverTimestamp()
+          namaSekolah, kotaSekolah, namaKepsek, nipKepsek, namaGuru, nipGuru, 
+          statusValidasi: "menunggu", 
+          createdAt: serverTimestamp()
         });
         setDocId(docRef.id);
-        alert("Dokumen baru berhasil disimpan ke Koleksi Sistem!");
+        alert("Dokumen baru berhasil disimpan dan dimasukkan ke antrean validasi Lembaga!");
       }
     } catch (error) { alert("Gagal menyimpan dokumen."); } finally { setIsSaving(false); }
   };
 
-  // --- TRIK SMART CLIPBOARD KE GOOGLE WORKSPACE ---
   const handleExportToGoogle = async (type: "Docs" | "Sheets") => {
     if (!pdfRef.current) return;
     setIsExportingGoogle(true);
     setGoogleExportType(type);
     
     try {
-      // 1. Ambil HTML lengkap dari dokumen yang ter-render
       const htmlContent = pdfRef.current.innerHTML;
-      
-      // Bungkus dengan font default agar saat di-paste di Docs terlihat rapi
       const formattedHtml = `<div style="font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5;">${htmlContent}</div>`;
       
-      // 2. Salin ke memori Clipboard sebagai Rich Text (HTML)
       const blobHtml = new Blob([formattedHtml], { type: "text/html" });
       const clipboardItem = new window.ClipboardItem({ "text/html": blobHtml });
       await navigator.clipboard.write([clipboardItem]);
 
-      // 3. Jeda sedikit untuk animasi, lalu buka tab baru
       setTimeout(() => {
           setIsExportingGoogle(false);
           setGoogleExportType(null);
@@ -332,7 +276,6 @@ export default function GeneratorBahanAjar() {
     }
   };
 
-  // --- FITUR DOWNLOAD EXCEL ---
   const handleDownloadExcel = () => {
     if (!pdfRef.current) return;
     let html = pdfRef.current.innerHTML.replace(/class="markdown-body"/g, '');
@@ -357,7 +300,6 @@ export default function GeneratorBahanAjar() {
     a.click(); URL.revokeObjectURL(url);
   };
 
-  // --- FITUR DOWNLOAD WORD ---
   const handleDownloadWord = () => {
     if (!pdfRef.current) return;
     const printNode = pdfRef.current.cloneNode(true) as HTMLElement;
@@ -391,7 +333,6 @@ export default function GeneratorBahanAjar() {
     fileDownload.href = source; fileDownload.download = `${tipe}_${mapel || 'Dokumen'}.doc`.replace(/[^a-zA-Z0-9.\-_]/g, "_"); fileDownload.click(); document.body.removeChild(fileDownload);
   };
 
-  // --- FITUR DOWNLOAD PDF ---
   const handlePrintPDF = () => {
     if (!pdfRef.current) return;
     const printNode = pdfRef.current.cloneNode(true) as HTMLElement;
@@ -424,12 +365,11 @@ export default function GeneratorBahanAjar() {
   const sanitasiHasil = hasil.replace(/<br\s*\/?>/gi, '\n\n');
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="max-w-6xl mx-auto space-y-6 pb-16 pt-4 px-2">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="w-full max-w-full lg:max-w-6xl mx-auto space-y-6 pb-16 pt-4 px-4 md:px-0">
       
-      {/* OVERLAY LOADING GOOGLE WORKSPACE */}
       <AnimatePresence>
         {isExportingGoogle && (
-          <motion.div initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}} className="fixed inset-0 z-[100] flex items-center justify-center bg-white/80 backdrop-blur-sm">
+          <motion.div initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}} className="fixed inset-0 z-[100] flex items-center justify-center bg-white/80 backdrop-blur-sm p-4">
             <div className="flex flex-col items-center text-center p-8 bg-white shadow-2xl rounded-3xl border border-slate-200">
               <div className="w-20 h-20 relative flex items-center justify-center mb-5">
                  <Loader2 size={50} className={`${googleExportType === "Docs" ? 'text-blue-500' : 'text-emerald-500'} animate-spin absolute`} />
@@ -442,25 +382,23 @@ export default function GeneratorBahanAjar() {
         )}
       </AnimatePresence>
 
-      {/* HEADER HALAMAN */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>Generator Perangkat Ajar Nasional</h1>
+          <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>Generator Perangkat Ajar</h1>
           <p className="text-slate-500 text-[13px] md:text-sm mt-1.5 max-w-2xl leading-relaxed">
-            Didukung AI untuk menyusun dokumen akademik yang selaras dengan regulasi nasional secara komprehensif.
+            Menyusun Modul, RPP, dan dokumen pedagogi lainnya. Untuk pembuatan Soal & Kisi-kisi silakan gunakan menu Asesmen.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => setShowKoleksi(true)} className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-slate-900 px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all">
+          <button onClick={() => setShowKoleksi(true)} className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-slate-900 px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all whitespace-nowrap">
             <History size={14} /> Koleksi
           </button>
-          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2 rounded-lg text-xs font-bold shadow-sm">
+          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2 rounded-lg text-xs font-bold shadow-sm whitespace-nowrap">
             <Coins size={14} className="text-amber-500" /> Token AI: {aiTokens.toLocaleString('id-ID')}
           </div>
         </div>
       </div>
 
-      {/* MODAL RIWAYAT (KOLEKSI DOKUMEN SAYA) */}
       <AnimatePresence>
         {showKoleksi && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
@@ -497,19 +435,17 @@ export default function GeneratorBahanAjar() {
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col gap-8 lg:gap-10">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        {/* --- BAGIAN ATAS: FORM PARAMETER AI --- */}
         <div className="w-full flex flex-col gap-6">
           <div className="bg-white p-6 md:p-8 rounded-md shadow-sm border border-slate-200">
             <div className="flex items-center gap-3 mb-8 border-b border-slate-100 pb-4">
               <Settings size={22} className="text-slate-800" />
-              <h2 className={`text-lg font-bold text-slate-800 tracking-wide uppercase ${teachersFont.className}`}>Parameter Penyusunan Dokumen</h2>
+              <h2 className={`text-lg font-bold text-slate-800 tracking-wide uppercase ${teachersFont.className}`}>Parameter Dokumen</h2>
             </div>
 
             <form onSubmit={handleGenerate} className="space-y-8">
               
-              {/* 1. JENIS DOKUMEN */}
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">1. Pilih Jenis Dokumen</label>
                 <div className="flex flex-wrap gap-2.5">
@@ -521,160 +457,103 @@ export default function GeneratorBahanAjar() {
                 </div>
               </div>
 
-              {/* GRID UNTUK KURIKULUM DAN IDENTITAS */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* 2. KURIKULUM & MATERI */}
-                <div className="bg-slate-50/80 p-6 rounded-xl border border-slate-200 space-y-5">
-                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-2">2. Kurikulum & Ruang Lingkup Materi</label>
-                   
-                   <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-2">Standar Kurikulum Nasional</label>
-                      <select value={sumber} onChange={(e) => setSumber(e.target.value)} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer">
-                        <option value="Kemendikdasmen (SK BSKAP 32/2024)">Kemendikdasmen (SK BSKAP 32/2024)</option>
-                        <option value="Kementerian Agama (KMA)">Kementerian Agama (KMA 1503 2025)</option>
+              <div className="bg-slate-50/80 p-6 rounded-xl border border-slate-200 space-y-5">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-2">2. Kurikulum & Ruang Lingkup Materi</label>
+                  
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-2">Standar Kurikulum Nasional</label>
+                    <select value={sumber} onChange={(e) => setSumber(e.target.value)} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer">
+                      <option value="Kemendikdasmen (SK BSKAP 32/2024)">Kemendikdasmen (SK BSKAP 32/2024)</option>
+                      <option value="Kementerian Agama (KMA)">Kementerian Agama (KMA 1503 2025)</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-2">Fase</label>
+                      <select value={fase} onChange={(e) => { setFase(e.target.value); setKelas(""); }} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer" required>
+                        <option value="">Pilih Fase</option>
+                        {Object.keys(opsiKelas).map(f => <option key={f} value={f}>{f}</option>)}
                       </select>
-                   </div>
-
-                   <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-2">Fase Pembelajaran</label>
-                        <select value={fase} onChange={(e) => { setFase(e.target.value); setKelas(""); }} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer" required>
-                          <option value="">Pilih Fase</option>
-                          {Object.keys(opsiKelas).map(f => <option key={f} value={f}>{f}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-2">Spesifik Kelas</label>
-                        <select value={kelas} onChange={(e) => setKelas(e.target.value)} disabled={!fase} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer disabled:bg-slate-100 disabled:text-slate-400" required>
-                          <option value="">Pilih Kelas</option>
-                          {fase && opsiKelas[fase]?.map((kls: string) => <option key={kls} value={kls}>{kls}</option>)}
-                        </select>
-                      </div>
-                   </div>
-
-                   <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-2">Mata Pelajaran</label>
-                      <input type="text" value={mapel} onChange={(e) => setMapel(e.target.value)} placeholder="Contoh: Pendidikan Pancasila / Biologi" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm" required />
-                   </div>
-                   <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-2">Elemen CP / Topik Utama <span className="text-slate-400 font-normal italic">(Opsional)</span></label>
-                      <input type="text" value={topik} onChange={(e) => setTopik(e.target.value)} placeholder="Contoh: Menyimak / Sistem Peredaran Darah" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-medium text-slate-800 outline-none focus:border-slate-500 shadow-sm" />
-                   </div>
-                   <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-2">Materi Pembelajaran Spesifik</label>
-                      <input type="text" value={materi} onChange={(e) => setMateri(e.target.value)} placeholder="Contoh: Fungsi Jantung dan Pembuluh Darah" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-medium text-slate-800 outline-none focus:border-slate-500 shadow-sm" required />
-                   </div>
-                </div>
-
-                {/* 3. IDENTITAS & SPESIFIKASI TAMBAHAN */}
-                <div className="flex flex-col gap-6">
-                  <div className="p-6 bg-slate-50/80 border border-slate-200 rounded-xl space-y-4">
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-2">3. Identitas Cetak (Opsional)</label>
-                    <div className="grid grid-cols-2 gap-4">
-                      <input type="text" value={namaSekolah} onChange={(e) => setNamaSekolah(e.target.value)} placeholder="Nama Institusi/Sekolah" className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
-                      <input type="text" value={tahunPelajaran} onChange={(e) => setTahunPelajaran(e.target.value)} placeholder="Thn Ajaran (Contoh: 2025/2026)" className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
-                      <select value={semester} onChange={(e) => setSemester(e.target.value)} className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-bold text-slate-700 cursor-pointer">
-                        <option value="Ganjil">Semester Ganjil (Juli - Desember)</option><option value="Genap">Semester Genap (Januari - Juni)</option>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-2">Kelas</label>
+                      <select value={kelas} onChange={(e) => setKelas(e.target.value)} disabled={!fase} className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm cursor-pointer disabled:bg-slate-100 disabled:text-slate-400" required>
+                        <option value="">Pilih Kelas</option>
+                        {fase && opsiKelas[fase]?.map((kls: string) => <option key={kls} value={kls}>{kls}</option>)}
                       </select>
-                      <input type="text" value={kotaSekolah} onChange={(e) => setKotaSekolah(e.target.value)} placeholder="Kota Penerbitan" className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
-                      <div className="col-span-2 grid grid-cols-2 gap-4">
-                        <input type="text" value={namaGuru} onChange={(e) => setNamaGuru(e.target.value)} placeholder="Nama Guru Penyusun" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
-                        <input type="text" value={nipGuru} onChange={(e) => setNipGuru(e.target.value)} placeholder="NIP Guru" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
-                      </div>
-                      <div className="col-span-2 grid grid-cols-2 gap-4">
-                        <input type="text" value={namaKepsek} onChange={(e) => setNamaKepsek(e.target.value)} placeholder="Nama Kepala Sekolah" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
-                        <input type="text" value={nipKepsek} onChange={(e) => setNipKepsek(e.target.value)} placeholder="NIP Kepala Sekolah" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
-                      </div>
                     </div>
                   </div>
 
-                  {/* KONDISIONAL BERDASARKAN TIPE */}
-                  <AnimatePresence mode="popLayout">
-                    {(tipe === "Modul Ajar" || tipe === "RPP") && (
-                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="p-6 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-4 overflow-hidden">
-                          <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-widest mb-2">4. Pengaturan Modul</h4>
-                          <div>
-                            <label className="block text-[10px] font-bold text-emerald-700 mb-1.5 uppercase">Model Pendekatan</label>
-                            <select value={metode} onChange={(e) => setMetode(e.target.value)} className="w-full p-3 bg-white border border-emerald-200 rounded-lg text-xs outline-none focus:border-emerald-500 cursor-pointer font-medium text-slate-700">
-                              <option value="">Rekomendasi AI (Otomatis)</option><option value="Problem Based Learning (PBL)">PBL</option><option value="Project Based Learning (PjBL)">PjBL</option><option value="Discovery Learning">Discovery Learning</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-emerald-700 mb-1.5 uppercase">Fokus Karakter P5/PPRA</label>
-                            <select value={profilPelajar} onChange={(e) => setProfilPelajar(e.target.value)} className="w-full p-3 bg-white border border-emerald-200 rounded-lg text-xs outline-none focus:border-emerald-500 cursor-pointer font-medium text-slate-700">
-                              <option value="">Pilih Fokus (Opsional)</option>
-                              {(sumber.includes("Agama") ? p5Kemenag : p5Kemendikbud).map((opt: string) => (<option key={opt} value={opt}>{opt}</option>))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-emerald-700 mb-1.5 uppercase">Alokasi Waktu</label>
-                            <input type="text" value={alokasiWaktu} onChange={(e) => setAlokasiWaktu(e.target.value)} placeholder="Contoh: 2 JP x 45 Menit" className="w-full p-3 bg-white border border-emerald-200 rounded-lg text-xs outline-none focus:border-emerald-500 font-medium" />
-                          </div>
-                        </motion.div>
-                    )}
-
-                    {tipe === "Bank Soal" && (
-                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="p-6 bg-rose-50/50 border border-rose-100 rounded-xl space-y-4 overflow-hidden">
-                          <h4 className="text-xs font-bold text-rose-800 uppercase tracking-widest mb-2">4. Komposisi Soal</h4>
-                          <div className="grid grid-cols-1 gap-4">
-                            <div>
-                              <label className="block text-[10px] font-bold text-rose-700 mb-1.5 uppercase">Jenis Ujian</label>
-                              <select value={jenisUjian} onChange={(e) => setJenisUjian(e.target.value)} className="w-full p-3 bg-white border border-rose-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-rose-500 cursor-pointer">
-                                <option>Ulangan Harian</option><option>Asesmen Formatif</option><option>Sumatif Lingkup Materi</option><option>Sumatif Tengah Semester (STS)</option><option>Sumatif Akhir Semester (SAS)</option><option>Ujian Sekolah (US)</option><option>Try Out</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-rose-700 mb-1.5 uppercase">Tingkat Kesulitan</label>
-                              <select value={tingkatKesulitan} onChange={(e) => setTingkatKesulitan(e.target.value)} className="w-full p-3 bg-white border border-rose-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-rose-500 cursor-pointer">
-                                <option>Campuran (Proporsional)</option><option>HOTS (High Order Thinking)</option><option>MOTS (Medium Order Thinking)</option><option>LOTS (Low Order Thinking)</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-rose-700 mb-1.5 uppercase">Opsi Pilihan Ganda</label>
-                              <select value={opsiPG} onChange={(e) => setOpsiPG(e.target.value)} className="w-full p-3 bg-white border border-rose-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-rose-500 cursor-pointer"><option>A - D (4 Opsi)</option><option>A - E (5 Opsi)</option></select>
-                            </div>
-                          </div>
-                          
-                          <div className="border-t border-rose-200/50 pt-4 mt-2">
-                            <label className="block text-[10px] font-bold text-rose-700 mb-3 uppercase tracking-wider text-center">Distribusi Jumlah Soal</label>
-                            <div className="grid grid-cols-5 gap-2">
-                              <div>
-                                <label className="block text-[9px] font-bold text-rose-700 mb-1.5 uppercase text-center truncate">PG</label>
-                                <input type="number" min="0" value={jmlPG} onChange={(e) => setJmlPG(e.target.value)} className="w-full text-center py-2 bg-white border border-rose-200 rounded-lg text-sm font-bold focus:border-rose-500 outline-none" />
-                              </div>
-                              <div>
-                                <label className="block text-[9px] font-bold text-rose-700 mb-1.5 uppercase text-center truncate">B/S</label>
-                                <input type="number" min="0" value={jmlBenarSalah} onChange={(e) => setJmlBenarSalah(e.target.value)} className="w-full text-center py-2 bg-white border border-rose-200 rounded-lg text-sm font-bold focus:border-rose-500 outline-none" />
-                              </div>
-                              <div>
-                                <label className="block text-[9px] font-bold text-rose-700 mb-1.5 uppercase text-center truncate">Jodohkan</label>
-                                <input type="number" min="0" value={jmlMenjodohkan} onChange={(e) => setJmlMenjodohkan(e.target.value)} className="w-full text-center py-2 bg-white border border-rose-200 rounded-lg text-sm font-bold focus:border-rose-500 outline-none" />
-                              </div>
-                              <div>
-                                <label className="block text-[9px] font-bold text-rose-700 mb-1.5 uppercase text-center truncate">Isian</label>
-                                <input type="number" min="0" value={jmlIsianSingkat} onChange={(e) => setJmlIsianSingkat(e.target.value)} className="w-full text-center py-2 bg-white border border-rose-200 rounded-lg text-sm font-bold focus:border-rose-500 outline-none" />
-                              </div>
-                              <div>
-                                <label className="block text-[9px] font-bold text-rose-700 mb-1.5 uppercase text-center truncate">Uraian</label>
-                                <input type="number" min="0" value={jmlUraian} onChange={(e) => setJmlUraian(e.target.value)} className="w-full text-center py-2 bg-white border border-rose-200 rounded-lg text-sm font-bold focus:border-rose-500 outline-none" />
-                              </div>
-                            </div>
-                          </div>
-                        </motion.div>
-                    )}
-
-                    {(tipe === "PROMES" || tipe === "PROTA") && (
-                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="p-6 bg-slate-50/80 border border-slate-200 rounded-xl flex flex-col justify-center text-center overflow-hidden h-full min-h-[150px]">
-                          <CalendarDays size={40} className="mx-auto text-slate-400 mb-4" />
-                          <h4 className="text-sm font-bold text-slate-800 mb-2">Format Kaldik Terpadu</h4>
-                          <p className="text-xs text-slate-500 leading-relaxed px-4">Sistem akan menyusun matriks alokasi waktu per minggu efektif secara otomatis untuk format kalender pendidikan (Landscape).</p>
-                        </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-2">Mata Pelajaran</label>
+                    <input type="text" value={mapel} onChange={(e) => setMapel(e.target.value)} placeholder="Contoh: Pendidikan Pancasila / Biologi" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-bold text-slate-800 outline-none focus:border-slate-500 shadow-sm" required />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-2">Elemen CP / Topik Utama <span className="text-slate-400 font-normal italic">(Opsional)</span></label>
+                    <input type="text" value={topik} onChange={(e) => setTopik(e.target.value)} placeholder="Contoh: Menyimak / Sistem Peredaran Darah" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-medium text-slate-800 outline-none focus:border-slate-500 shadow-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-2">Materi Pembelajaran Spesifik</label>
+                    <input type="text" value={materi} onChange={(e) => setMateri(e.target.value)} placeholder="Contoh: Fungsi Jantung dan Pembuluh Darah" className="w-full bg-white border border-slate-300 px-4 py-3 rounded-lg text-sm font-medium text-slate-800 outline-none focus:border-slate-500 shadow-sm" required />
+                  </div>
               </div>
 
-              {/* Checkbox Konteks Lanjutan */}
+              <div className="flex flex-col gap-6">
+                <div className="p-6 bg-slate-50/80 border border-slate-200 rounded-xl space-y-4">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-200 pb-2">3. Identitas Cetak (Opsional)</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <input type="text" value={namaSekolah} onChange={(e) => setNamaSekolah(e.target.value)} placeholder="Nama Institusi/Sekolah" className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                    <input type="text" value={tahunPelajaran} onChange={(e) => setTahunPelajaran(e.target.value)} placeholder="Thn Ajaran (Contoh: 2025/2026)" className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                    <select value={semester} onChange={(e) => setSemester(e.target.value)} className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-bold text-slate-700 cursor-pointer">
+                      <option value="Ganjil">Semester Ganjil (Juli - Desember)</option><option value="Genap">Semester Genap (Januari - Juni)</option>
+                    </select>
+                    <input type="text" value={kotaSekolah} onChange={(e) => setKotaSekolah(e.target.value)} placeholder="Kota Penerbitan" className="col-span-2 w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                    <div className="col-span-2 grid grid-cols-2 gap-4">
+                      <input type="text" value={namaGuru} onChange={(e) => setNamaGuru(e.target.value)} placeholder="Nama Guru Penyusun" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                      <input type="text" value={nipGuru} onChange={(e) => setNipGuru(e.target.value)} placeholder="NIP Guru" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                    </div>
+                    <div className="col-span-2 grid grid-cols-2 gap-4">
+                      <input type="text" value={namaKepsek} onChange={(e) => setNamaKepsek(e.target.value)} placeholder="Nama Kepala Sekolah" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                      <input type="text" value={nipKepsek} onChange={(e) => setNipKepsek(e.target.value)} placeholder="NIP Kepala Sekolah" className="w-full p-3 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-slate-500 shadow-sm font-medium" />
+                    </div>
+                  </div>
+                </div>
+
+                <AnimatePresence mode="popLayout">
+                  {(tipe === "Modul Ajar" || tipe === "RPP") && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="p-6 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-4 overflow-hidden">
+                        <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-widest mb-2">4. Pengaturan Modul</h4>
+                        <div>
+                          <label className="block text-[10px] font-bold text-emerald-700 mb-1.5 uppercase">Model Pendekatan</label>
+                          <select value={metode} onChange={(e) => setMetode(e.target.value)} className="w-full p-3 bg-white border border-emerald-200 rounded-lg text-xs outline-none focus:border-emerald-500 cursor-pointer font-medium text-slate-700">
+                            <option value="">Rekomendasi AI (Otomatis)</option><option value="Problem Based Learning (PBL)">PBL</option><option value="Project Based Learning (PjBL)">PjBL</option><option value="Discovery Learning">Discovery Learning</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-emerald-700 mb-1.5 uppercase">Fokus Karakter P5/PPRA</label>
+                          <select value={profilPelajar} onChange={(e) => setProfilPelajar(e.target.value)} className="w-full p-3 bg-white border border-emerald-200 rounded-lg text-xs outline-none focus:border-emerald-500 cursor-pointer font-medium text-slate-700">
+                            <option value="">Pilih Fokus (Opsional)</option>
+                            {(sumber.includes("Agama") ? p5Kemenag : p5Kemendikbud).map((opt: string) => (<option key={opt} value={opt}>{opt}</option>))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-emerald-700 mb-1.5 uppercase">Alokasi Waktu</label>
+                          <input type="text" value={alokasiWaktu} onChange={(e) => setAlokasiWaktu(e.target.value)} placeholder="Contoh: 2 JP x 45 Menit" className="w-full p-3 bg-white border border-emerald-200 rounded-lg text-xs outline-none focus:border-emerald-500 font-medium" />
+                        </div>
+                      </motion.div>
+                  )}
+
+                  {(tipe === "PROMES" || tipe === "PROTA") && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="p-6 bg-slate-50/80 border border-slate-200 rounded-xl flex flex-col justify-center text-center overflow-hidden h-full min-h-[150px]">
+                        <CalendarDays size={40} className="mx-auto text-slate-400 mb-4" />
+                        <h4 className="text-sm font-bold text-slate-800 mb-2">Format Kaldik Terpadu</h4>
+                        <p className="text-xs text-slate-500 leading-relaxed px-4">Sistem akan menyusun matriks alokasi waktu per minggu efektif secara otomatis untuk format kalender pendidikan (Landscape).</p>
+                      </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
               {dokumenTerakhir && (
                 <label className="flex items-start gap-3 p-5 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors shadow-sm">
                   <input type="checkbox" checked={gunakanKonteks} onChange={(e) => setGunakanKonteks(e.target.checked)} className="mt-0.5 w-5 h-5 text-slate-800 rounded border-slate-300 focus:ring-slate-800 cursor-pointer" />
@@ -685,7 +564,6 @@ export default function GeneratorBahanAjar() {
                 </label>
               )}
 
-              {/* TOMBOL GENERATE */}
               <button type="submit" disabled={isGenerating} className={`w-full py-5 rounded-xl text-base font-black tracking-widest uppercase text-white transition-all shadow-md flex items-center justify-center gap-2 active:scale-95 mt-4 ${isGenerating ? 'bg-slate-400 cursor-not-allowed' : 'bg-slate-900 hover:bg-slate-800 hover:shadow-lg'}`}>
                 {isGenerating ? <><Loader2 size={22} className="animate-spin" /> Menganalisis Parameter Nasional...</> : <><Bot size={22} /> Generate Dokumen AI</>}
               </button>
@@ -693,11 +571,9 @@ export default function GeneratorBahanAjar() {
           </div>
         </div>
 
-        {/* --- BAGIAN BAWAH: KANVAS HASIL AI (FULL WIDTH) --- */}
-        <div className="w-full flex flex-col mt-4">
+        <div className="w-full flex flex-col mt-4 md:mt-0">
           <div className="bg-white rounded-md border border-slate-200 shadow-sm flex-1 flex flex-col relative overflow-hidden min-h-[600px] lg:min-h-[800px]">
             
-            {/* Header Kanvas */}
             <div className="px-5 md:px-8 py-5 border-b border-slate-200 bg-slate-50 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-white border border-slate-300 rounded-md flex items-center justify-center shadow-sm"><BookOpen size={24} className="text-slate-700"/></div>
@@ -709,7 +585,7 @@ export default function GeneratorBahanAjar() {
               
               {hasil && (
                 <div className="flex flex-wrap items-center gap-2.5">
-                  {(tipe === "PROMES" || tipe === "PROTA" || tipe === "Kisi-kisi Ujian" || tipe === "ATP") ? (
+                  {(tipe === "PROMES" || tipe === "PROTA" || tipe === "ATP") ? (
                     <>
                       <button onClick={handleDownloadExcel} className="px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg flex items-center gap-2 transition-colors border border-slate-300 shadow-sm"><FileSpreadsheet size={16}/> Excel (.xls)</button>
                       <button onClick={() => handleExportToGoogle("Sheets")} className="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg flex items-center gap-2 transition-colors border border-emerald-200 shadow-sm"><Cloud size={16}/> G-Sheets</button>
@@ -723,14 +599,13 @@ export default function GeneratorBahanAjar() {
                   
                   <button onClick={handlePrintPDF} className="px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg flex items-center gap-2 transition-colors border border-slate-300 shadow-sm"><Printer size={16}/> PDF</button>
                   <button onClick={handleSaveToDatabase} disabled={isSaving} className="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg flex items-center gap-2 transition-colors shadow-sm disabled:opacity-70 ml-2">
-                    {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16}/>} {docId ? "Perbarui" : "Simpan Ke Database"}
+                    {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16}/>} {docId ? "Perbarui" : "Ajukan Validasi"}
                   </button>
                 </div>
               )}
             </div>
 
-            {/* Isi Kanvas Markdown */}
-            <div className="flex-1 overflow-y-auto bg-slate-100 p-4 md:p-10 relative">
+            <div className="flex-1 overflow-y-auto bg-slate-100 p-4 md:p-10 relative custom-scrollbar">
               {isGenerating ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm z-10">
                   <div className="relative w-20 h-20 flex items-center justify-center mb-6">
@@ -742,7 +617,7 @@ export default function GeneratorBahanAjar() {
                   <p className="text-sm text-slate-500 mt-2 font-medium">Mengkalibrasi standar {sumber.split(" ")[0]}</p>
                 </div>
               ) : hasil ? (
-                <div className={`bg-white shadow-xl border border-slate-300 p-8 md:p-14 mx-auto min-h-[1100px] overflow-x-auto ${isLandscape ? 'w-full max-w-none' : 'max-w-4xl'}`}>
+                <div className={`bg-white shadow-xl border border-slate-300 p-6 md:p-14 mx-auto min-h-[1100px] overflow-x-auto ${isLandscape ? 'w-full max-w-none' : 'max-w-4xl'}`}>
                   <div ref={pdfRef} className="pdf-container">
                     <style>{`
                       /* PENYESUAIAN FONT UNTUK MOBILE & DESKTOP */
@@ -846,7 +721,7 @@ export default function GeneratorBahanAjar() {
                           }
                         }}
                       >
-                        {sanitasiHasil}
+                        {hasil.replace(/<br\s*\/?>/gi, '\n\n')}
                       </ReactMarkdown>
                     </div>
 
