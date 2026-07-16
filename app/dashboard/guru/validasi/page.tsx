@@ -10,7 +10,7 @@ import {
 import { Teachers } from "next/font/google";
 
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, orderBy, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, doc, updateDoc, serverTimestamp, where } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 import ReactMarkdown from "react-markdown";
@@ -62,22 +62,29 @@ export default function StatusKoleksiGuru() {
   useEffect(() => {
     const auth = getAuth();
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (user) setUserUid(user.uid);
+      if (user) {
+        setUserUid(user.uid);
+      
+        // Ambil data HANYA milik guru yang sedang login
+        const q = query(
+          collection(db, "modul_ajar"), 
+          where("userId", "==", user.uid), // Filter langsung di server
+          orderBy("createdAt", "desc")
+        );
+        
+        const unsubscribeDocs = onSnapshot(q, (snapshot) => {
+          const docsData: Document[] = [];
+          snapshot.forEach((doc) => {
+            docsData.push({ id: doc.id, ...doc.data() } as Document);
+          });
+          setDocuments(docsData);
+        });
+
+        return () => unsubscribeDocs();
+      }
     });
 
-    const q = query(collection(db, "modul_ajar"), orderBy("createdAt", "desc"));
-    const unsubscribeDocs = onSnapshot(q, (snapshot) => {
-      const docsData: Document[] = [];
-      snapshot.forEach((doc) => {
-        docsData.push({ id: doc.id, ...doc.data() } as Document);
-      });
-      setDocuments(docsData);
-    });
-
-    return () => {
-      unsubscribeAuth();
-      unsubscribeDocs();
-    };
+    return () => unsubscribeAuth();
   }, []);
 
   // Filter: Hanya tampilkan dokumen milik Guru yang sedang login
