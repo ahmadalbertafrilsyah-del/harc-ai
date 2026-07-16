@@ -36,7 +36,7 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
   const menuItems = [
     { name: "Beranda", icon: LayoutDashboard, path: "/dashboard/siswa/beranda" },
     { name: "Ruang Kelas", icon: BookOpen, path: "/dashboard/siswa/ruang-kelas" },
-    { name: "Asesmen", icon: MessageCircle, path: "/dashboard/siswa/asesmen-dinamis" },
+    { name: "Asisten AI", icon: MessageCircle, path: "/dashboard/siswa/asisten" },
     { name: "Jurnal Refleksi", icon: PenTool, path: "/dashboard/siswa/jurnal-refleksi" },
     { name: "Raport", icon: BarChart, path: "/dashboard/siswa/raport" },
     { name: "Pengaturan", icon: Settings, path: "/dashboard/siswa/pengaturan" },
