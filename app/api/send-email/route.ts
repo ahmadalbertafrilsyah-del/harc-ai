@@ -1,4 +1,3 @@
-// app/api/send-email/route.ts
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
@@ -9,11 +8,15 @@ export async function POST(req: Request) {
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
       port: 465,
-      secure: true, // wajib 'true' untuk port 465
+      secure: true, // Wajib true karena menggunakan port 465
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
+      // Tambahkan baris ini untuk mengatasi masalah resolusi jaringan internal server
+      tls: {
+        rejectUnauthorized: false
+      }
     });
 
     // Susun pesan email

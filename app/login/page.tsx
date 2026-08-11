@@ -140,7 +140,7 @@ export default function LoginPage() {
         detailPendaftar = `- Penanggung Jawab: *${regNama}*%0A- Nama Lembaga: *${regNamaLembaga}*%0A- NPSN: *${regNPSN}*%0A- Email: *${regEmail}*`;
       }
 
-      const message = `Halo Admin Syntax LMS,%0A%0ASaya ingin mengajukan pembuatan akun ${namaPeran}. Berikut data saya:%0A${detailPendaftar}%0A%0AStatus pendaftaran saya ada di Dasbor Admin. Mohon persetujuannya (ACC) agar saya dapat mengakses sistem. Terima kasih.`;
+      const message = `Halo Admin Harc-AI,%0A%0ASaya ingin mengajukan pembuatan akun ${namaPeran}. Berikut data saya:%0A${detailPendaftar}%0A%0AStatus pendaftaran saya ada di Dasbor Admin. Mohon persetujuannya (ACC) agar saya dapat mengakses sistem. Terima kasih.`;
       const waUrl = `https://wa.me/${adminPhone}?text=${message}`;
 
       alert("Pendaftaran berhasil direkam! Anda akan dialihkan ke WhatsApp Admin.");
