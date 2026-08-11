@@ -7,17 +7,15 @@ export async function POST(req: Request) {
 
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
-      port: 465,
-      secure: true, // Wajib true karena menggunakan port 465
+      port: 587, // Ganti dari 465 ke 587
+      secure: false,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-      // Tambahkan baris ini untuk mengatasi masalah resolusi jaringan internal server
-      tls: {
-        rejectUnauthorized: false
-      }
-    });
+      family: 4,
+      tls: {rejectUnauthorized: false}
+    } as any);
 
     // Susun pesan email
     const mailOptions = {

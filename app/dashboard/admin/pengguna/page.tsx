@@ -136,21 +136,27 @@ export default function ManajemenPenggunaAdmin() {
 
       // 3. PANGGIL API UNTUK MENGIRIM EMAIL NOTIFIKASI
       try {
-        await fetch('/api/send-email', {
+        const response = await fetch('/api/send-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email: pengajuan.email,
             nama: pengajuan.nama,
             role: roleReq.toUpperCase(),
-            // Karena user mendaftar sendiri, kita asumsikan tidak perlu mengirimkan password
             passwordAwal: null
           })
         });
+
+        // TAMBAHKAN VALIDASI INI
+        if (!response.ok) {
+          throw new Error("Gagal mengirim email dari server.");
+        }
+
         alert(`Akun ${roleReq.toUpperCase()} berhasil di-ACC dan email konfirmasi telah dikirim!`);
       } catch (emailError) {
         console.error("Gagal mengirim email:", emailError);
-        alert(`Akun ${roleReq.toUpperCase()} berhasil di-ACC, namun pengiriman email konfirmasi gagal.`);
+        // Alert ini akan muncul jika Railway gagal mengirim email
+        alert(`Akun ${roleReq.toUpperCase()} berhasil di-ACC, NAMUN pengiriman email otomatis GAGAL karena kendala server.`);
       }
 
     } catch (error) {
