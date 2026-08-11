@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HARC-AI by Mahatma Academy",
-  description: "Humanistic, Adaptive,and Responsive-Cultural Assessment supported by Artificial Intelligence",
+  title: "Portal Akademik HARC-AI | Mahatma Academy",
+  description: "Sistem Evaluasi Humanistik, Adaptif, dan Responsif-Kultural didukung oleh Kecerdasan Buatan.",
 };
 
 export default function RootLayout({
@@ -24,10 +24,12 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      lang="id"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased scroll-smooth`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
+        {children}
+      </body>
     </html>
   );
 }

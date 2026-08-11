@@ -264,7 +264,7 @@ export default function ModulAsesmenGuru() {
 
     let printHtml = printNode.innerHTML.replace(/class="markdown-body"/g, '');
     const cssOrientation = `@page WordSection1 { size: 595.3pt 841.9pt; margin: 2.54cm; } div.WordSection1 { page: WordSection1; }`;
-    const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Asesmen</title><style>${cssOrientation} body, p, li, td, th, h1, h2, h3, h4, div { font-family: 'Times New Roman', serif !important; font-size: 11pt !important; color: black !important; line-height: 1.5; text-align: justify; } h1 { font-size: 14pt !important; font-weight: bold !important; margin-bottom: 12pt; text-align: center; text-transform: uppercase; } h2, h3 { font-size: 12pt !important; font-weight: bold !important; margin-top: 12pt; margin-bottom: 6pt; text-align: left; } table { width: 100%; border-collapse: collapse; margin-top: 10pt; margin-bottom: 15pt; border: 1pt solid black !important; word-wrap: break-word; overflow-wrap: break-word; } td, th { border: 1pt solid black !important; padding: 4pt 8pt; vertical-align: top; text-align: left; } th { background-color: #f2f2f2; font-weight: bold !important; text-align: center; } p { margin-bottom: 10pt; } li { margin-bottom: 6pt; text-align: justify; }</style></head><body><div class="WordSection1">${printHtml}</div></body></html>`;
+    const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Asesmen</title><style>${cssOrientation} body, p, li, td, th, h1, h2, h3, h4, div { font-family: 'Times New Roman', Times, serif !important; font-size: 12pt !important; color: black !important; line-height: 1.5; text-align: justify; } h1 { font-size: 14pt !important; font-weight: bold !important; margin-bottom: 12pt; text-align: center; text-transform: uppercase; } h2, h3 { font-size: 12pt !important; font-weight: bold !important; margin-top: 12pt; margin-bottom: 6pt; text-align: left; text-transform: uppercase; } table { width: 100%; border-collapse: collapse; margin-top: 12pt; margin-bottom: 15pt; border: 1pt solid black !important; word-wrap: break-word; overflow-wrap: break-word; } td, th { border: 1pt solid black !important; padding: 6pt 8pt; vertical-align: top; text-align: left; } th { background-color: #f2f2f2; font-weight: bold !important; text-align: center; } p { margin-bottom: 10pt; } ul, ol { margin-left: 20pt; margin-bottom: 10pt; } li { margin-bottom: 6pt; text-align: justify; }</style></head><body><div class="WordSection1">${printHtml}</div></body></html>`;
     
     const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(header);
     const fileDownload = document.createElement("a"); document.body.appendChild(fileDownload); 
@@ -278,7 +278,7 @@ export default function ModulAsesmenGuru() {
     iframe.style.position = "absolute"; iframe.style.top = "-9999px"; iframe.style.left = "-9999px"; iframe.style.width = "210mm"; iframe.style.height = "100vh"; 
     document.body.appendChild(iframe); 
     iframe.contentWindow?.document.open();
-    iframe.contentWindow?.document.write(`<html><head><title>Cetak PDF</title><style>@page { size: A4 portrait; margin: 1.5cm; } body { font-family: 'Times New Roman', serif !important; font-size: 11pt !important; line-height: 1.5 !important; color: #000; text-align: justify; } h1 { text-align: center; font-size: 14pt; margin-bottom: 2rem; font-weight: bold; text-transform: uppercase; } table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1.5rem; border: 1pt solid #000; word-wrap: break-word; overflow-wrap: break-word; } th, td { border: 1pt solid #000; padding: 6px 8px; text-align: left; vertical-align: top; } th { background-color: #f1f5f9; font-weight: bold; text-align: center; } tr { page-break-inside: avoid; } h2, h3 { page-break-after: avoid; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold; text-align: left; } ul, ol { margin-left: 20px; margin-bottom: 10px; } li { margin-bottom: 6px; text-align: justify; } p { margin-bottom: 10px; }</style></head><body>${printContent}</body></html>`);
+    iframe.contentWindow?.document.write(`<html><head><title>Cetak PDF</title><style>@page { size: A4 portrait; margin: 2cm; } body { font-family: 'Times New Roman', Times, serif !important; font-size: 12pt !important; line-height: 1.5 !important; color: #000; text-align: justify; } h1 { text-align: center; font-size: 14pt; margin-bottom: 2rem; font-weight: bold; text-transform: uppercase; } h2 { font-size: 12pt; margin-top: 1.5rem; margin-bottom: 0.5rem; font-weight: bold; text-transform: uppercase; text-align: left; } h3 { font-size: 12pt; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold; text-align: left; } table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1.5rem; border: 1pt solid #000; word-wrap: break-word; overflow-wrap: break-word; } th, td { border: 1pt solid #000; padding: 6px 8px; text-align: left; vertical-align: top; } th { background-color: #f2f2f2; font-weight: bold; text-align: center; } tr { page-break-inside: avoid; } ul, ol { margin-left: 20px; margin-bottom: 10px; } li { margin-bottom: 6px; text-align: justify; } p { margin-bottom: 10px; }</style></head><body>${printContent}</body></html>`);
     iframe.contentWindow?.document.close();
     setTimeout(() => { iframe.contentWindow?.focus(); iframe.contentWindow?.print(); setTimeout(() => document.body.removeChild(iframe), 1000); }, 500);
   };
@@ -501,49 +501,48 @@ export default function ModulAsesmenGuru() {
                 <div className="bg-white shadow-xl border border-slate-300 p-8 md:p-14 mx-auto rounded min-h-full max-w-4xl overflow-x-auto">
                   <div ref={pdfRef} className="markdown-body">
                     <style>{`
-                      .markdown-body { font-family: 'Times New Roman', serif !important; font-size: 14px; line-height: 1.6 !important; color: #000; } 
-                      @media (min-width: 768px) { .markdown-body { font-size: 12pt; } }
+                      .markdown-body { font-family: 'Times New Roman', Times, serif !important; font-size: 12pt; line-height: 1.5 !important; color: #000; text-align: justify; } 
                       
-                      .markdown-body p { margin-bottom: 0.8rem; text-align: justify; }
+                      .markdown-body p { margin-bottom: 8pt; text-align: justify; }
                       
                       @media (max-width: 768px) {
                         .markdown-body table { table-layout: auto !important; min-width: 600px; }
-                        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; margin-bottom: 1.5rem; }
+                        .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; margin-bottom: 12pt; }
                       }
                       
-                      .markdown-body table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1.5rem; table-layout: auto; word-wrap: break-word; overflow-wrap: break-word; } 
-                      .markdown-body th, .markdown-body td { border: 1pt solid #000; padding: 6px 10px; text-align: left; vertical-align: top; overflow-wrap: break-word; word-wrap: break-word; } 
-                      .markdown-body th { background-color: #f8fafc; font-weight: bold; text-align: center; } 
+                      .markdown-body table { width: 100%; border-collapse: collapse; margin-top: 12pt; margin-bottom: 12pt; table-layout: auto; word-wrap: break-word; overflow-wrap: break-word; } 
+                      .markdown-body th, .markdown-body td { border: 1pt solid #000; padding: 6pt 8pt; text-align: left; vertical-align: top; overflow-wrap: break-word; word-wrap: break-word; font-size: 11pt; } 
+                      .markdown-body th { background-color: #f2f2f2; font-weight: bold; text-align: center; } 
                       .markdown-body tr { page-break-inside: avoid; } 
                       
-                      .markdown-body h1 { font-size: 1.25em; font-weight: bold; text-align: center; margin-bottom: 1.5rem; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 10px; } 
-                      .markdown-body h2 { font-size: 1.1em; margin-top: 1.5rem; margin-bottom: 0.5rem; font-weight: bold; text-transform: uppercase; } 
-                      .markdown-body h3 { font-size: 1em; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: bold; } 
-                      .markdown-body ul, .markdown-body ol { padding-left: 20px; margin-bottom: 1rem; margin-top: 0.5rem; text-align: justify; }
-                      .markdown-body li { margin-bottom: 0.5rem; text-align: justify; }
+                      .markdown-body h1 { font-size: 14pt; font-weight: bold; text-align: center; margin-bottom: 16pt; text-transform: uppercase; } 
+                      .markdown-body h2 { font-size: 12pt; margin-top: 16pt; margin-bottom: 8pt; font-weight: bold; text-transform: uppercase; text-align: left; } 
+                      .markdown-body h3 { font-size: 12pt; margin-top: 12pt; margin-bottom: 6pt; font-weight: bold; text-align: left; } 
+                      .markdown-body ul, .markdown-body ol { padding-left: 24pt; margin-bottom: 12pt; margin-top: 4pt; text-align: justify; }
+                      .markdown-body li { margin-bottom: 4pt; text-align: justify; }
                     `}</style>
 
-                    <div style={{ textAlign: 'center', borderBottom: '3px solid black', paddingBottom: '12px', marginBottom: '24px' }}>
-                      <h1 style={{ fontSize: '1.25em', fontWeight: 'bold', textTransform: 'uppercase', color: 'black', margin: '0 0 5px 0' }}>DOKUMEN INSTRUMEN ASESMEN</h1>
-                      <p style={{ fontSize: '1em', margin: 0, fontWeight: 'bold' }}>{formData.jenisUjian} - {formData.mapel}</p>
-                      <p style={{ fontSize: '1em', margin: 0 }}>Fase / Kelas: {formData.fase} / {formData.kelas}</p>
+                    <div style={{ textAlign: 'center', marginBottom: '24pt' }}>
+                      <h1 style={{ fontSize: '14pt', fontWeight: 'bold', textTransform: 'uppercase', color: 'black', margin: '0 0 4pt 0' }}>DOKUMEN INSTRUMEN ASESMEN</h1>
+                      <p style={{ fontSize: '12pt', margin: 0, fontWeight: 'bold' }}>{formData.jenisUjian} - {formData.mapel}</p>
+                      <p style={{ fontSize: '12pt', margin: 0 }}>Fase / Kelas: {formData.fase} / {formData.kelas}</p>
                     </div>
 
                     <ReactMarkdown 
                       remarkPlugins={[remarkGfm]}
                       components={{
-                         table: ({node, ...props}) => <div className="table-wrapper my-6"><table {...props} /></div>,
+                         table: ({node, ...props}) => <div className="table-wrapper my-4"><table {...props} /></div>,
                          th: ({node, children, ...props}) => {
                            const text = String(children).toLowerCase().trim();
                            let width = 'auto';
                            if (text === 'no' || text === 'no.') width = '5%';
-                           else if (text.includes('capaian') || text.includes('materi') || text.includes('indikator')) width = '20%';
-                           return <th style={{ width }} className="bg-slate-100 font-bold p-3 border border-slate-400 text-center uppercase text-[11px] tracking-wider" {...props}>{children}</th>;
+                           else if (text.includes('capaian') || text.includes('materi') || text.includes('indikator')) width = '25%';
+                           return <th style={{ width }} {...props}>{children}</th>;
                          },
-                         td: ({node, children, ...props}) => <td className="p-3 border border-slate-400 align-top text-sm" {...props}>{children}</td>,
-                         h1: ({node, children, ...props}) => <h1 className="font-bold text-lg uppercase border-b-2 border-black pb-3 mb-6 mt-8" {...props}>{children}</h1>,
-                         h2: ({node, children, ...props}) => <h2 className="font-bold text-base uppercase mt-8 mb-3 text-slate-800" {...props}>{children}</h2>,
-                         h3: ({node, children, ...props}) => <h3 className="font-bold text-sm mt-6 mb-2 text-slate-800" {...props}>{children}</h3>,
+                         td: ({node, children, ...props}) => <td {...props}>{children}</td>,
+                         h1: ({node, children, ...props}) => <h1 {...props}>{children}</h1>,
+                         h2: ({node, children, ...props}) => <h2 {...props}>{children}</h2>,
+                         h3: ({node, children, ...props}) => <h3 {...props}>{children}</h3>,
                       }}
                     >
                       {sanitasiHasil}

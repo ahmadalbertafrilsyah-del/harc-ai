@@ -18,6 +18,7 @@ export default function ManajemenPenggunaAdmin() {
   const [activeTab, setActiveTab] = useState("lembaga"); 
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isProcessingAcc, setIsProcessingAcc] = useState(false); // State untuk loading saat ACC
   
   const [daftarPengguna, setDaftarPengguna] = useState<any[]>([]);
   const [daftarPengajuan, setDaftarPengajuan] = useState<any[]>([]);
@@ -95,13 +96,15 @@ export default function ManajemenPenggunaAdmin() {
   const countSiswa = daftarPengguna.filter(u => u.role === "siswa").length;
 
   // ==========================================
-  // FUNGSI KENDALI ADMIN (SINKRONISASI DATABASE)
+  // FUNGSI KENDALI ADMIN (SINKRONISASI DATABASE & EMAIL)
   // ==========================================
 
   const handleAccAkun = async (pengajuan: any) => {
     const roleReq = pengajuan.role || "guru";
     const konfirmasi = confirm(`Apakah Anda yakin ingin meng-ACC akun ${roleReq.toUpperCase()} untuk ${pengajuan.nama}?`);
     if (!konfirmasi) return;
+
+    setIsProcessingAcc(true);
 
     try {
       const targetUid = pengajuan.uid || pengajuan.id; 
@@ -120,18 +123,41 @@ export default function ManajemenPenggunaAdmin() {
         dataBaru.aiTokens = 50000;
         dataBaru.namaLembaga = pengajuan.namaLembaga || pengajuan.namaInstansi || ""; 
         dataBaru.namaInstansi = pengajuan.namaLembaga || pengajuan.namaInstansi || ""; 
-        alert("Akun Lembaga berhasil di-ACC!");
       } else {
         dataBaru.aiTokens = 10000;
         dataBaru.spesialisasi = pengajuan.spesialisasi || "Pendidik";
-        alert(`Akun ${roleReq.toUpperCase()} berhasil di-ACC!`);
       }
 
+      // 1. Simpan data ke Firestore (Koleksi Utama)
       await setDoc(doc(db, "users", targetUid), dataBaru);
+      
+      // 2. Hapus dari antrean pengajuan
       await deleteDoc(doc(db, "pengajuan_akun", pengajuan.id));
+
+      // 3. PANGGIL API UNTUK MENGIRIM EMAIL NOTIFIKASI
+      try {
+        await fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: pengajuan.email,
+            nama: pengajuan.nama,
+            role: roleReq.toUpperCase(),
+            // Karena user mendaftar sendiri, kita asumsikan tidak perlu mengirimkan password
+            passwordAwal: null
+          })
+        });
+        alert(`Akun ${roleReq.toUpperCase()} berhasil di-ACC dan email konfirmasi telah dikirim!`);
+      } catch (emailError) {
+        console.error("Gagal mengirim email:", emailError);
+        alert(`Akun ${roleReq.toUpperCase()} berhasil di-ACC, namun pengiriman email konfirmasi gagal.`);
+      }
+
     } catch (error) {
       console.error("Gagal melakukan ACC:", error);
       alert("Terjadi kesalahan saat memproses data ke Firestore.");
+    } finally {
+      setIsProcessingAcc(false);
     }
   };
 
@@ -197,6 +223,14 @@ export default function ManajemenPenggunaAdmin() {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="max-w-7xl mx-auto space-y-6 pb-24 md:pb-10 relative">
       
+      {/* Overlay Loading ACC */}
+      {isProcessingAcc && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+          <Loader2 size={48} className="animate-spin text-white mb-4" />
+          <p className="font-bold text-white tracking-widest uppercase">Memproses Persetujuan & Mengirim Email...</p>
+        </div>
+      )}
+
       {/* Header Halaman */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-6">
         <div>
@@ -384,10 +418,10 @@ export default function ManajemenPenggunaAdmin() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => handleTolakAkun(pengajuan.id)} className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-red-600 bg-slate-50 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-lg transition-all flex items-center gap-1">
+                          <button onClick={() => handleTolakAkun(pengajuan.id)} disabled={isProcessingAcc} className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-red-600 bg-slate-50 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-lg transition-all flex items-center gap-1 disabled:opacity-50">
                             <XCircle size={14} /> Tolak
                           </button>
-                          <button onClick={() => handleAccAkun(pengajuan)} className={`px-3 py-1.5 text-xs font-bold text-white shadow-sm rounded-lg transition-all flex items-center gap-1 ${pengajuan.role === 'lembaga' ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20'}`}>
+                          <button onClick={() => handleAccAkun(pengajuan)} disabled={isProcessingAcc} className={`px-3 py-1.5 text-xs font-bold text-white shadow-sm rounded-lg transition-all flex items-center gap-1 disabled:opacity-50 ${pengajuan.role === 'lembaga' ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20'}`}>
                             <CheckCircle2 size={14} /> ACC Akses
                           </button>
                         </div>
