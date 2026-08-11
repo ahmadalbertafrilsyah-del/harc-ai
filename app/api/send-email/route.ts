@@ -6,13 +6,13 @@ export async function POST(req: Request) {
   try {
     const { email, nama, role, passwordAwal } = await req.json();
 
-    // Konfigurasi SMTP (Contoh menggunakan Gmail)
-    // Ingat: Gunakan "App Passwords" Gmail, bukan kata sandi akun biasa Anda.
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true, // wajib 'true' untuk port 465
       auth: {
-        user: process.env.EMAIL_USER, // Contoh: admin@institusi.com
-        pass: process.env.EMAIL_PASS, // App Password dari Google
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
       },
     });
 
