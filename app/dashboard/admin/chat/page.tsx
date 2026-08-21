@@ -258,28 +258,31 @@ export default function ChatbotAdminGeminiStyle() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-128px)] md:h-[calc(100vh-64px)] -m-4 md:-m-6 lg:-m-8 bg-[#f8fafc] relative overflow-hidden">
+    // Penyesuaian height menggunakan 100dvh untuk Mobile Safari/Chrome agar pas tidak tertutup address bar
+    <div className="flex h-[calc(100dvh-134px)] md:h-[calc(100vh-64px)] -m-4 md:-m-6 lg:-m-8 bg-[#f8fafc] relative overflow-hidden">
       
-      {/* SIDEBAR RIWAYAT CHAT */}
-      <div className={`absolute md:relative z-40 bg-white/90 backdrop-blur-md md:bg-white border-r border-slate-200 h-full transition-all duration-300 flex flex-col ${isSidebarOpen ? 'w-64 left-0' : '-left-64 md:left-0 md:w-64 w-0'}`}>
+      {/* SIDEBAR RIWAYAT CHAT (Mobile Overlay & Desktop Fixed) */}
+      <div className={`absolute md:relative z-50 bg-white/95 backdrop-blur-xl md:bg-white border-r border-slate-200 h-full transition-transform duration-300 flex flex-col w-64 shrink-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
-          <button onClick={handleNewChat} className="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-sm py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
+          <button onClick={handleNewChat} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm py-2 px-3 rounded-xl shadow-sm flex items-center justify-center gap-2 transition-colors active:scale-95">
             <Plus size={16} /> Chat Baru
           </button>
-          <button onClick={() => setIsSidebarOpen(false)} className="md:hidden ml-2 p-2 text-slate-400 hover:bg-slate-100 rounded-lg"><X size={20}/></button>
+          <button onClick={() => setIsSidebarOpen(false)} className="md:hidden ml-2 p-2 text-slate-400 hover:bg-slate-100 rounded-xl"><X size={20}/></button>
         </div>
-        <div className="flex-1 overflow-y-auto p-3 space-y-1 scrollbar-thin">
-          <p className="text-[10px] font-bold text-slate-400 uppercase px-2 mb-2 mt-1">Riwayat (7 Hari Terakhir)</p>
+        <div className="flex-1 overflow-y-auto p-3 space-y-1 custom-scrollbar">
+          <p className="text-[10px] font-bold text-slate-400 uppercase px-2 mb-2 mt-1 tracking-widest">Riwayat (7 Hari Terakhir)</p>
           {sessions.length === 0 ? (
-            <p className="text-xs text-slate-400 text-center mt-5">Belum ada riwayat</p>
+            <div className="text-center mt-6">
+               <p className="text-xs text-slate-400 font-medium">Belum ada riwayat</p>
+            </div>
           ) : (
             sessions.map(session => (
               <button 
                 key={session.id} 
                 onClick={() => handleSelectSession(session)}
-                className={`w-full text-left p-2.5 rounded-lg text-sm flex items-center gap-2.5 transition-all truncate ${currentSessionId === session.id ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}
+                className={`w-full text-left p-2.5 rounded-xl text-sm flex items-center gap-2.5 transition-all truncate ${currentSessionId === session.id ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 shadow-sm' : 'text-slate-600 hover:bg-slate-100 border border-transparent'}`}
               >
-                <MessageSquare size={16} className={`shrink-0 ${currentSessionId === session.id ? 'text-indigo-200' : 'text-slate-400'}`} />
+                <MessageSquare size={16} className={`shrink-0 ${currentSessionId === session.id ? 'text-indigo-500' : 'text-slate-400'}`} />
                 <span className="truncate flex-1">{session.title}</span>
               </button>
             ))
@@ -287,44 +290,56 @@ export default function ChatbotAdminGeminiStyle() {
         </div>
       </div>
 
-      {/* OVERLAY UNTUK MOBILE */}
-      {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="md:hidden absolute inset-0 bg-slate-900/20 z-30 backdrop-blur-sm" />}
+      {/* OVERLAY GELAP UNTUK MOBILE SAAT SIDEBAR DIBUKA */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsSidebarOpen(false)}
+            className="md:hidden absolute inset-0 bg-slate-900/40 z-40 backdrop-blur-sm"
+          />
+        )}
+      </AnimatePresence>
 
       {/* AREA CHAT UTAMA */}
-      <div className="flex-1 flex flex-col relative w-full">
-        {/* Tombol Toggle Sidebar Mobile */}
-        <button onClick={() => setIsSidebarOpen(true)} className="md:hidden absolute top-4 left-4 z-20 p-2 bg-white rounded-xl shadow-sm border border-slate-200 text-slate-600">
+      <div className="flex-1 flex flex-col relative w-full min-w-0">
+        
+        {/* Tombol Toggle Sidebar Mobile (Floating) */}
+        <button onClick={() => setIsSidebarOpen(true)} className="md:hidden absolute top-4 left-4 z-30 p-2.5 bg-white/90 backdrop-blur-md rounded-xl shadow-sm border border-slate-200 text-slate-600 active:scale-95 transition-transform">
           <Menu size={20} />
         </button>
 
-        <div className="flex-1 overflow-y-auto px-4 md:px-8 pt-16 md:pt-8 pb-40">
+        {/* Container Pesan */}
+        <div className="flex-1 overflow-y-auto px-4 md:px-8 pt-16 md:pt-8 pb-32 md:pb-40 custom-scrollbar">
           <div className="max-w-4xl mx-auto">
             {messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center mt-10 md:mt-20 animate-in fade-in duration-700">
-                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-3xl flex items-center justify-center shadow-lg mb-6">
-                  <Sparkles className="text-white w-8 h-8" />
+              <div className="flex flex-col items-center justify-center text-center mt-10 md:mt-24 animate-in fade-in duration-700">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[1.5rem] md:rounded-[2rem] flex items-center justify-center shadow-lg md:shadow-xl mb-6">
+                  <Sparkles className="text-white w-8 h-8 md:w-10 md:h-10" />
                 </div>
-                <h2 className={`text-3xl md:text-4xl font-bold text-slate-800 mb-3 ${teachersFont.className}`}>Halo, Super Admin</h2>
-                <p className="text-slate-500 max-w-md mx-auto leading-relaxed text-sm">
+                <h2 className={`text-2xl md:text-4xl font-bold text-slate-800 mb-3 ${teachersFont.className}`}>Halo, Super Admin</h2>
+                <p className="text-slate-500 max-w-sm md:max-w-md mx-auto leading-relaxed text-xs md:text-sm">
                   Saya adalah HARC-AI. Percakapan akan disimpan otomatis ke dalam room dan dihapus secara sistematis setelah 7 hari.
                 </p>
               </div>
             ) : (
-              <div className="space-y-8">
+              <div className="space-y-6 md:space-y-8">
                 <AnimatePresence>
                   {messages.map((msg, index) => (
-                    <motion.div key={index} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <motion.div key={index} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex gap-3 md:gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                       {msg.role === 'assistant' ? (
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shrink-0 shadow-sm mt-1">
-                          <Sparkles size={14} className="text-white" />
+                        <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 shadow-sm mt-1">
+                          <Sparkles size={14} className="text-white md:w-5 md:h-5" />
                         </div>
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center shrink-0 shadow-sm mt-1">
-                          <User size={16} />
+                        <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center shrink-0 shadow-sm mt-1">
+                          <User size={16} className="md:w-5 md:h-5" />
                         </div>
                       )}
 
-                      <div className={`max-w-[85%] text-[15px] leading-relaxed overflow-hidden ${msg.role === 'user' ? 'bg-slate-200/70 px-5 py-3.5 rounded-3xl text-slate-800' : 'text-slate-800 pt-1.5'}`}>
+                      <div className={`max-w-[85%] text-sm md:text-[15px] leading-relaxed overflow-hidden ${msg.role === 'user' ? 'bg-indigo-600 px-4 md:px-5 py-3 md:py-3.5 rounded-2xl md:rounded-3xl rounded-tr-sm text-white shadow-sm' : 'bg-white border border-slate-200 shadow-sm px-4 md:px-5 py-3 md:py-4 rounded-2xl md:rounded-3xl rounded-tl-sm text-slate-800'}`}>
                         {msg.role === 'user' ? (
                           msg.content.split('\n').map((line, i) => <span key={i}>{line}<br/></span>)
                         ) : (
@@ -332,22 +347,22 @@ export default function ChatbotAdminGeminiStyle() {
                             remarkPlugins={[remarkGfm]}
                             components={{
                               p: ({node, ...props}) => <p className="mb-3 last:mb-0" {...props} />,
-                              strong: ({node, ...props}) => <strong className="font-bold text-indigo-900" {...props} />,
-                              h1: ({node, ...props}) => <h1 className="text-2xl font-bold mt-5 mb-3" {...props} />,
-                              h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-4 mb-2" {...props} />,
-                              h3: ({node, ...props}) => <h3 className="text-lg font-bold mt-4 mb-2 text-slate-800" {...props} />,
+                              strong: ({node, ...props}) => <strong className="font-bold text-indigo-700" {...props} />,
+                              h1: ({node, ...props}) => <h1 className="text-xl md:text-2xl font-bold mt-5 mb-3 text-slate-900" {...props} />,
+                              h2: ({node, ...props}) => <h2 className="text-lg md:text-xl font-bold mt-4 mb-2 text-slate-800" {...props} />,
+                              h3: ({node, ...props}) => <h3 className="text-base md:text-lg font-bold mt-4 mb-2 text-slate-800" {...props} />,
                               ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-4 space-y-1" {...props} />,
                               ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-4 space-y-1" {...props} />,
                               li: ({node, ...props}) => <li className="pl-1" {...props} />,
-                              blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-indigo-500 pl-4 py-1 my-3 bg-indigo-50/50 italic text-slate-700" {...props} />,
+                              blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-indigo-500 pl-4 py-1 my-3 bg-indigo-50 italic text-slate-700" {...props} />,
                               table: ({node, ...props}) => (
-                                <div className="overflow-x-auto my-5 rounded-lg border border-slate-200 shadow-sm">
+                                <div className="overflow-x-auto custom-scrollbar my-4 rounded-xl border border-slate-200 shadow-sm">
                                   <table className="w-full text-left text-sm" {...props} />
                                 </div>
                               ),
                               thead: ({node, ...props}) => <thead className="bg-slate-50 border-b border-slate-200" {...props} />,
                               th: ({node, ...props}) => <th className="px-4 py-3 font-bold text-slate-700 whitespace-nowrap" {...props} />,
-                              td: ({node, ...props}) => <td className="px-4 py-3 border-b border-slate-100/80 text-slate-600 align-top" {...props} />,
+                              td: ({node, ...props}) => <td className="px-4 py-3 border-b border-slate-100 text-slate-600 align-top" {...props} />,
                               code: ({node, className, children, ...props}) => <code className="bg-slate-100 text-pink-600 px-1.5 py-0.5 rounded text-[13px] font-mono" {...props}>{children}</code>
                             }}
                           >
@@ -360,12 +375,14 @@ export default function ChatbotAdminGeminiStyle() {
                 </AnimatePresence>
 
                 {isTyping && (
-                  <div className="flex gap-4">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shrink-0 shadow-sm mt-1 animate-pulse"><Sparkles size={14} className="text-white" /></div>
-                    <div className="pt-2.5 text-slate-400 font-medium text-sm animate-pulse flex gap-1">
-                      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
-                      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                  <div className="flex gap-3 md:gap-4">
+                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 shadow-sm mt-1 animate-pulse">
+                      <Sparkles size={14} className="text-white md:w-5 md:h-5" />
+                    </div>
+                    <div className="bg-white border border-slate-200 shadow-sm px-5 py-4 rounded-3xl rounded-tl-sm flex items-center gap-1.5 h-[48px]">
+                      <span className="w-2 h-2 bg-slate-300 rounded-full animate-bounce"></span>
+                      <span className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                      <span className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
                     </div>
                   </div>
                 )}
@@ -375,45 +392,48 @@ export default function ChatbotAdminGeminiStyle() {
           </div>
         </div>
 
-        {/* INPUT AREA */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#f8fafc] via-[#f8fafc] to-transparent pt-8 pb-1 px-4 md:px-8 z-30">
+        {/* INPUT AREA (Bottom Fix) */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#f8fafc] via-[#f8fafc] to-transparent pt-10 pb-3 md:pb-4 px-4 md:px-8 z-30">
           <div className="max-w-4xl mx-auto relative">
-            <form className="bg-white border border-slate-200/80 shadow-[0_4px_25px_-5px_rgba(0,0,0,0.05)] rounded-3xl flex flex-col p-2 transition-all focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-300">
+            <form className="bg-white border-2 border-slate-200 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] rounded-3xl flex flex-col p-2 transition-all focus-within:ring-4 focus-within:ring-indigo-100 focus-within:border-indigo-400">
               <textarea 
                 value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} disabled={isTyping}
-                placeholder="Menapa wonten ingkang saged kula biyantu?" 
-                className="w-full bg-transparent max-h-40 px-4 py-3 text-[15px] text-slate-800 placeholder:text-slate-400 focus:outline-none resize-none disabled:opacity-50 scrollbar-thin scrollbar-thumb-slate-200"
-                rows={1} style={{ minHeight: '60px' }}
+                placeholder="Ada yang bisa saya bantu, Admin?" 
+                className="w-full bg-transparent max-h-32 px-4 py-3 text-sm md:text-[15px] text-slate-800 placeholder:text-slate-400 focus:outline-none resize-none disabled:opacity-50 custom-scrollbar"
+                rows={1} style={{ minHeight: '52px' }}
               />
-              <div className="flex items-center justify-between px-2 pb-1 pt-2">
-                <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".txt,.csv,.md,.json" />
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors flex items-center justify-center">
-                  <Paperclip size={20} />
-                </button>
-                <div className="flex items-center gap-2 relative" ref={dropdownRef}>
-                  <button type="button" onClick={() => setShowModelDropdown(!showModelDropdown)} disabled={availableModels.length === 0 || isTyping} className="flex items-center gap-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 px-3 py-1.5 rounded-full transition-colors text-[11px] font-bold uppercase tracking-wider">
-                    <span className="truncate max-w-[100px] md:max-w-xs">{selectedModel.split('/').pop() || 'Model'}</span> <ChevronUp size={14} className={`transition-transform ${showModelDropdown ? 'rotate-180' : ''}`} />
+              <div className="flex items-center justify-between px-2 pb-1 pt-2 border-t border-slate-50 mt-1">
+                <div className="flex items-center gap-1">
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".txt,.csv,.md,.json" />
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors flex items-center justify-center">
+                    <Paperclip size={18} />
                   </button>
-                  <AnimatePresence>
-                    {showModelDropdown && (
-                      <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.15 }} className="absolute bottom-full right-12 mb-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 overflow-hidden origin-bottom-right">
-                        <div className="px-4 pb-2 mb-2 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Engine AI Terdaftar</div>
-                        {availableModels.map(model => (
-                          <button key={model} type="button" onClick={() => { setSelectedModel(model); setShowModelDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors flex items-center justify-between ${selectedModel === model ? 'text-indigo-600 font-bold bg-indigo-50/50' : 'text-slate-700'}`}>
-                            <span className="truncate">{model.split('/').pop()}</span>
-                            {selectedModel === model && <CheckCircle2 size={14} className="shrink-0" />}
-                          </button>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                  <button type="button" onClick={() => handleSendMessage()} disabled={isTyping || !input.trim()} className={`p-2 rounded-full transition-colors flex items-center justify-center ${input.trim() && !isTyping ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-300'}`}>
-                    {isTyping ? <Loader2 size={18} className="animate-spin text-indigo-400" /> : <Send size={18} className="ml-0.5" />}
-                  </button>
+                  <div className="relative" ref={dropdownRef}>
+                    <button type="button" onClick={() => setShowModelDropdown(!showModelDropdown)} disabled={availableModels.length === 0 || isTyping} className="flex items-center gap-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 px-3 py-2 rounded-xl transition-colors text-[10px] md:text-[11px] font-bold uppercase tracking-wider disabled:opacity-50">
+                      <span className="truncate max-w-[80px] md:max-w-[150px]">{selectedModel.split('/').pop() || 'Model'}</span> <ChevronUp size={14} className={`transition-transform ${showModelDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+                    <AnimatePresence>
+                      {showModelDropdown && (
+                        <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.15 }} className="absolute bottom-full left-0 mb-2 w-52 md:w-56 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 overflow-hidden origin-bottom-left">
+                          <div className="px-4 pb-2 mb-2 border-b border-slate-100 text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-wider">Engine AI Terdaftar</div>
+                          {availableModels.map(model => (
+                            <button key={model} type="button" onClick={() => { setSelectedModel(model); setShowModelDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs md:text-sm hover:bg-slate-50 transition-colors flex items-center justify-between ${selectedModel === model ? 'text-indigo-600 font-bold bg-indigo-50/50' : 'text-slate-700'}`}>
+                              <span className="truncate pr-2">{model.split('/').pop()}</span>
+                              {selectedModel === model && <CheckCircle2 size={14} className="shrink-0" />}
+                            </button>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
+
+                <button type="button" onClick={() => handleSendMessage()} disabled={isTyping || !input.trim()} className={`p-3 md:p-3.5 mb-0.5 mr-0.5 rounded-2xl transition-all flex items-center justify-center shrink-0 active:scale-95 ${input.trim() && !isTyping ? 'bg-indigo-600 text-white shadow-md hover:bg-indigo-700' : 'bg-slate-100 text-slate-300'}`}>
+                  {isTyping ? <Loader2 size={18} className="animate-spin text-indigo-200" /> : <Send size={18} className="ml-0.5" />}
+                </button>
               </div>
             </form>
-            <p className="text-[10px] text-slate-400 mt-2 mb-1 text-center w-full leading-relaxed">
+            <p className="text-[9px] md:text-[10px] text-slate-400 mt-2 text-center w-full leading-relaxed px-4">
               HARC-AI dapat menghasilkan informasi yang tidak akurat. Harap verifikasi hasil berdasarkan standar kompetensi nasional.
             </p>
           </div>

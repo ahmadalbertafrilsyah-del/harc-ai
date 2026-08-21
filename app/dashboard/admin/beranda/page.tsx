@@ -91,8 +91,8 @@ export default function BerandaAdmin() {
   return (
     <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="max-w-7xl mx-auto space-y-6 md:space-y-8 pb-10">
       
-      {/* Header Halaman (Aksesibel) */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      {/* HEADER PC / LAPTOP (Sembunyikan di HP) */}
+      <header className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`} tabIndex={0}>Ikhtisar Sistem Admin</h1>
           <p className="text-slate-600 text-sm mt-1.5 flex items-center gap-2">
@@ -104,6 +104,16 @@ export default function BerandaAdmin() {
           <Server size={14} aria-hidden="true" /> Sinkronisasi Real-time Aktif
         </div>
       </header>
+
+      {/* HEADER HP / MOBILE (Tampil Hanya di HP) */}
+      <div className="md:hidden bg-gradient-to-r from-indigo-800 to-indigo-600 rounded-3xl p-5 text-white shadow-lg relative overflow-hidden -mx-1">
+        <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+        <h2 className="text-sm font-medium text-indigo-200 mb-1">Ikhtisar Sistem</h2>
+        <p className={`text-2xl font-bold ${teachersFont.className}`}>Server {statusEngine}</p>
+        <div className="mt-4 flex items-center gap-2 bg-white/20 w-fit px-3 py-1.5 rounded-full backdrop-blur-sm text-xs font-bold">
+          <Server size={14} /> Sinkronisasi Aktif
+        </div>
+      </div>
 
       {/* Banner Notifikasi Cerdas (Aksesibel Alert) */}
       {pengajuanPending > 0 && (
@@ -119,7 +129,7 @@ export default function BerandaAdmin() {
               </p>
             </div>
           </div>
-          <Link href="/dashboard/admin/pengguna" className="shrink-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2">
+          <Link href="/dashboard/admin/pengguna" className="shrink-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 w-full sm:w-auto">
             <button className="w-full sm:w-auto px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs md:text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm" aria-label={`Tinjau ${pengajuanPending} pengajuan pendidik sekarang`}>
               Tinjau Sekarang <ArrowRight size={16} aria-hidden="true" />
             </button>
@@ -127,9 +137,8 @@ export default function BerandaAdmin() {
         </motion.section>
       )}
 
-      {/* Baris 1: Kartu Metrik Kesehatan Sistem */}
-      <section aria-label="Metrik Utama Sistem" className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
-        
+      {/* TAMPILAN METRIK PC / LAPTOP (Grid Kotak) */}
+      <section aria-label="Metrik Utama Sistem" className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
         <article className="bg-white p-4 md:p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group" tabIndex={0}>
           <div className="flex justify-between items-start mb-3 md:mb-4">
             <div>
@@ -185,16 +194,70 @@ export default function BerandaAdmin() {
         </article>
       </section>
 
+      {/* TAMPILAN METRIK MOBILE (Horizontal Scroll Swipeable) */}
+      <div className="md:hidden">
+        <h3 className="text-sm font-bold text-slate-800 mb-3 ml-1">Metrik Utama</h3>
+        <div className="flex overflow-x-auto gap-4 pb-2 snap-x" style={{ scrollbarWidth: 'none' }}>
+          {/* Item 1 */}
+          <div className="snap-start shrink-0 w-36 bg-white p-4 rounded-3xl shadow-sm border border-slate-200 flex flex-col justify-between h-32">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-50 text-blue-600"><Users size={20} /></div>
+            <div>
+              <p className={`text-xl font-black text-slate-800 ${teachersFont.className}`}>{systemStats.totalGuru}</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Total Pendidik</p>
+            </div>
+          </div>
+          {/* Item 2 */}
+          <div className="snap-start shrink-0 w-36 bg-white p-4 rounded-3xl shadow-sm border border-slate-200 flex flex-col justify-between h-32">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-emerald-50 text-emerald-600"><Users size={20} /></div>
+            <div>
+              <p className={`text-xl font-black text-slate-800 ${teachersFont.className}`}>{systemStats.totalSiswa}</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Peserta Didik</p>
+            </div>
+          </div>
+          {/* Item 3 */}
+          <div className="snap-start shrink-0 w-36 bg-white p-4 rounded-3xl shadow-sm border border-slate-200 flex flex-col justify-between h-32">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-50 text-purple-600"><Database size={20} /></div>
+            <div>
+              <p className={`text-xl font-black text-slate-800 ${teachersFont.className}`}>{systemStats.totalModul}</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Total Modul</p>
+            </div>
+          </div>
+          {/* Item 4 */}
+          <div className="snap-start shrink-0 w-40 bg-white p-4 rounded-3xl shadow-sm border border-indigo-200 flex flex-col justify-between h-32 relative overflow-hidden">
+             <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600" aria-hidden="true"></div>
+            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-amber-50 text-amber-600 pl-1"><BrainCircuit size={20} /></div>
+            <div className="pl-1">
+              <p className={`text-xl font-black text-slate-800 ${teachersFont.className}`}>
+                {systemStats.aiTokens >= 1000000 ? `${(systemStats.aiTokens / 1000000).toFixed(1)}M` : systemStats.aiTokens.toLocaleString('id-ID')}
+              </p>
+              <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider mt-0.5">Token AI</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Menu Akses Cepat Khusus Mobile (Grid 2 Kolom) */}
+      <div className="md:hidden grid grid-cols-2 gap-4">
+        <Link href="/dashboard/admin/pengguna" className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center gap-2 active:bg-slate-50">
+          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-full"><Users size={24} /></div>
+          <p className="text-xs font-bold text-slate-700">Data Pengguna</p>
+        </Link>
+        <Link href="/dashboard/admin/korpus" className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center gap-2 active:bg-slate-50">
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-full"><Database size={24} /></div>
+          <p className="text-xs font-bold text-slate-700">Korpus Data</p>
+        </Link>
+      </div>
+
       {/* Baris 2: Log Sistem & Dashboard Sidebar Kanan */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 md:gap-6">
         
         {/* Log Sistem Keamanan */}
-        <section aria-labelledby="log-heading" className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden lg:col-span-2">
-          <header className="px-5 md:px-6 py-4 md:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-            <h2 id="log-heading" className={`text-base font-bold text-slate-900 flex items-center gap-2 ${teachersFont.className}`}>
+        <section aria-labelledby="log-heading" className="bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden lg:col-span-2">
+          <header className="px-4 md:px-6 py-4 md:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h2 id="log-heading" className={`text-sm md:text-base font-bold text-slate-900 flex items-center gap-2 ${teachersFont.className}`}>
               <Activity size={20} className="text-indigo-600" aria-hidden="true" /> Log Aktivitas AI Utama
             </h2>
-            <Link href="/dashboard/admin/logs" className="text-xs font-bold text-indigo-700 hover:text-indigo-800 hover:underline focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded p-1" aria-label="Lihat semua log aktivitas">
+            <Link href="/dashboard/admin/logs" className="text-[10px] md:text-xs font-bold text-indigo-700 hover:text-indigo-800 hover:underline focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded p-1" aria-label="Lihat semua log aktivitas">
               Lihat Semua
             </Link>
           </header>
@@ -206,14 +269,14 @@ export default function BerandaAdmin() {
                   <li key={log.id} className="p-3 md:p-4 hover:bg-slate-50 transition-colors flex items-start gap-3 rounded-lg focus-within:ring-2 focus-within:ring-indigo-100" tabIndex={0}>
                     <div className="mt-0.5 shrink-0" aria-hidden="true">
                       {log.status === "Sukses" || log.status === "sukses" ? (
-                        <CheckCircle2 size={18} className="text-emerald-600" />
+                        <CheckCircle2 className="w-4 h-4 md:w-[18px] md:h-[18px] text-emerald-600" />
                       ) : (
-                        <AlertTriangle size={18} className="text-amber-600" />
+                        <AlertTriangle className="w-4 h-4 md:w-[18px] md:h-[18px] text-amber-600" />
                       )}
                     </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-800">{log.aksi}</p>
-                      <p className="text-xs text-slate-600 mt-1">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs md:text-sm font-bold text-slate-800 truncate">{log.aksi}</p>
+                      <p className="text-[10px] md:text-xs text-slate-600 mt-1 truncate">
                         Oleh: <strong className="text-slate-800">{log.pengguna || log.entitas || "Sistem"}</strong> • <span className="text-slate-500">{log.timestamp ? new Date(log.timestamp.toDate()).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}) : 'Baru saja'} WIB</span>
                       </p>
                       {log.status !== "Sukses" && log.status !== "sukses" && (
@@ -233,8 +296,8 @@ export default function BerandaAdmin() {
           </div>
         </section>
 
-        {/* Kolom Kanan: Quick Access & System Health */}
-        <div className="space-y-5 md:space-y-6 flex flex-col">
+        {/* Kolom Kanan: Quick Access & System Health (Hanya tampil di PC/Tablet) */}
+        <div className="hidden md:flex flex-col space-y-5 md:space-y-6">
           
           <section aria-labelledby="quick-access" className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
             <header className="px-5 py-4 border-b border-slate-100 bg-slate-50">
