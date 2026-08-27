@@ -15,14 +15,14 @@ import { db } from "@/lib/firebase";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { collection, onSnapshot, query, doc } from "firebase/firestore";
 
-const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap" });
+const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], display: "swap" });
 const latoFont = Lato({ subsets: ["latin"], weight: ["400", "700", "900"], display: "swap" });
 
 export default function GuruLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [isMounted, setIsMounted] = useState(false); // Pelindung Hydration Error
+  const [isMounted, setIsMounted] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State Menu Mobile
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   
   const [showNotif, setShowNotif] = useState(false);
@@ -34,7 +34,6 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
     fotoUrl: ""
   });
 
-  // MENU LENGKAP (Tampil di Sidebar Desktop)
   const menuItems = [
     { name: "Beranda", icon: LayoutDashboard, path: "/dashboard/guru/beranda" },
     { name: "Profil", icon: Users, path: "/dashboard/guru/profil" },
@@ -47,7 +46,6 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
     { name: "Pengaturan", icon: Settings, path: "/dashboard/guru/pengaturan" },
   ];
 
-  // MENU BAWAH MOBILE (Bottom Navigation)
   const bottomNavItems = [
     { name: "Beranda", icon: LayoutDashboard, path: "/dashboard/guru/beranda" },
     { name: "Kelas", icon: FileSpreadsheet, path: "/dashboard/guru/kelas" },
@@ -55,7 +53,6 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
     { name: "Asisten", icon: Bot, path: "/dashboard/guru/chat" },
   ];
 
-  // MENU SISA MOBILE (Tampil di dalam laci "Menu")
   const moreMenuItems = [
     { name: "Profil", icon: Users, path: "/dashboard/guru/profil" },
     { name: "Asesmen", icon: Target, path: "/dashboard/guru/asesmen" },
@@ -110,38 +107,45 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
     <div className={`h-screen bg-[#f8fafc] flex overflow-hidden ${latoFont.className}`}>
       
       {/* SIDEBAR DESKTOP */}
-      <aside className={`hidden md:flex flex-col h-screen bg-[#0f172a] text-slate-300 transition-all duration-300 z-50 border-r border-slate-800 relative ${isSidebarCollapsed ? "w-[80px]" : "w-[240px]"}`}>
+      <aside className={`hidden md:flex flex-col h-screen bg-[#0a0f1c] text-slate-300 transition-all duration-300 z-50 border-r border-slate-800 relative ${isSidebarCollapsed ? "w-[88px]" : "w-[260px]"}`}>
+        
         <button 
           onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          className="absolute -right-3 top-20 bg-[#0f172a] border border-slate-700 text-slate-400 hover:text-white rounded-full p-1 z-50 shadow-md transition-colors"
+          className="absolute -right-3.5 top-7 bg-blue-600 border-2 border-[#0a0f1c] text-white hover:bg-blue-500 rounded-full p-1 z-50 shadow-md transition-colors focus:outline-none"
           aria-label={isSidebarCollapsed ? "Buka Sidebar" : "Tutup Sidebar"}
         >
           {isSidebarCollapsed ? <ChevronRight size={14} aria-hidden="true"/> : <ChevronLeft size={14} aria-hidden="true"/>}
         </button>
 
-        <div className="h-16 flex items-center justify-center px-4 border-b border-slate-800/60 bg-[#0b1221] shrink-0">
-          <Link href="/dashboard/guru/beranda" className="flex items-center gap-2.5 overflow-hidden w-full justify-center">
-            <GraduationCap className="w-6 h-6 text-blue-500 shrink-0" aria-hidden="true"/>
+        <div className="h-20 flex items-center justify-center px-4 border-b border-slate-800/80 bg-[#050810] shrink-0">
+          <Link href="/dashboard/guru/beranda" className="flex items-center gap-3 overflow-hidden w-full justify-center focus:outline-none">
+            <div className="w-[38px] h-[38px] flex items-center justify-center shrink-0" aria-hidden="true">
+              <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
+            </div>
             {!isSidebarCollapsed && (
-              <span className={`text-lg font-bold text-slate-100 tracking-wide truncate ${teachersFont.className}`}>Portal Guru</span>
+              <div className="flex flex-col justify-center">
+                <span className={`text-[16px] font-[900] text-white tracking-wide leading-none ${teachersFont.className}`}>MAHATMA ACADEMY</span>
+                <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest mt-1">Portal Pendidik</span>
+              </div>
             )}
           </Link>
         </div>
         
-        <nav aria-label="Navigasi Utama Guru" className="flex-1 py-6 flex flex-col gap-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+        {/* Navigasi Utama - Dihapus overflow-y-auto agar scrollbar hilang */}
+        <nav aria-label="Navigasi Utama Guru" className="flex-1 py-4 flex flex-col gap-1 overflow-hidden">
           {!isSidebarCollapsed && (
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 px-6 truncate" aria-hidden="true">Manajemen Kelas</div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 mt-1 px-7 truncate" aria-hidden="true">Menu Utama</div>
           )}
           {menuItems.map((item) => {
             const isActive = pathname.startsWith(item.path);
             return (
-              <Link key={item.name} href={item.path} title={isSidebarCollapsed ? item.name : ""} aria-current={isActive ? "page" : undefined}>
-                <div className={`flex items-center px-6 py-3 transition-all text-sm font-medium border-l-[3px] ${
+              <Link key={item.name} href={item.path} title={isSidebarCollapsed ? item.name : ""} aria-current={isActive ? "page" : undefined} className="focus:outline-none">
+                <div className={`flex items-center px-7 py-3 transition-all text-sm font-bold border-l-4 ${
                   isActive 
-                    ? "bg-slate-800/50 text-white border-blue-500" 
-                    : "border-transparent text-slate-400 hover:bg-slate-800/30 hover:text-slate-200"
-                } ${isSidebarCollapsed ? "justify-center px-0" : "gap-3"}`}>
-                  <item.icon size={20} className={`shrink-0 ${isActive ? "text-blue-500" : "text-slate-500"}`} aria-hidden="true"/>
+                    ? "bg-gradient-to-r from-blue-900/40 to-transparent text-white border-blue-500" 
+                    : "border-transparent text-slate-400 hover:bg-slate-800/40 hover:text-slate-200"
+                } ${isSidebarCollapsed ? "justify-center px-0" : "gap-3.5"}`}>
+                  <item.icon size={18} className={`shrink-0 transition-colors ${isActive ? "text-blue-400" : "text-slate-500"}`} aria-hidden="true"/>
                   {!isSidebarCollapsed && <span className="truncate">{item.name}</span>}
                 </div>
               </Link>
@@ -149,10 +153,10 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-800/60 bg-[#0b1221] shrink-0">
+        <div className="p-5 border-t border-slate-800/80 bg-[#050810] shrink-0">
           <Link href="/login" title={isSidebarCollapsed ? "Keluar Sistem" : ""}>
-            <button className={`flex items-center text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 w-full rounded-lg transition-all text-sm font-medium ${isSidebarCollapsed ? "justify-center p-2.5" : "gap-3 px-4 py-2.5"}`}>
-              <LogOut size={20} className="shrink-0" aria-hidden="true"/>
+            <button className={`flex items-center text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 w-full rounded-xl transition-all text-sm font-bold border border-transparent focus:outline-none ${isSidebarCollapsed ? "justify-center p-3" : "gap-3 px-4 py-3"}`}>
+              <LogOut size={18} className="shrink-0" aria-hidden="true"/>
               {!isSidebarCollapsed && <span className="truncate">Keluar Akun</span>}
             </button>
           </Link>
@@ -163,22 +167,22 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden pb-[70px] md:pb-0 relative">
         
         {/* HEADER ATAS */}
-        <header className="h-16 bg-white border-b border-slate-200/80 flex items-center justify-between px-4 md:px-6 shrink-0 z-30">
+        <header className="h-20 md:h-20 bg-white border-b border-slate-200/80 flex items-center justify-between px-4 md:px-6 shrink-0 z-30">
           <div className="flex items-center w-full md:w-auto">
             {/* Tampilan Mobile: Ikon App & Judul Sejajar */}
             <div className="md:hidden flex items-center justify-between w-full">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center">
-                  <GraduationCap size={18} className="text-white" />
+              <div className="flex items-center gap-3">
+                <div className="w-[34px] h-[34px] flex items-center justify-center shrink-0">
+                  <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
                 </div>
-                <span className="text-xl font-bold text-[#1e293b] tracking-wide ml-1 font-sans">Panel Guru</span>
+                <span className={`text-[19px] font-[900] text-[#0f172a] tracking-tight leading-none ${teachersFont.className}`}>HARC-AI</span>
               </div>
               
               {/* Lonceng Notifikasi Mobile */}
               <div className="relative">
-                <button onClick={() => setShowNotif(!showNotif)} aria-label="Notifikasi Validasi" className={`relative p-2 rounded-full transition-colors ${showNotif ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}>
-                  <Bell size={22} strokeWidth={2} aria-hidden="true"/>
-                  {notifCount > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 border-2 border-white rounded-full animate-pulse"></span>}
+                <button onClick={() => setShowNotif(!showNotif)} aria-label="Notifikasi Validasi" className={`relative p-2.5 rounded-xl border border-slate-200 transition-colors ${showNotif ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-slate-50 text-slate-600'}`}>
+                  <Bell size={18} strokeWidth={2} aria-hidden="true"/>
+                  {notifCount > 0 && <span className="absolute -top-1 -right-1 w-3 h-3 bg-rose-500 border-2 border-white rounded-full animate-pulse"></span>}
                 </button>
               </div>
             </div>
@@ -188,15 +192,15 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
           <div className="hidden md:flex items-center justify-end gap-5 w-auto">
             
             {/* Jam & Tanggal Desain Baru */}
-            <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
-              <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
-                <Clock size={18} strokeWidth={2.5} />
+            <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                <Clock size={16} strokeWidth={2.5} />
               </div>
               <div className="flex flex-col">
-                <span className="text-[15px] font-bold text-slate-700 tracking-wider font-mono">
-                  {isMounted ? jam : "--.--.--"} <span className="text-slate-500 text-xs">WIB</span>
+                <span className="text-[14px] font-bold text-slate-700 tracking-wider font-mono">
+                  {isMounted ? jam : "--.--.--"} <span className="text-slate-500 text-[10px]">WIB</span>
                 </span>
-                <span className="text-[11px] text-slate-500 font-medium -mt-0.5">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">
                   {isMounted ? tanggal : "Memuat..."}
                 </span>
               </div>
@@ -204,31 +208,72 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
 
             {/* Lonceng Notifikasi Desktop */}
             <div className="relative">
-              <button onClick={() => setShowNotif(!showNotif)} aria-label="Notifikasi Validasi" className={`relative p-2.5 rounded-full transition-colors ${showNotif ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}>
-                <Bell size={22} strokeWidth={2} aria-hidden="true"/>
-                {notifCount > 0 && <span className="absolute top-1 right-1 w-3 h-3 bg-rose-500 border-2 border-white rounded-full animate-pulse"></span>}
+              <button onClick={() => setShowNotif(!showNotif)} aria-label="Notifikasi Validasi" className={`relative p-3 rounded-xl border border-slate-200 transition-colors ${showNotif ? 'bg-blue-50 text-blue-600 border-blue-200 shadow-sm' : 'bg-white text-slate-500 hover:bg-slate-50 shadow-sm'}`}>
+                <Bell size={18} strokeWidth={2.5} aria-hidden="true"/>
+                {notifCount > 0 && <span className="absolute -top-1 -right-1 w-3 h-3 bg-rose-500 border-2 border-white rounded-full animate-pulse"></span>}
               </button>
             </div>
 
-            <div className="w-px h-6 bg-slate-200 mx-1"></div>
+            <div className="w-px h-8 bg-slate-200 mx-1"></div>
             
             {/* Profil Guru Desktop */}
             <Link href="/dashboard/guru/profil" aria-label="Profil Guru">
-              <div className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 p-1.5 pr-3 rounded-xl transition-colors group">
+              <div className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 p-2 pr-4 rounded-2xl border border-transparent hover:border-slate-200 transition-all group">
                 <div className="text-right">
                   <p className="font-bold text-slate-800 text-sm group-hover:text-blue-700 transition-colors leading-tight">{profil.namaLengkap}</p>
-                  <p className="text-slate-400 text-[11px] font-medium">{profil.spesialisasi}</p>
+                  <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">{profil.spesialisasi}</p>
                 </div>
                 {profil.fotoUrl ? (
-                  <img src={profil.fotoUrl} alt="Profil" className="w-9 h-9 rounded-lg object-cover shadow-sm border border-slate-200" />
+                  <img src={profil.fotoUrl} alt="Profil" className="w-10 h-10 rounded-xl object-cover shadow-sm border border-slate-200" />
                 ) : (
-                  <div className="w-9 h-9 bg-blue-900 text-white rounded-lg flex items-center justify-center text-xs font-bold shadow-sm group-hover:bg-blue-800 transition-colors" aria-hidden="true">
+                  <div className="w-10 h-10 bg-[#1e3a8a] text-amber-400 rounded-xl flex items-center justify-center text-sm font-black shadow-sm group-hover:bg-blue-800 transition-colors border border-blue-900" aria-hidden="true">
                     {getInitials(profil.namaLengkap)}
                   </div>
                 )}
               </div>
             </Link>
           </div>
+          
+          {/* FUNGSI DROPDOWN NOTIFIKASI */}
+          <AnimatePresence>
+            {showNotif && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowNotif(false)}></div>
+                <motion.div 
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }} 
+                  animate={{ opacity: 1, y: 0, scale: 1 }} 
+                  exit={{ opacity: 0, scale: 0.95 }} 
+                  className="absolute right-4 top-20 md:top-24 mt-1 w-72 md:w-80 bg-white rounded-2xl shadow-xl border border-slate-200/80 z-50 overflow-hidden transform origin-top-right"
+                >
+                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                    <span className="text-sm font-bold text-slate-800">Pemberitahuan</span>
+                    {notifCount > 0 && <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full">{notifCount} Baru</span>}
+                  </div>
+                  <div className="max-h-[60vh] overflow-y-auto">
+                    {notifCount > 0 ? (
+                      <div className="p-6 text-center">
+                        <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <CheckCircle size={24} />
+                        </div>
+                        <p className="text-sm font-bold text-slate-800">Tugas Baru!</p>
+                        <p className="text-xs text-slate-500 mt-1 mb-4">Ada {notifCount} tugas siswa yang memerlukan tinjauan dan validasi Anda.</p>
+                        <Link href="/dashboard/guru/beranda" onClick={() => setShowNotif(false)} className="inline-block bg-blue-600 text-white px-5 py-2.5 rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors w-full">
+                          Tinjau Sekarang
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center text-slate-400">
+                        <Bell size={28} className="mx-auto mb-3 opacity-20" />
+                        <p className="text-xs font-bold text-slate-500">Kosong</p>
+                        <p className="text-[10px] mt-1">Tidak ada tugas atau pemberitahuan baru.</p>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+
         </header>
 
         <div className="flex-1 overflow-auto p-4 md:p-6 lg:p-8 bg-[#f8fafc] pb-24 md:pb-6">
@@ -260,7 +305,7 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
         </button>
       </nav>
 
-      {/* LACI (DRAWER) MENU MOBILE UNTUK SISA FITUR (GRID KOTAK PERSEGI) */}
+      {/* LACI (DRAWER) MENU MOBILE UNTUK SISA FITUR */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div 

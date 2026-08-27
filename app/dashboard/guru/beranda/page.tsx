@@ -18,6 +18,8 @@ const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"
 
 export default function BerandaGuru() {
   const [isLoading, setIsLoading] = useState(true);
+  const [guruNama, setGuruNama] = useState("");
+  const [waktuSapaan, setWaktuSapaan] = useState("Halo");
   
   const [stats, setStats] = useState({
     siswaAktif: 0,
@@ -30,6 +32,13 @@ export default function BerandaGuru() {
   const [dataStatistik, setDataStatistik] = useState<any[]>([]);
 
   useEffect(() => {
+    // Tentukan sapaan waktu
+    const jam = new Date().getHours();
+    if (jam < 11) setWaktuSapaan("Selamat Pagi");
+    else if (jam < 15) setWaktuSapaan("Selamat Siang");
+    else if (jam < 18) setWaktuSapaan("Selamat Sore");
+    else setWaktuSapaan("Selamat Malam");
+
     const auth = getAuth();
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -38,6 +47,9 @@ export default function BerandaGuru() {
           if (docSnap.exists()) {
             const data = docSnap.data();
             const npsn = data.npsn || data.instansi;
+            
+            // Gunakan NAMA LENGKAP sesuai request
+            setGuruNama(data.nama || "Pendidik");
 
             setStats(prev => ({
               ...prev,
@@ -98,44 +110,58 @@ export default function BerandaGuru() {
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="max-w-7xl mx-auto space-y-8 pb-24 md:pb-12 px-4 md:px-6 lg:px-8 pt-4">
+    <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="max-w-7xl mx-auto space-y-6 md:space-y-8 pb-24 md:pb-12 px-4 md:px-6 lg:px-8 pt-4">
       
-      {/* HERO BANNER MODERN (Glassmorphism & Gradients) */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-900 via-blue-900 to-blue-800 rounded-[2rem] p-8 md:p-12 shadow-2xl shadow-blue-900/20">
-        {/* Dekorasi Latar Belakang (Aksen Blur) */}
+      {/* HERO BANNER MODERN (Desktop Layout) */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-blue-800 via-blue-700 to-indigo-900 rounded-[2rem] p-8 md:p-12 shadow-2xl shadow-blue-900/20">
+        {/* Dekorasi Latar Belakang */}
         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-72 h-72 rounded-full bg-white/10 blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 rounded-full bg-blue-500/30 blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 rounded-full bg-blue-400/20 blur-3xl pointer-events-none"></div>
 
         <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
           <div className="max-w-2xl">
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-blue-100 text-xs font-bold mb-5 backdrop-blur-md uppercase tracking-wider shadow-inner">
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-blue-100 text-xs font-bold mb-4 backdrop-blur-md uppercase tracking-wider shadow-inner">
                 <Sparkles size={14} className="text-blue-300" /> HARC-AI Workspace
               </span>
             </motion.div>
             
-            <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className={`text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 leading-tight ${teachersFont.className}`}>
-              Kendalikan Kelasmu,<br/>Tingkatkan Potensi Siswa.
-            </motion.h1>
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+              <p className="text-blue-200 text-base md:text-lg font-medium mb-1">{waktuSapaan},</p>
+              <h1 className={`text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 leading-tight ${teachersFont.className}`}>
+                {guruNama}
+              </h1>
+            </motion.div>
             
-            <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="text-blue-100/90 text-sm md:text-base leading-relaxed">
+            <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="text-blue-100/90 text-sm md:text-base leading-relaxed max-w-xl">
               Sistem mendeteksi <strong className="text-white bg-white/20 px-2 py-0.5 rounded-md mx-1">{antrean.length} tugas</strong> menunggu tinjauan Anda hari ini. Gunakan instrumen cerdas AI untuk mengevaluasi lebih cepat dan akurat.
             </motion.p>
           </div>
           
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto mt-4 lg:mt-0">
-            <Link href="/dashboard/guru/asesmen" className="bg-white text-blue-900 px-6 py-4 rounded-2xl font-bold text-sm shadow-xl hover:shadow-2xl hover:bg-blue-50 hover:-translate-y-1 transition-all flex items-center justify-center gap-2 text-center">
-              <BrainCircuit size={18} /> Generate Asesmen
-            </Link>
-            <Link href="/dashboard/guru/kelas" className="bg-blue-800/50 hover:bg-blue-700/50 border border-blue-400/30 text-white px-6 py-4 rounded-2xl font-bold text-sm backdrop-blur-sm transition-all flex items-center justify-center gap-2 text-center hover:-translate-y-1">
-              <BookOpen size={18} /> Lihat Kelas
-            </Link>
+          {/* Tombol Aksi di Desktop & Info Token */}
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} className="flex flex-col sm:flex-row lg:flex-col gap-3 w-full lg:w-auto mt-4 lg:mt-0 items-end">
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 rounded-2xl text-center w-full lg:min-w-[200px] mb-2 hidden lg:block">
+              <p className="text-[11px] text-blue-200 uppercase tracking-widest font-bold mb-1">Kapasitas Token AI</p>
+              <p className="text-2xl font-black text-amber-400 flex items-center justify-center gap-2">
+                <Coins size={20} />
+                {stats.tokenAI >= 1000 ? `${(stats.tokenAI / 1000).toFixed(1)}K` : stats.tokenAI}
+              </p>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-3 w-full">
+              <Link href="/dashboard/guru/asesmen" className="w-full sm:w-auto bg-white text-blue-900 px-6 py-3.5 rounded-xl font-bold text-sm shadow-xl hover:bg-blue-50 transition-all flex items-center justify-center gap-2 text-center active:scale-95">
+                <BrainCircuit size={18} /> Generate Asesmen
+              </Link>
+              <Link href="/dashboard/guru/kelas" className="w-full sm:w-auto bg-blue-900/50 hover:bg-blue-800/50 border border-blue-400/30 text-white px-6 py-3.5 rounded-xl font-bold text-sm backdrop-blur-sm transition-all flex items-center justify-center gap-2 text-center active:scale-95">
+                <BookOpen size={18} /> Ruang Kelas
+              </Link>
+            </div>
           </motion.div>
         </div>
       </div>
 
-      {/* KARTU STATISTIK (Desain Clean/Minimalist) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6">
+      {/* KARTU STATISTIK (Grid Desktop Klasik) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <StatCard title="Total Siswa" value={stats.siswaAktif.toString()} icon={Users} color="blue" trend="Terhubung via NPSN" delay={0.1} />
         <StatCard title="Tugas Tertunda" value={antrean.length.toString()} icon={AlertCircle} color="amber" highlight={antrean.length > 0} trend={antrean.length === 0 ? "Semua Tuntas" : "Perlu Tinjauan"} delay={0.2} />
         <StatCard title="Indeks Kesantunan" value={`${stats.indeksKesantunan}%`} icon={Activity} color="emerald" trend="Rata-rata Kelas" delay={0.3} />
@@ -228,7 +254,7 @@ export default function BerandaGuru() {
   );
 }
 
-// Komponen Reusable untuk Kartu Statistik (Modern Style)
+// Komponen Reusable untuk Kartu Statistik (Desktop Style)
 function StatCard({ title, value, icon: Icon, color, highlight, trend, delay }: any) {
   const colorStyles: any = {
     blue: "bg-blue-50 text-blue-600",
@@ -242,24 +268,24 @@ function StatCard({ title, value, icon: Icon, color, highlight, trend, delay }: 
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className={`bg-white p-6 rounded-3xl border ${highlight ? 'border-amber-300 ring-4 ring-amber-50' : 'border-slate-100'} shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all group relative overflow-hidden`}>
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className={`w-full bg-white p-5 md:p-6 rounded-3xl border ${highlight ? 'border-amber-300 ring-4 ring-amber-50' : 'border-slate-100'} shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all group relative overflow-hidden`}>
       
       {/* Ornamen Sudut (Glassmorphism effect) */}
       <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-[0.03] transition-transform duration-500 group-hover:scale-[2.5] ${decorationColors[color]}`}></div>
       
-      <div className="flex justify-between items-start mb-5 relative z-10">
-        <div className={`p-3.5 rounded-2xl ${colorStyles[color]}`}>
-          <Icon size={24} strokeWidth={2.5} />
+      <div className="flex justify-between items-start mb-4 md:mb-5 relative z-10">
+        <div className={`p-3 rounded-2xl ${colorStyles[color]}`}>
+          <Icon size={22} strokeWidth={2.5} />
         </div>
       </div>
       
       <div className="relative z-10">
-        <h3 className={`text-3xl lg:text-4xl font-black text-slate-800 mb-1 tracking-tight ${teachersFont.className}`}>{value}</h3>
-        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{title}</p>
+        <h3 className={`text-2xl md:text-3xl lg:text-4xl font-black text-slate-800 mb-1 tracking-tight ${teachersFont.className}`}>{value}</h3>
+        <p className="text-[10px] md:text-[11px] font-bold text-slate-400 uppercase tracking-wider">{title}</p>
       </div>
       
-      <div className="mt-5 pt-4 border-t border-slate-50 flex items-center justify-between relative z-10">
-        <span className="text-[10px] text-slate-500 font-bold bg-slate-50 px-2.5 py-1.5 rounded-md border border-slate-100">{trend}</span>
+      <div className="mt-4 md:mt-5 pt-3 md:pt-4 border-t border-slate-50 flex items-center justify-between relative z-10">
+        <span className="text-[9px] md:text-[10px] text-slate-500 font-bold bg-slate-50 px-2.5 py-1.5 rounded-md border border-slate-100 truncate">{trend}</span>
       </div>
     </motion.div>
   );

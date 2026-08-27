@@ -3,17 +3,17 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   User, BookOpen, ShieldCheck, ArrowLeft, ArrowRight, 
-  Mail, Lock, Eye, EyeOff, Building, Send, Loader2, AlertCircle, Wrench, Landmark, Hash, Library, BrainCircuit
+  Mail, Lock, Eye, EyeOff, Building, Send, Loader2, AlertCircle, Wrench, Landmark, Hash, BrainCircuit
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Teachers, Lato } from "next/font/google";
 
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase"; 
 
-const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700", "800"], display: "swap" });
+const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], display: "swap" });
 const latoFont = Lato({ subsets: ["latin"], weight: ["400", "700", "900"], display: "swap" });
 
 export default function LoginPage() {
@@ -35,7 +35,6 @@ export default function LoginPage() {
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
 
-  // Penyesuaian warna kartu peran agar formal dan seragam
   const roles = [
     { id: "admin", name: "Admin", icon: ShieldCheck, desc: "Manajemen sistem", activeColor: "bg-blue-50 border-blue-900 text-blue-950 ring-2 ring-blue-900/20" },
     { id: "lembaga", name: "Lembaga", icon: Landmark, desc: "Kelola guru & siswa", activeColor: "bg-slate-100 border-slate-700 text-slate-900 ring-2 ring-slate-700/20" },
@@ -98,6 +97,30 @@ export default function LoginPage() {
     } catch (error: any) {
       console.error("Login Error:", error);
       alert("Gagal masuk! Periksa kembali Email dan Kata Sandi Anda.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fungsi Baru: Pemulihan Kata Sandi
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      alert("Silakan ketikkan alamat email Anda terlebih dahulu di kolom 'Kredensial Email', lalu klik 'Lupa Sandi?' kembali.");
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const auth = getAuth();
+      await sendPasswordResetEmail(auth, email);
+      alert(`Tautan pemulihan kata sandi telah dikirim ke ${email}.\n\nSilakan periksa kotak masuk (Inbox) atau folder Spam email Anda.`);
+    } catch (error: any) {
+      console.error("Reset Password Error:", error);
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
+        alert("Alamat email tidak valid atau belum terdaftar di sistem.");
+      } else {
+        alert("Gagal mengirim tautan. Pastikan format email benar dan coba lagi.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -182,11 +205,11 @@ export default function LoginPage() {
         
         <div className="relative z-10">
           <Link href="/" className="flex items-center gap-3 w-fit hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 rounded-lg" tabIndex={-1}>
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md border border-slate-200">
-              <Library className="text-blue-950 w-6 h-6" />
+            <div className="w-[42px] h-[42px] flex items-center justify-center shrink-0">
+              <img src="/logo.png" alt="Logo HARC-AI" className="w-full h-full object-contain" />
             </div>
-            <div>
-              <span className={`text-xl font-black text-white tracking-wide block leading-none ${teachersFont.className}`}>MAHATMA ACADEMY</span>
+            <div className="flex flex-col">
+              <span className={`text-[20px] font-[900] text-white tracking-wide block leading-none ${teachersFont.className}`}>MAHATMA ACADEMY</span>
               <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest block mt-0.5">Portal Akademik</span>
             </div>
           </Link>
@@ -242,7 +265,7 @@ export default function LoginPage() {
             {step === 1 && (
               <motion.div key="step1" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                 <div className="text-center md:text-left mb-8">
-                  <h1 className={`text-3xl font-black text-blue-950 mb-2 ${teachersFont.className}`} tabIndex={0}>Selamat Datang</h1>
+                  <h1 className={`text-3xl font-black text-[#0f172a] mb-2 ${teachersFont.className}`} tabIndex={0}>Selamat Datang</h1>
                   <p className="text-slate-500 font-medium text-sm">Silakan pilih otoritas peran Anda untuk mengakses sistem akademik.</p>
                 </div>
     
@@ -255,7 +278,7 @@ export default function LoginPage() {
                       onClick={() => setSelectedRole(role.id)} 
                       aria-pressed={selectedRole === role.id}
                       aria-label={`Masuk sebagai ${role.name}`}
-                      className={`flex flex-col items-center justify-center p-5 rounded-2xl border-2 transition-all duration-200 text-center focus:outline-none focus:ring-2 focus:ring-blue-900 focus:ring-offset-2 ${selectedRole === role.id ? role.activeColor : 'bg-white border-slate-200 hover:border-blue-200 shadow-sm'}`}
+                      className={`flex flex-col items-center justify-center p-5 rounded-2xl border-2 transition-all duration-200 text-center focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:ring-offset-2 ${selectedRole === role.id ? role.activeColor : 'bg-white border-slate-200 hover:border-blue-200 shadow-sm'}`}
                     >
                       <div className={`p-3 rounded-xl mb-3 transition-colors ${selectedRole === role.id ? 'bg-white shadow-sm' : 'bg-slate-100 text-slate-500'}`} aria-hidden="true">
                         <role.icon className="w-7 h-7" />
@@ -275,7 +298,7 @@ export default function LoginPage() {
                   disabled={!selectedRole} 
                   aria-disabled={!selectedRole}
                   aria-label="Lanjutkan ke tahap login"
-                  className={`w-full mt-8 py-4 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-900 focus:ring-offset-2 ${selectedRole ? 'bg-blue-950 hover:bg-blue-900 text-white shadow-lg shadow-blue-900/20' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                  className={`w-full mt-8 py-4 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:ring-offset-2 ${selectedRole ? 'bg-[#1e3a8a] hover:bg-blue-800 text-white shadow-lg shadow-blue-900/20' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
                 >
                   Lanjutkan Autentikasi <ArrowRight size={18} aria-hidden="true" />
                 </button>
@@ -286,10 +309,10 @@ export default function LoginPage() {
             {step === 2 && (
               <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200">
                 <div className="text-center md:text-left mb-8">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-blue-900 rounded-md text-[10px] font-bold mb-3 border border-slate-200 uppercase tracking-widest" aria-hidden="true">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-[#1e3a8a] rounded-md text-[10px] font-bold mb-3 border border-slate-200 uppercase tracking-widest" aria-hidden="true">
                     Otoritas: {roles.find(r => r.id === selectedRole)?.name}
                   </div>
-                  <h1 className={`text-2xl lg:text-3xl font-black text-blue-950 mb-2 ${teachersFont.className}`} tabIndex={0}>Masuk Sistem</h1>
+                  <h1 className={`text-2xl lg:text-3xl font-black text-[#0f172a] mb-2 ${teachersFont.className}`} tabIndex={0}>Masuk Sistem</h1>
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-5" noValidate>
@@ -297,23 +320,23 @@ export default function LoginPage() {
                     <label htmlFor="login-email" className="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider ml-1">Kredensial Email</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none" aria-hidden="true"><Mail className="h-5 w-5 text-slate-400" /></div>
-                      <input id="login-email" type="email" aria-required="true" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-4 focus:ring-blue-900/10 focus:border-blue-900 outline-none text-slate-700 text-sm transition-all" placeholder="admin@mahatma.ac.id" />
+                      <input id="login-email" type="email" aria-required="true" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-4 focus:ring-blue-900/10 focus:border-[#1e3a8a] outline-none text-slate-700 text-sm transition-all" placeholder="admin@mahatma.ac.id" />
                     </div>
                   </div>
                   <div>
                     <div className="flex justify-between items-center mb-2 px-1">
                       <label htmlFor="login-password" className="block text-xs font-bold text-slate-600 uppercase tracking-wider">Kata Sandi</label>
-                      <a href="#" className="text-xs font-bold text-blue-800 hover:text-blue-950 hover:underline">Lupa Sandi?</a>
+                      <button type="button" onClick={handleForgotPassword} className="text-xs font-bold text-blue-800 hover:text-blue-950 hover:underline focus:outline-none">Lupa Sandi?</button>
                     </div>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none" aria-hidden="true"><Lock className="h-5 w-5 text-slate-400" /></div>
-                      <input id="login-password" type={showPassword ? "text" : "password"} aria-required="true" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full pl-11 pr-11 py-3.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-4 focus:ring-blue-900/10 focus:border-blue-900 outline-none text-slate-700 text-sm transition-all" placeholder="••••••••" />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"} className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-blue-900 focus:outline-none">
+                      <input id="login-password" type={showPassword ? "text" : "password"} aria-required="true" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full pl-11 pr-11 py-3.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-4 focus:ring-blue-900/10 focus:border-[#1e3a8a] outline-none text-slate-700 text-sm transition-all" placeholder="••••••••" />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"} className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-[#1e3a8a] focus:outline-none">
                         {showPassword ? <EyeOff className="h-5 w-5" aria-hidden="true" /> : <Eye className="h-5 w-5" aria-hidden="true" />}
                       </button>
                     </div>
                   </div>
-                  <button type="submit" disabled={isLoading} aria-disabled={isLoading} aria-live="polite" className="w-full mt-4 py-3.5 rounded-xl font-bold text-sm text-white bg-blue-950 hover:bg-blue-900 shadow-lg hover:shadow-blue-900/20 transition-all flex justify-center items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-900 focus:ring-offset-2 active:scale-95">
+                  <button type="submit" disabled={isLoading} aria-disabled={isLoading} aria-live="polite" className="w-full mt-4 py-3.5 rounded-xl font-bold text-sm text-white bg-[#1e3a8a] hover:bg-blue-800 shadow-lg hover:shadow-blue-900/20 transition-all flex justify-center items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:ring-offset-2 active:scale-95">
                     {isLoading ? <><Loader2 size={18} className="animate-spin" aria-hidden="true" /> Memverifikasi...</> : "Masuk ke Dasbor"}
                   </button>
                 </form>
@@ -341,7 +364,7 @@ export default function LoginPage() {
                   <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-md text-[10px] font-bold mb-3 border border-amber-200 uppercase tracking-widest" aria-hidden="true">
                     Pengajuan Akses Baru
                   </div>
-                  <h1 className={`text-2xl font-black text-blue-950 mb-1 ${teachersFont.className}`} tabIndex={0}>
+                  <h1 className={`text-2xl font-black text-[#0f172a] mb-1 ${teachersFont.className}`} tabIndex={0}>
                     Registrasi {selectedRole === "lembaga" ? "Lembaga" : selectedRole === "guru" ? "Pendidik" : "Peserta Didik"}
                   </h1>
                 </div>
