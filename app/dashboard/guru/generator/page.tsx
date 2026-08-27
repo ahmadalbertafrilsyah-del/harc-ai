@@ -129,8 +129,11 @@ export default function GeneratorBahanAjar() {
     setDocId(""); 
     const startTime = Date.now();
     
+    // --- REVISI SYSTEM PROMPT UNTUK MEMPERBAIKI FORMAT TABEL ---
     let sistemPrompt = `Anda adalah Ahli Penyusun Kurikulum Pendidikan Nasional Indonesia. Buatlah dokumen menggunakan format Markdown (tabel, bold, list) yang sangat rapi dan terstruktur secara formal.\n`;
-    sistemPrompt += `ATURAN FORMAT JARAK: Setiap Sub-bab atau Judul Poin WAJIB diberi baris baru (ENTER dua kali) sebelum menuliskan isinya. DILARANG KERAS MENGGUNAKAN TAG HTML SEPERTI <br> ATAU <br/>.\n`;
+    sistemPrompt += `ATURAN FORMAT JARAK & TABEL MUTLAK:\n`;
+    sistemPrompt += `1. Setiap Sub-bab atau Judul Poin WAJIB diberi baris baru (ENTER dua kali) sebelum menuliskan isinya di area teks biasa.\n`;
+    sistemPrompt += `2. KHUSUS DI DALAM SEL TABEL (contohnya Tabel Kegiatan Pembelajaran): Anda DILARANG KERAS menggunakan tombol ENTER atau karakter \\n. Jika Anda ingin membuat daftar bernomor atau baris baru di dalam sel tabel, Anda WAJIB MENGGUNAKAN tag HTML <br/>. Contoh penulisan di dalam tabel yang benar: 1. Berdoa<br/>2. Apersepsi<br/>3. Motivasi.\n`;
     
     if (sumber.includes("BSKAP")) {
       sistemPrompt += `PENTING: Rujuk pada SK BSKAP No. 32 Tahun 2024 tentang Capaian Pembelajaran (CP) Kurikulum Merdeka.\n`;
@@ -153,6 +156,7 @@ export default function GeneratorBahanAjar() {
         topikKirim += `   - Alokasi Waktu: ${alokasiWaktu || "(Isi alokasi waktu yang sesuai)"}\n\n`;
         topikKirim += `Setelah tabel identitas di atas, lanjutkan poin Informasi Umum dengan sub-judul: Kompetensi Awal, P5/PPRA (${profilPelajar || 'Sesuaikan'}), Sarpras, Target Peserta Didik, dan Model Pembelajaran (${metode || 'Sesuaikan'}).\n`;
         topikKirim += `2. KOMPONEN INTI (Tujuan Pembelajaran, Pemahaman Bermakna, Pertanyaan Pemantik, Tabel Kegiatan Pembelajaran [Pendahuluan, Inti, Penutup], Asesmen, Pengayaan & Remedial)\n`;
+        topikKirim += `Peringatan: Pada Tabel Kegiatan Pembelajaran, ingat aturan mutlak untuk HANYA menggunakan <br/> sebagai pemisah baris di dalam sel tabel!\n`;
         topikKirim += `3. LAMPIRAN (Lembar Kerja Peserta Didik, Rubrik, Bahan Bacaan, Daftar Pustaka).\n`;
     } else if (tipe === "PROMES" || tipe === "PROTA") {
         const bulanGanjil = "Jul 1|Jul 2|Jul 3|Jul 4|Jul 5|Agu 1|Agu 2|Agu 3|Agu 4|Agu 5|Sep 1|Sep 2|Sep 3|Sep 4|Sep 5|Okt 1|Okt 2|Okt 3|Okt 4|Okt 5|Nov 1|Nov 2|Nov 3|Nov 4|Nov 5|Des 1|Des 2|Des 3|Des 4|Des 5";
@@ -362,7 +366,10 @@ export default function GeneratorBahanAjar() {
     }, 500);
   };
 
-  const sanitasiHasil = hasil.replace(/<br\s*\/?>/gi, '\n\n');
+  // --- REVISI PARSER UNTUK MEMBACA TAG <br/> DI DALAM MARKDOWN ---
+  // Kita hilangkan manipulasi .replace() yang mengubah <br> menjadi \n\n karena itu akan menghancurkan tabel.
+  // ReactMarkdown akan otomatis merender <br/> sebagai baris baru HTML.
+  const sanitasiHasil = hasil;
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="w-full max-w-full lg:max-w-6xl mx-auto space-y-6 pb-16 pt-4 px-4 md:px-0">
@@ -734,7 +741,7 @@ export default function GeneratorBahanAjar() {
                           }
                         }}
                       >
-                        {hasil.replace(/<br\s*\/?>/gi, '\n\n')}
+                        {sanitasiHasil}
                       </ReactMarkdown>
                     </div>
 
