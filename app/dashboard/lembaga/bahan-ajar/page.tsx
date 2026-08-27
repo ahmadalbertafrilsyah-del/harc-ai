@@ -9,6 +9,7 @@ import { collection, onSnapshot, query, where, doc, orderBy, updateDoc } from "f
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw"; // <-- Diperlukan agar tag <br/> dirender sebagai baris baru
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -73,7 +74,9 @@ export default function BahanAjarLembaga() {
   };
 
   const isLandscape = selectedDoc?.tipe === "PROMES" || selectedDoc?.tipe === "PROTA" || selectedDoc?.tipe === "Kisi-kisi Ujian" || selectedDoc?.tipe === "ATP";
-  const sanitasiHasil = selectedDoc?.konten?.replace(/<br\s*\/?>/gi, '\n\n') || "";
+  
+  // PERBAIKAN: Jangan ganti <br/> dengan \n\n agar struktur teks di dalam sel tabel tetap rapi ke bawah
+  const sanitasiHasil = selectedDoc?.konten || "";
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-7xl mx-auto space-y-6 pb-16 px-4 md:px-6">
@@ -133,7 +136,7 @@ export default function BahanAjarLembaga() {
                 <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
                   <div className={`bg-white shadow-lg border border-slate-300 rounded p-8 md:p-12 mx-auto min-h-full ${isLandscape ? 'w-full max-w-none' : 'max-w-4xl'}`}>
                     <div className="markdown-body">
-                      {/* INJECT CSS STYLE YANG SAMA DENGAN GENERATOR GURU */}
+                      {/* CSS STYLE */}
                       <style>{`
                         .markdown-body { font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.6; color: #000; text-align: justify; }
                         @media (max-width: 768px) { .markdown-body table { table-layout: auto !important; min-width: 600px; } .table-wrapper { overflow-x: auto; width: 100%; margin-bottom: 1.5rem; } }
@@ -146,8 +149,10 @@ export default function BahanAjarLembaga() {
                         .markdown-body ul, .markdown-body ol { padding-left: 20px; margin-bottom: 1rem; }
                       `}</style>
                       
+                      {/* PERBAIKAN: Menambahkan rehypePlugins={[rehypeRaw]} agar <br/> dibaca */}
                       <ReactMarkdown 
                         remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeRaw]}
                         components={{
                           table: ({node, ...props}) => (
                             <div className={isLandscape ? "w-full overflow-x-auto" : "table-wrapper"}>

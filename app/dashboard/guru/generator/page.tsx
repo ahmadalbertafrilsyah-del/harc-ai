@@ -13,6 +13,7 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw"; // Import Plugin Baru untuk Parsing HTML (<br/>)
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -129,11 +130,12 @@ export default function GeneratorBahanAjar() {
     setDocId(""); 
     const startTime = Date.now();
     
-    // --- REVISI SYSTEM PROMPT UNTUK MEMPERBAIKI FORMAT TABEL ---
+    // --- REVISI SYSTEM PROMPT UNTUK MEMPERBAIKI FORMAT TABEL (MEMAKSA PENGGUNAAN <br>) ---
     let sistemPrompt = `Anda adalah Ahli Penyusun Kurikulum Pendidikan Nasional Indonesia. Buatlah dokumen menggunakan format Markdown (tabel, bold, list) yang sangat rapi dan terstruktur secara formal.\n`;
     sistemPrompt += `ATURAN FORMAT JARAK & TABEL MUTLAK:\n`;
     sistemPrompt += `1. Setiap Sub-bab atau Judul Poin WAJIB diberi baris baru (ENTER dua kali) sebelum menuliskan isinya di area teks biasa.\n`;
-    sistemPrompt += `2. KHUSUS DI DALAM SEL TABEL (contohnya Tabel Kegiatan Pembelajaran): Anda DILARANG KERAS menggunakan tombol ENTER atau karakter \\n. Jika Anda ingin membuat daftar bernomor atau baris baru di dalam sel tabel, Anda WAJIB MENGGUNAKAN tag HTML <br/>. Contoh penulisan di dalam tabel yang benar: 1. Berdoa<br/>2. Apersepsi<br/>3. Motivasi.\n`;
+    sistemPrompt += `2. KHUSUS DI DALAM SEL TABEL (contohnya Tabel Kegiatan Pembelajaran): Anda DILARANG KERAS menggunakan tombol ENTER atau karakter \\n untuk membuat baris baru. Jika Anda ingin membuat daftar bernomor, pemisahan langkah, atau baris baru di dalam SATU SEL TABEL, Anda WAJIB MENGGUNAKAN tag HTML <br/>.\n`;
+    sistemPrompt += `Contoh penulisan di dalam tabel yang benar: 1. Berdoa<br/>2. Apersepsi<br/>3. Motivasi.\n`;
     
     if (sumber.includes("BSKAP")) {
       sistemPrompt += `PENTING: Rujuk pada SK BSKAP No. 32 Tahun 2024 tentang Capaian Pembelajaran (CP) Kurikulum Merdeka.\n`;
@@ -156,7 +158,7 @@ export default function GeneratorBahanAjar() {
         topikKirim += `   - Alokasi Waktu: ${alokasiWaktu || "(Isi alokasi waktu yang sesuai)"}\n\n`;
         topikKirim += `Setelah tabel identitas di atas, lanjutkan poin Informasi Umum dengan sub-judul: Kompetensi Awal, P5/PPRA (${profilPelajar || 'Sesuaikan'}), Sarpras, Target Peserta Didik, dan Model Pembelajaran (${metode || 'Sesuaikan'}).\n`;
         topikKirim += `2. KOMPONEN INTI (Tujuan Pembelajaran, Pemahaman Bermakna, Pertanyaan Pemantik, Tabel Kegiatan Pembelajaran [Pendahuluan, Inti, Penutup], Asesmen, Pengayaan & Remedial)\n`;
-        topikKirim += `Peringatan: Pada Tabel Kegiatan Pembelajaran, ingat aturan mutlak untuk HANYA menggunakan <br/> sebagai pemisah baris di dalam sel tabel!\n`;
+        topikKirim += `Peringatan Sekali Lagi: Pada Tabel Kegiatan Pembelajaran, ingat aturan mutlak untuk HANYA menggunakan <br/> sebagai pemisah baris/list nomor di dalam sel tabel!\n`;
         topikKirim += `3. LAMPIRAN (Lembar Kerja Peserta Didik, Rubrik, Bahan Bacaan, Daftar Pustaka).\n`;
     } else if (tipe === "PROMES" || tipe === "PROTA") {
         const bulanGanjil = "Jul 1|Jul 2|Jul 3|Jul 4|Jul 5|Agu 1|Agu 2|Agu 3|Agu 4|Agu 5|Sep 1|Sep 2|Sep 3|Sep 4|Sep 5|Okt 1|Okt 2|Okt 3|Okt 4|Okt 5|Nov 1|Nov 2|Nov 3|Nov 4|Nov 5|Des 1|Des 2|Des 3|Des 4|Des 5";
@@ -366,9 +368,9 @@ export default function GeneratorBahanAjar() {
     }, 500);
   };
 
-  // --- REVISI PARSER UNTUK MEMBACA TAG <br/> DI DALAM MARKDOWN ---
-  // Kita hilangkan manipulasi .replace() yang mengubah <br> menjadi \n\n karena itu akan menghancurkan tabel.
-  // ReactMarkdown akan otomatis merender <br/> sebagai baris baru HTML.
+  // --- REVISI SANITASI ---
+  // Tidak perlu lagi memanipulasi string <br/> dengan Regex karena plugin rehypeRaw
+  // akan otomatis merender <br/> sebagai tag HTML valid di dalam Markdown.
   const sanitasiHasil = hasil;
 
   return (
@@ -714,6 +716,7 @@ export default function GeneratorBahanAjar() {
                       {/* INTEGRASI REACT MARKDOWN DENGAN KONTROL LEBAR TABEL */}
                       <ReactMarkdown 
                         remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeRaw]}
                         components={{
                           table: ({node, ...props}) => (
                             <div className={isLandscape ? "w-full overflow-x-auto" : "table-wrapper"}>
