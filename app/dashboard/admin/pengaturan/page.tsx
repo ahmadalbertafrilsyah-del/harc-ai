@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Settings, Save, ShieldCheck, Bell, Database, Loader2, KeyRound, Globe, Phone, Mail } from "lucide-react";
+import { Settings, Save, ShieldCheck, Bell, Database, Loader2, KeyRound, Globe, Phone, Mail, ChevronDown } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect } from "react";
 
@@ -15,7 +15,7 @@ export default function PengaturanGlobalAdmin() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // State Pengaturan Global (Termasuk Kontak Admin)
+  // State Pengaturan Global (Termasuk Kontak Admin & Metode Verifikasi)
   const [pengaturan, setPengaturan] = useState({
     maintenanceMode: false,
     bukaPendaftaran: true,
@@ -23,14 +23,21 @@ export default function PengaturanGlobalAdmin() {
     notifLimitToken: true,
     strictModeAI: true,
     adminWhatsApp: "6281234567890",
-    adminEmail: "admin@syntax.web.id"
+    adminEmail: "admin@syntax.web.id",
+    metodeVerifikasi: "manual" // State Baru: 'manual' atau 'otp_email'
   });
 
   useEffect(() => {
     const docRef = doc(db, "sistem_stats", "pengaturan_global");
     const unsub = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
-        setPengaturan((prev) => ({ ...prev, ...docSnap.data() }));
+        const data = docSnap.data();
+        setPengaturan((prev) => ({ 
+          ...prev, 
+          ...data,
+          // Fallback jika field metodeVerifikasi belum ada di database sebelumnya
+          metodeVerifikasi: data.metodeVerifikasi || "manual" 
+        }));
       }
       setIsLoading(false);
     });
@@ -45,7 +52,7 @@ export default function PengaturanGlobalAdmin() {
     }));
   };
 
-  const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTextChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setPengaturan((prev) => ({
       ...prev,
       [e.target.name]: e.target.value
@@ -117,7 +124,7 @@ export default function PengaturanGlobalAdmin() {
                   placeholder="Gunakan awalan 62 (contoh: 628123...)"
                 />
               </div>
-              <p className="text-[10px] md:text-xs text-slate-500 mt-1.5 leading-relaxed">Nomor ini akan menerima pesan otomatis dari guru yang mendaftar. Wajib gunakan format internasional (62).</p>
+              <p className="text-[10px] md:text-xs text-slate-500 mt-1.5 leading-relaxed">Nomor ini akan menerima pesan otomatis dari pendaftar. Wajib gunakan format internasional (62).</p>
             </div>
             
             <div>
@@ -140,24 +147,56 @@ export default function PengaturanGlobalAdmin() {
         {/* PANEL 2: Akses & Keamanan */}
         <div className="bg-white p-5 md:p-8 rounded-xl shadow-sm border border-slate-200/80">
           <h2 className={`text-base md:text-lg font-bold text-slate-800 mb-5 flex items-center gap-2 border-b border-slate-100 pb-4 ${teachersFont.className}`}>
-            <Globe size={20} className="text-indigo-600 shrink-0" /> Kendali Akses & Platform
+            <Globe size={20} className="text-indigo-600 shrink-0" /> Kendali Akses & Pendaftaran
           </h2>
           <div className="space-y-5 md:space-y-6">
+            
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="font-bold text-slate-700 text-sm">Mode Pemeliharaan</p>
-                <p className="text-[10px] md:text-xs text-slate-500 mt-1 leading-relaxed">Kunci sistem sementara. Guru & Siswa tidak akan bisa masuk ke dasbor.</p>
+                <p className="text-[10px] md:text-xs text-slate-500 mt-1 leading-relaxed">Kunci sistem sementara. Pengguna non-admin tidak akan bisa masuk ke dasbor.</p>
               </div>
               <div className="mt-1"><ToggleSwitch active={pengaturan.maintenanceMode} onToggle={() => handleToggle('maintenanceMode')} /></div>
             </div>
             
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-bold text-slate-700 text-sm">Buka Pengajuan Akun</p>
-                <p className="text-[10px] md:text-xs text-slate-500 mt-1 leading-relaxed">Jika dimatikan, tombol pendaftaran di halaman login akan langsung hilang.</p>
+                <p className="font-bold text-slate-700 text-sm">Buka Pengajuan Akun Baru</p>
+                <p className="text-[10px] md:text-xs text-slate-500 mt-1 leading-relaxed">Jika dimatikan, tombol pendaftaran di halaman login akan disembunyikan otomatis.</p>
               </div>
               <div className="mt-1"><ToggleSwitch active={pengaturan.bukaPendaftaran} onToggle={() => handleToggle('bukaPendaftaran')} /></div>
             </div>
+
+            {/* SEKSI BARU: Pemilihan Mode Verifikasi Pendaftaran */}
+            {pengaturan.bukaPendaftaran && (
+              <div className="pt-5 mt-5 border-t border-slate-100">
+                <label className="block font-bold text-slate-700 text-sm mb-1">Metode Verifikasi Akun Baru</label>
+                <p className="text-[10px] md:text-xs text-slate-500 mb-3 leading-relaxed">Pilih alur persetujuan saat ada pengguna yang mendaftar.</p>
+                
+                <div className="relative">
+                  <select 
+                    name="metodeVerifikasi" 
+                    value={pengaturan.metodeVerifikasi} 
+                    onChange={handleTextChange}
+                    className="w-full pl-4 pr-10 py-3 bg-indigo-50/50 border border-indigo-200 text-indigo-900 font-medium rounded-xl outline-none text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none cursor-pointer"
+                  >
+                    <option value="manual">Manual (ACC Admin via Dashboard)</option>
+                    <option value="otp_email">Otomatis (Kode OTP 6 Angka via Email)</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <ChevronDown size={18} className="text-indigo-500" />
+                  </div>
+                </div>
+
+                {pengaturan.metodeVerifikasi === 'otp_email' && (
+                  <div className="mt-3 p-3 bg-emerald-50 border border-emerald-100 rounded-lg flex items-start gap-2">
+                    <KeyRound size={16} className="text-emerald-600 mt-0.5 shrink-0" />
+                    <p className="text-[10px] md:text-xs text-emerald-800 leading-relaxed">Sistem akan secara otomatis mengirimkan kode PIN 6 angka ke email pendaftar. Akun akan langsung aktif setelah OTP valid.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
           </div>
         </div>
 
@@ -169,8 +208,8 @@ export default function PengaturanGlobalAdmin() {
           <div className="space-y-5 md:space-y-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-bold text-slate-700 text-sm">Laporan Pendaftaran Pendidik</p>
-                <p className="text-[10px] md:text-xs text-slate-500 mt-1 leading-relaxed">Kirim alert ke Email Admin ketika ada guru baru yang mengajukan akun.</p>
+                <p className="font-bold text-slate-700 text-sm">Laporan Pengajuan Akun</p>
+                <p className="text-[10px] md:text-xs text-slate-500 mt-1 leading-relaxed">Kirim alert ke Email Admin ketika ada pendaftar baru yang menunggu persetujuan (Berlaku untuk mode Manual).</p>
               </div>
               <div className="mt-1"><ToggleSwitch active={pengaturan.notifPengajuanBaru} onToggle={() => handleToggle('notifPengajuanBaru')} /></div>
             </div>
@@ -178,7 +217,7 @@ export default function PengaturanGlobalAdmin() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="font-bold text-slate-700 text-sm">Peringatan Kuota Token</p>
-                <p className="text-[10px] md:text-xs text-slate-500 mt-1 leading-relaxed">Beri notifikasi mendesak jika penggunaan token melampaui 85% batas bulanan.</p>
+                <p className="text-[10px] md:text-xs text-slate-500 mt-1 leading-relaxed">Beri notifikasi mendesak jika penggunaan token LLM melampaui 85% dari batas aman bulanan.</p>
               </div>
               <div className="mt-1"><ToggleSwitch active={pengaturan.notifLimitToken} onToggle={() => handleToggle('notifLimitToken')} /></div>
             </div>

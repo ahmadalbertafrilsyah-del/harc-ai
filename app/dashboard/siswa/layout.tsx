@@ -11,7 +11,7 @@ import {
   ChevronRight, GraduationCap, Sparkles, Menu, X
 } from "lucide-react";
 import { db } from "@/lib/firebase"; 
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { getAuth, onAuthStateChanged, signOut } from "firebase/auth"; // Tambahkan signOut di sini
 import { doc, onSnapshot } from "firebase/firestore";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap" });
@@ -19,9 +19,9 @@ const latoFont = Lato({ subsets: ["latin"], weight: ["400", "700", "900"], displ
 
 export default function SiswaLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [isMounted, setIsMounted] = useState(false); // Pelindung Hydration Error
+  const [isMounted, setIsMounted] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // State Menu Mobile
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   
   const [showNotif, setShowNotif] = useState(false);
@@ -34,7 +34,6 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
     fotoUrl: ""
   });
 
-  // MENU LENGKAP (Tampil di Sidebar Desktop)
   const menuItems = [
     { name: "Beranda", icon: LayoutDashboard, path: "/dashboard/siswa/beranda" },
     { name: "Ruang Kelas", icon: BookOpen, path: "/dashboard/siswa/ruang-kelas" },
@@ -44,7 +43,6 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
     { name: "Pengaturan", icon: Settings, path: "/dashboard/siswa/pengaturan" },
   ];
 
-  // MENU BAWAH MOBILE (Bottom Navigation)
   const bottomNavItems = [
     { name: "Beranda", icon: LayoutDashboard, path: "/dashboard/siswa/beranda" },
     { name: "Kelas", icon: BookOpen, path: "/dashboard/siswa/ruang-kelas" },
@@ -52,7 +50,6 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
     { name: "Raport", icon: BarChart, path: "/dashboard/siswa/raport" },
   ];
 
-  // MENU SISA MOBILE (Tampil di dalam laci "Menu")
   const moreMenuItems = [
     { name: "Jurnal", icon: PenTool, path: "/dashboard/siswa/jurnal-refleksi" },
     { name: "Pengaturan", icon: Settings, path: "/dashboard/siswa/pengaturan" },
@@ -88,6 +85,22 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
     return () => { clearInterval(timer); unsubscribeAuth(); };
   }, []);
 
+  // FUNGSI LOGOUT YANG BENAR
+  const handleLogout = async () => {
+    try {
+      const auth = getAuth();
+      await signOut(auth); // 1. Matikan sesi Firebase
+      
+      // 2. Hapus cookie role yang diandalkan middleware
+      document.cookie = "userRole=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      
+      // 3. Paksa reload menggunakan window.location agar cache memory Next.js terhapus (Mencegah tombol back)
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("Gagal logout:", error);
+    }
+  };
+
   const getInitials = (name: string) => {
     if (name === "Memuat...") return "...";
     const words = name.trim().split(" ");
@@ -116,7 +129,7 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
           <Link href="/dashboard/siswa/beranda" className="flex items-center gap-2.5 overflow-hidden w-full justify-center">
             <GraduationCap className="w-6 h-6 text-emerald-400 shrink-0" />
             {!isSidebarCollapsed && (
-              <span className={`text-lg font-bold text-white tracking-wide truncate ${teachersFont.className}`}>Ruang Siswa</span>
+              <span className={`text-lg font-bold text-white tracking-wide truncate ${teachersFont.className}`}>HARC-AI</span>
             )}
           </Link>
         </div>
@@ -143,12 +156,11 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
         </nav>
 
         <div className="p-4 border-t border-emerald-800 bg-[#022c22]">
-          <Link href="/login" title={isSidebarCollapsed ? "Keluar Sistem" : ""}>
-            <button className={`flex items-center text-emerald-200 hover:bg-rose-500/10 hover:text-rose-400 w-full rounded-lg transition-all text-sm font-medium ${isSidebarCollapsed ? "justify-center p-2.5" : "gap-3 px-4 py-2.5"}`}>
-              <LogOut size={20} className="shrink-0" />
-              {!isSidebarCollapsed && <span className="truncate">Keluar Akun</span>}
-            </button>
-          </Link>
+          {/* UBAH LINK MENJADI BUTTON HANDLE LOGOUT */}
+          <button onClick={handleLogout} title={isSidebarCollapsed ? "Keluar Sistem" : ""} className={`flex items-center text-emerald-200 hover:bg-rose-500/10 hover:text-rose-400 w-full rounded-lg transition-all text-sm font-medium ${isSidebarCollapsed ? "justify-center p-2.5" : "gap-3 px-4 py-2.5"}`}>
+            <LogOut size={20} className="shrink-0" />
+            {!isSidebarCollapsed && <span className="truncate">Keluar Akun</span>}
+          </button>
         </div>
       </aside>
 
@@ -171,7 +183,7 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
                 <div className="w-8 h-8 bg-emerald-600 rounded-xl flex items-center justify-center">
                   <GraduationCap size={18} className="text-white" />
                 </div>
-                <span className="text-xl font-bold text-[#1e293b] tracking-wide ml-1 font-sans">Ruang Siswa</span>
+                <span className="text-xl font-bold text-[#1e293b] tracking-wide ml-1 font-sans">HARC-AI</span>
               </div>
               
               <div className="flex items-center gap-3">
@@ -193,7 +205,6 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
 
           {/* Area Kanan Khusus Desktop */}
           <div className="hidden md:flex items-center justify-end gap-5">
-            {/* Jam & Tanggal Desain Baru */}
             <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
               <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
                 <Clock size={18} strokeWidth={2.5} />
@@ -326,12 +337,13 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
               </div>
 
               <div className="mt-8 pt-6 border-t border-slate-200">
-                <Link href="/login">
+                {/* UBAH LINK MENJADI BUTTON HANDLE LOGOUT */}
+                <button onClick={handleLogout} className="w-full">
                   <div className="flex items-center justify-center gap-3 p-4 bg-rose-50 border border-rose-100 text-rose-600 shadow-sm rounded-2xl active:scale-95 transition-transform">
                     <LogOut size={22} />
                     <span className="font-bold text-sm">Keluar Akun</span>
                   </div>
-                </Link>
+                </button>
               </div>
             </div>
           </motion.div>

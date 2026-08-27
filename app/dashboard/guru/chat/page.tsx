@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Loader2, Sparkles, ChevronUp, Paperclip, CheckCircle2, User, Plus, MessageSquare, Menu, X, Coins } from "lucide-react";
+import { Send, Loader2, Sparkles, ChevronUp, Paperclip, CheckCircle2, User, Plus, MessageSquare, Menu, X } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
@@ -126,7 +126,7 @@ export default function ChatbotGuruGeminiStyle() {
     return () => unsubscribeAuth();
   }, []);
 
-  // MANAJEMEN ROOM CHAT (Privasi Ketat & Hapus Kedaluwarsa)
+  // MANAJEMEN ROOM CHAT
   useEffect(() => {
     if (!userUid) return;
     
@@ -302,22 +302,17 @@ export default function ChatbotGuruGeminiStyle() {
       {/* AREA CHAT UTAMA (FLEX COLUMN FULL) */}
       <div className="flex-1 flex flex-col min-w-0 w-full h-full relative bg-white md:bg-transparent">
         
-        {/* HEADER AREA CHAT */}
-        <div className="flex items-center justify-between p-3 md:p-4 border-b border-slate-100 md:border-slate-200/60 bg-white/95 backdrop-blur-sm shrink-0 z-20">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 md:p-2.5 bg-slate-50 md:bg-white hover:bg-slate-100 border border-transparent md:border-slate-200/80 rounded-xl text-slate-600 transition-colors shadow-sm focus:outline-none">
-              <Menu size={20} />
-            </button>
-            <span className={`font-bold text-slate-800 text-[15px] hidden md:block ${teachersFont.className}`}>Asisten Akademik AI</span>
-          </div>
-          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 md:px-4 md:py-2 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold shadow-sm">
-            <Coins size={14} className="text-amber-500" />
-            <span className="hidden md:inline">Sisa Token: </span>{aiTokens.toLocaleString('id-ID')}
-          </div>
-        </div>
+        {/* TOMBOL TOGGLE SIDEBAR MELAYANG */}
+        <button 
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+          className="absolute top-4 left-4 z-30 p-2 bg-white/80 backdrop-blur-md border border-slate-200/60 shadow-sm rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-all focus:outline-none active:scale-95"
+          aria-label="Buka Menu Chat"
+        >
+          <Menu size={18} />
+        </button>
 
         {/* AREA PESAN (SCROLLABLE) */}
-        <div className="flex-1 overflow-y-auto px-2 md:px-8 py-6 bg-white md:bg-transparent [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex-1 overflow-y-auto px-2 md:px-8 pt-16 pb-6 bg-white md:bg-transparent [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="max-w-4xl mx-auto">
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center text-center mt-10 md:mt-24 animate-in fade-in duration-700 px-4">
