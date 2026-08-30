@@ -99,7 +99,7 @@ export default function BerandaSiswa() {
           <p className="text-sm text-slate-500 mb-4">Masuk ke kelas baru menggunakan kode dari guru atau lihat materi pelajaran.</p>
           <span className="text-xs font-bold text-emerald-600 flex items-center gap-1 group-hover:gap-2 transition-all">Lihat Kelas <ArrowRight size={14}/></span>
         </Link>
-        <Link href="/dashboard/siswa/asesmen-dinamis" className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all group">
+        <Link href="/dashboard/siswa/ruang-kelas" className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all group">
           <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2 mb-2"><Activity size={20} className="text-blue-600"/> Asesmen & Ujian</h3>
           <p className="text-sm text-slate-500 mb-4">Kerjakan tugas, ulangan, dan ujian CBT yang didukung oleh kecerdasan buatan.</p>
           <span className="text-xs font-bold text-blue-600 flex items-center gap-1 group-hover:gap-2 transition-all">Mulai Ujian <ArrowRight size={14}/></span>
