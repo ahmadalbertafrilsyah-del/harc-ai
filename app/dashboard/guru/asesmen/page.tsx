@@ -17,6 +17,7 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -51,7 +52,6 @@ export default function ModulAsesmenGuru() {
   const [jmlIsianSingkat, setJmlIsianSingkat] = useState("0"); 
   const [jmlUraian, setJmlUraian] = useState("5"); 
 
-  // State Riwayat & Export
   const [showKoleksi, setShowKoleksi] = useState(false);
   const [riwayatAsesmen, setRiwayatAsesmen] = useState<any[]>([]);
   const [isExportingGoogle, setIsExportingGoogle] = useState(false);
@@ -71,7 +71,6 @@ export default function ModulAsesmenGuru() {
           }
         });
 
-        // Fetch Riwayat Asesmen
         const qRiwayat = query(collection(db, "modul_ajar"), where("userId", "==", user.uid), orderBy("createdAt", "desc"));
         onSnapshot(qRiwayat, (snapshot) => {
           const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
@@ -104,37 +103,33 @@ export default function ModulAsesmenGuru() {
     setHasil("");
     setDocId("");
     
-    // MENYUSUN PROMPT KOMPLEKS UNTUK CBT & KISI-KISI
     let instruksiDimensi = formData.dimensiXAI.map(d => {
-      if (d === "Linguistik") return "- Linguistik: Ketepatan makna, kosakata, dan struktur kalimat.";
-      if (d === "Sosiolinguistik") return "- Sosiolinguistik: Kesesuaian tingkat tutur (Ngoko/Krama), sapaan, dan konteks sosial.";
-      if (d === "Budaya") return "- Budaya: Interpretasi budaya lokal, sejarah, atau makna filosofis peribahasa setempat.";
+      if (d === "Linguistik") return "- Linguistik: Ketepatan tata bahasa dan makna.";
+      if (d === "Sosiolinguistik") return "- Sosiolinguistik: Tingkat tutur dan sapaan sosial.";
+      if (d === "Budaya") return "- Budaya: Tradisi atau peribahasa lokal.";
       return "";
     }).join("\n");
 
-    let systemPrompt = `Anda adalah Evaluator Akademik Ahli di Indonesia. 
-    Buatlah INSTRUMEN ASESMEN resmi menggunakan format Markdown akademis baku dan tabel bergaris yang sangat formal.\n\n`;
+    // ==========================================
+    // REVISI SYSTEM PROMPT (100% AKURAT CBT PARSER)
+    // ==========================================
+    let systemPrompt = `Anda adalah Evaluator Akademik Ahli di Indonesia.\n`;
+    systemPrompt += `BUATLAH INSTRUMEN ASESMEN DENGAN ATURAN FORMAT MUTLAK BERIKUT AGAR BISA DIBACA OLEH SISTEM APLIKASI (PARSER):\n\n`;
     
-    systemPrompt += `IDENTITAS UJIAN:\n- Jenis Ujian: ${formData.jenisUjian}\n- Mata Pelajaran: ${formData.mapel}\n- Fase/Kelas: ${formData.fase}/${formData.kelas}\n- Materi/Topik: ${formData.kompetensiDasar}\n- Tingkat Kesukaran: ${formData.tingkatKesulitan}\n\n`;
+    systemPrompt += `1. Setiap soal WAJIB dibungkus secara independen dengan tag [SOAL_START] di awal dan [SOAL_END] di akhir.\n`;
+    systemPrompt += `2. Tepat di bawah [SOAL_START], WAJIB sertakan [TIPE:jenis]. Gunakan hanya: PG, BS, JODOHKAN, ISIAN, URAIAN.\n`;
+    systemPrompt += `3. WAJIB sertakan kunci jawaban dengan tag [KUNCI:jawaban] tepat sebelum [SOAL_END].\n`;
+    systemPrompt += `4. Jangan gunakan Markdown Table untuk menulis daftar soal! Tulis secara list biasa, KECUALI untuk soal tipe JODOHKAN wajib pakai tabel Markdown.\n\n`;
     
-    systemPrompt += `KOMPOSISI SOAL:\n`;
-    if (Number(jmlPG) > 0) systemPrompt += `- Pilihan Ganda (Opsi ${opsiPG}): ${jmlPG} butir.\n`;
-    if (Number(jmlBenarSalah) > 0) systemPrompt += `- Benar/Salah: ${jmlBenarSalah} butir.\n`;
-    if (Number(jmlMenjodohkan) > 0) systemPrompt += `- Menjodohkan: ${jmlMenjodohkan} butir.\n`;
-    if (Number(jmlIsianSingkat) > 0) systemPrompt += `- Isian Singkat: ${jmlIsianSingkat} butir.\n`;
-    if (Number(jmlUraian) > 0) systemPrompt += `- Uraian/Essay: ${jmlUraian} butir.\n\n`;
+    systemPrompt += `CONTOH SOAL PILIHAN GANDA (Wajib pakai bullet '-' untuk tiap opsi agar vertikal):\n[SOAL_START]\n[TIPE:PG]\n1. Apa ibu kota Indonesia?\n- A. Jakarta\n- B. Bali\n- C. Papua\n- D. Maluku\n[KUNCI:A]\n[SOAL_END]\n\n`;
+    systemPrompt += `CONTOH SOAL BENAR/SALAH:\n[SOAL_START]\n[TIPE:BS]\n2. Matahari terbit dari barat.\n[KUNCI:Salah]\n[SOAL_END]\n\n`;
+    systemPrompt += `CONTOH SOAL MENJODOHKAN (Wajib pakai Tabel Markdown):\n[SOAL_START]\n[TIPE:JODOHKAN]\n3. Pasangkanlah pernyataan berikut dengan tepat!\n| Pernyataan (Kiri) | Pasangan (Kanan) |\n|---|---|\n| Sapi | Mamalia |\n| Ayam | Unggas |\n[KUNCI:Sapi=Mamalia | Ayam=Unggas]\n[SOAL_END]\n\n`;
+    systemPrompt += `CONTOH SOAL ISIAN SINGKAT / URAIAN:\n[SOAL_START]\n[TIPE:URAIAN]\n4. Jelaskan makna proklamasi!\n[KUNCI:Kemerdekaan bangsa dari penjajahan]\n[SOAL_END]\n\n`;
 
-    systemPrompt += `ATURAN DIMENSI [x-AI] (Soal wajib menyebar merata pada aspek berikut):\n${instruksiDimensi}\n\n`;
-
-    systemPrompt += `ATURAN FORMAT OUTPUT WAJIB (Ikuti Urutan Hirarki Ini Secara Eksak):\n`;
-    systemPrompt += `--- \n`;
-    systemPrompt += `A. BUTIR SOAL\n`;
-    systemPrompt += `(Tuliskan seluruh butir soal. PENTING: Untuk soal Pilihan Ganda, WAJIB pisahkan opsi jawaban A, B, C, D, E ke baris baru secara menurun ke bawah menggunakan list bullet/numbering, JANGAN DIGABUNGKAN dalam satu baris paragraf).\n\n`;
-    systemPrompt += `B. KUNCI JAWABAN DAN PEDOMAN PENSKORAN\n`;
-    systemPrompt += `(Sajikan tabel Kunci Jawaban. WAJIB tambahkan keterangan ringkas di bawah tabel: "Keterangan: Gunakan rubrik penskoran ini sebagai acuan deteksi AI Vision saat koreksi LJK").\n\n`;
-    systemPrompt += `C. KISI-KISI PENULISAN SOAL\n`;
-    systemPrompt += `(Letakkan kisi-kisi di bagian paling bawah dokumen ini dalam bentuk TABEL formal dengan kolom: No | Capaian Pembelajaran | Materi | Indikator Soal | Level Kognitif | Bentuk Soal)\n`;
-    systemPrompt += `---`;
+    systemPrompt += `Tuliskan instrumen untuk:\nMata Pelajaran: ${formData.mapel}\nFase/Kelas: ${formData.fase}/${formData.kelas}\nMateri: ${formData.kompetensiDasar}\n\n`;
+    systemPrompt += `KOMPOSISI YANG HARUS DIBUAT (PENTING!): ${jmlPG} PG (${opsiPG}), ${jmlBenarSalah} Benar/Salah, ${jmlMenjodohkan} Menjodohkan, ${jmlIsianSingkat} Isian, ${jmlUraian} Uraian.\n`;
+    systemPrompt += `DIMENSI TERINTEGRASI:\n${instruksiDimensi}\n\n`;
+    systemPrompt += `Di bagian paling bawah dokumen (setelah semua soal selesai), Anda boleh membuat TABEL KISI-KISI PENULISAN SOAL.`;
 
     try {
       const auth = getAuth();
@@ -147,7 +142,7 @@ export default function ModulAsesmenGuru() {
           model: "gemini-2.5-pro",
           messages: [
             { role: "system", content: systemPrompt },
-            { role: "user", content: "Buatkan dokumen Asesmen (Soal, Kunci Jawaban, dan Kisi-kisi di bawah) secara lengkap sekarang." }
+            { role: "user", content: "Buatkan dokumen Asesmen sesuai format tag rahasia secara ketat sekarang." }
           ]
         })
       });
@@ -192,7 +187,7 @@ export default function ModulAsesmenGuru() {
           createdAt: serverTimestamp()
         });
         setDocId(docRef.id);
-        alert("Berhasil disimpan! Dokumen kini berada dalam antrean Validasi Lembaga dan siap diimpor di menu Kelas.");
+        alert("Berhasil disimpan! Dokumen kini berada dalam antrean Validasi Lembaga dan siap ditarik (import) di menu Kelas.");
       }
     } catch (error) {
       alert("Gagal menyimpan dokumen.");
@@ -201,17 +196,9 @@ export default function ModulAsesmenGuru() {
     }
   };
 
-  // --- FITUR RIWAYAT ---
   const handleOpenRiwayat = (riwayat: any) => {
-    setFormData(prev => ({
-      ...prev,
-      mapel: riwayat.mapel || prev.mapel,
-      kelas: riwayat.kelas || prev.kelas,
-      kompetensiDasar: riwayat.topik || prev.kompetensiDasar,
-    }));
-    setHasil(riwayat.konten); 
-    setDocId(riwayat.id);
-    setShowKoleksi(false);
+    setFormData(prev => ({ ...prev, mapel: riwayat.mapel || prev.mapel, kelas: riwayat.kelas || prev.kelas, kompetensiDasar: riwayat.topik || prev.kompetensiDasar }));
+    setHasil(riwayat.konten); setDocId(riwayat.id); setShowKoleksi(false);
     setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100);
   };
 
@@ -223,23 +210,19 @@ export default function ModulAsesmenGuru() {
     }
   };
 
-  // --- FITUR EXPORT ---
   const handleExportToGoogle = async (type: "Docs" | "Sheets") => {
     if (!pdfRef.current) return;
     setIsExportingGoogle(true);
     setGoogleExportType(type);
-    
     try {
       const htmlContent = pdfRef.current.innerHTML;
       const formattedHtml = `<div style="font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5;">${htmlContent}</div>`;
-      
       const blobHtml = new Blob([formattedHtml], { type: "text/html" });
       const clipboardItem = new window.ClipboardItem({ "text/html": blobHtml });
       await navigator.clipboard.write([clipboardItem]);
-
       setTimeout(() => {
           setIsExportingGoogle(false); setGoogleExportType(null);
-          alert(`✅ BERHASIL!\n\nFormat dokumen telah tersalin ke memori perangkat (Clipboard).\n\nSilakan tekan CTRL + V pada lembar kosong Google ${type} yang akan terbuka.`);
+          alert(`✅ BERHASIL!\n\nFormat dokumen telah tersalin ke memori perangkat.\nSilakan tekan CTRL + V pada lembar kosong Google ${type}.`);
           window.open(type === "Docs" ? "https://docs.new" : "https://sheets.new", '_blank');
       }, 2000);
     } catch (error) {
@@ -251,21 +234,9 @@ export default function ModulAsesmenGuru() {
   const handleDownloadWord = () => {
     if (!pdfRef.current) return;
     const printNode = pdfRef.current.cloneNode(true) as HTMLElement;
-    
-    const tables = printNode.querySelectorAll('table');
-    tables.forEach(table => {
-      const ths = table.querySelectorAll('th');
-      ths.forEach((th) => {
-        const text = th.innerText.trim().toLowerCase();
-        if (text === 'no' || text === 'no.') { th.style.width = '5%'; } 
-        else if (text.includes('capaian') || text.includes('materi') || text.includes('indikator')) { th.style.width = '20%'; } 
-      });
-    });
-
     let printHtml = printNode.innerHTML.replace(/class="markdown-body"/g, '');
     const cssOrientation = `@page WordSection1 { size: 595.3pt 841.9pt; margin: 2.54cm; } div.WordSection1 { page: WordSection1; }`;
     const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Asesmen</title><style>${cssOrientation} body, p, li, td, th, h1, h2, h3, h4, div { font-family: 'Times New Roman', Times, serif !important; font-size: 12pt !important; color: black !important; line-height: 1.5; text-align: justify; } h1 { font-size: 14pt !important; font-weight: bold !important; margin-bottom: 12pt; text-align: center; text-transform: uppercase; } h2, h3 { font-size: 12pt !important; font-weight: bold !important; margin-top: 12pt; margin-bottom: 6pt; text-align: left; text-transform: uppercase; } table { width: 100%; border-collapse: collapse; margin-top: 12pt; margin-bottom: 15pt; border: 1pt solid black !important; word-wrap: break-word; overflow-wrap: break-word; } td, th { border: 1pt solid black !important; padding: 6pt 8pt; vertical-align: top; text-align: left; } th { background-color: #f2f2f2; font-weight: bold !important; text-align: center; } p { margin-bottom: 10pt; } ul, ol { margin-left: 20pt; margin-bottom: 10pt; } li { margin-bottom: 6pt; text-align: justify; }</style></head><body><div class="WordSection1">${printHtml}</div></body></html>`;
-    
     const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(header);
     const fileDownload = document.createElement("a"); document.body.appendChild(fileDownload); 
     fileDownload.href = source; fileDownload.download = `Asesmen_${formData.mapel || 'Dokumen'}.doc`.replace(/[^a-zA-Z0-9.\-_]/g, "_"); fileDownload.click(); document.body.removeChild(fileDownload);
@@ -283,14 +254,18 @@ export default function ModulAsesmenGuru() {
     setTimeout(() => { iframe.contentWindow?.focus(); iframe.contentWindow?.print(); setTimeout(() => document.body.removeChild(iframe), 1000); }, 500);
   };
 
-  const sanitasiHasil = hasil.replace(/<br\s*\/?>/gi, '\n\n');
+  // Tampilkan Tag Rahasia sebagai format Markdown yang cantik di Preview
+  const sanitasiHasil = hasil
+    .replace(/\[SOAL_START\]\n?/gi, '')
+    .replace(/\[SOAL_END\]\n?/gi, '')
+    .replace(/\[TIPE:(.*?)\]\n?/gi, '**Tipe Soal:** $1\n\n')
+    .replace(/\[KUNCI:([\s\S]*?)\]\n?/gi, '\n> **Kunci Jawaban:** $1\n\n');
 
   if (isLoading) return <div className="w-full h-[60vh] flex items-center justify-center"><Loader2 size={40} className="animate-spin text-blue-600" /></div>;
 
   return (
     <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-7xl mx-auto space-y-6 pb-20 md:pb-10 pt-4 px-4 md:px-6">
       
-      {/* OVERLAY LOADING GOOGLE WORKSPACE */}
       <AnimatePresence>
         {isExportingGoogle && (
           <motion.div initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}} className="fixed inset-0 z-[100] flex items-center justify-center bg-white/80 backdrop-blur-sm p-4">
@@ -303,14 +278,13 @@ export default function ModulAsesmenGuru() {
         )}
       </AnimatePresence>
 
-      {/* HEADER UTAMA */}
       <header className="border-b border-slate-200 pb-5 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2 ${teachersFont.className}`}>
             <Target className="text-blue-600" /> Pusat Asesmen & Evaluasi
           </h1>
           <p className="text-slate-500 text-sm mt-1.5 max-w-2xl leading-relaxed">
-            Pusat pembuatan Kisi-kisi, Bank Soal CBT, dan Kunci Jawaban. Rancang instrumen terintegrasi dengan dimensi sosiokultural daerah.
+            Pusat pembuatan Kisi-kisi, Bank Soal CBT, dan Kunci Jawaban.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -323,7 +297,6 @@ export default function ModulAsesmenGuru() {
         </div>
       </header>
 
-      {/* MODAL RIWAYAT (KOLEKSI) */}
       <AnimatePresence>
         {showKoleksi && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
@@ -360,7 +333,6 @@ export default function ModulAsesmenGuru() {
         )}
       </AnimatePresence>
 
-      {/* TABS NAVIGASI */}
       <nav className="flex flex-wrap border-b border-slate-200">
         <button onClick={() => setActiveTab("generator")} className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 ${activeTab === "generator" ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-700"}`}><Sparkles size={18} /> 1. Generator Asesmen & Kisi-kisi</button>
         <button onClick={() => setActiveTab("analisis")} className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 ${activeTab === "analisis" ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-700"}`}><BarChart4 size={18} /> 2. Analisis Butir Soal</button>
@@ -369,8 +341,6 @@ export default function ModulAsesmenGuru() {
 
       {activeTab === "generator" && (
         <div className="flex flex-col gap-8">
-          
-          {/* --- BAGIAN ATAS: FORM PARAMETER --- */}
           <div className="w-full bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200">
             <div className="flex items-center gap-3 mb-8 border-b border-slate-100 pb-4">
               <FileQuestion size={22} className="text-slate-800" />
@@ -378,11 +348,7 @@ export default function ModulAsesmenGuru() {
             </div>
 
             <form onSubmit={handleGenerateAI} className="space-y-6">
-              
-              {/* INPUT IDENTITAS & DIMENSI */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                
-                {/* Kolom Kiri: Kurikulum */}
                 <div className="bg-slate-50/80 p-6 rounded-xl border border-slate-200 space-y-4 h-full">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -394,14 +360,12 @@ export default function ModulAsesmenGuru() {
                       <input type="text" required placeholder="Cth: Bahasa Jawa" value={formData.mapel} onChange={e => setFormData({...formData, mapel: e.target.value})} className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm font-bold outline-none focus:border-blue-500 shadow-sm" />
                     </div>
                   </div>
-                  
                   <div>
                     <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Kompetensi Dasar (KD) / Topik</label>
                     <textarea required rows={3} placeholder="Tuliskan materi atau KD yang akan diujikan..." value={formData.kompetensiDasar} onChange={e => setFormData({...formData, kompetensiDasar: e.target.value})} className="w-full p-3 bg-white border border-slate-300 rounded-lg text-sm font-medium outline-none focus:border-blue-500 shadow-sm resize-none"></textarea>
                   </div>
                 </div>
 
-                {/* Kolom Kanan: Dimensi x-AI */}
                 <div className="bg-blue-50/30 p-6 rounded-xl border border-blue-100 space-y-4 h-full">
                   <label className="block text-[11px] font-bold text-blue-800 uppercase tracking-widest mb-1.5">Integrasi Dimensi [x-AI]</label>
                   <p className="text-[10px] text-slate-500 mb-3 leading-relaxed">Pilih aspek budaya dan linguistik yang ingin diuji secara simultan di dalam soal.</p>
@@ -422,10 +386,8 @@ export default function ModulAsesmenGuru() {
                 </div>
               </div>
 
-              {/* INPUT KOMPOSISI SOAL */}
               <div className="pt-6 border-t border-slate-200">
                 <label className="block text-xs font-bold text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2"><ListOrdered size={16}/> Komposisi Instrumen Soal</label>
-                
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Jenis Ujian</label>
@@ -461,9 +423,8 @@ export default function ModulAsesmenGuru() {
             </form>
           </div>
 
-          {/* --- BAGIAN BAWAH: KANVAS TINJAUAN --- */}
+          {/* KANVAS TINJAUAN */}
           <div className="w-full flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[600px] lg:min-h-[800px]">
-            
             <div className="px-5 md:px-8 py-5 border-b border-slate-200 bg-slate-50 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-white border border-slate-300 rounded-md flex items-center justify-center shadow-sm"><BookOpen size={24} className="text-slate-700"/></div>
@@ -502,24 +463,21 @@ export default function ModulAsesmenGuru() {
                   <div ref={pdfRef} className="markdown-body">
                     <style>{`
                       .markdown-body { font-family: 'Times New Roman', Times, serif !important; font-size: 12pt; line-height: 1.5 !important; color: #000; text-align: justify; } 
-                      
                       .markdown-body p { margin-bottom: 8pt; text-align: justify; }
-                      
                       @media (max-width: 768px) {
                         .markdown-body table { table-layout: auto !important; min-width: 600px; }
                         .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; margin-bottom: 12pt; }
                       }
-                      
                       .markdown-body table { width: 100%; border-collapse: collapse; margin-top: 12pt; margin-bottom: 12pt; table-layout: auto; word-wrap: break-word; overflow-wrap: break-word; } 
                       .markdown-body th, .markdown-body td { border: 1pt solid #000; padding: 6pt 8pt; text-align: left; vertical-align: top; overflow-wrap: break-word; word-wrap: break-word; font-size: 11pt; } 
                       .markdown-body th { background-color: #f2f2f2; font-weight: bold; text-align: center; } 
                       .markdown-body tr { page-break-inside: avoid; } 
-                      
                       .markdown-body h1 { font-size: 14pt; font-weight: bold; text-align: center; margin-bottom: 16pt; text-transform: uppercase; } 
                       .markdown-body h2 { font-size: 12pt; margin-top: 16pt; margin-bottom: 8pt; font-weight: bold; text-transform: uppercase; text-align: left; } 
                       .markdown-body h3 { font-size: 12pt; margin-top: 12pt; margin-bottom: 6pt; font-weight: bold; text-align: left; } 
                       .markdown-body ul, .markdown-body ol { padding-left: 24pt; margin-bottom: 12pt; margin-top: 4pt; text-align: justify; }
                       .markdown-body li { margin-bottom: 4pt; text-align: justify; }
+                      .markdown-body blockquote { border-left: 4px solid #3b82f6; background-color: #eff6ff; padding: 10px 16px; margin-bottom: 16px; font-style: italic; color: #1e3a8a; border-radius: 4px; }
                     `}</style>
 
                     <div style={{ textAlign: 'center', marginBottom: '24pt' }}>
@@ -530,6 +488,7 @@ export default function ModulAsesmenGuru() {
 
                     <ReactMarkdown 
                       remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeRaw]}
                       components={{
                          table: ({node, ...props}) => <div className="table-wrapper my-4"><table {...props} /></div>,
                          th: ({node, children, ...props}) => {
@@ -560,7 +519,6 @@ export default function ModulAsesmenGuru() {
           </div>
         </div>
       )}
-
       {activeTab === "analisis" && (<div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-20 text-center text-slate-400"><p className="font-bold">Modul Analisis Butir Soal</p></div>)}
       {activeTab === "feedback" && (<div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-20 text-center text-slate-400"><p className="font-bold">Generator Feedback Otomatis</p></div>)}
     </motion.main>

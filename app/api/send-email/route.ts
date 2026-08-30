@@ -6,17 +6,17 @@ export async function POST(req: Request) {
     // Tambahkan parameter 'tipeEmail' dan 'otpCode'
     const { email, nama, role, passwordAwal, tipeEmail, otpCode } = await req.json();
 
+    // --- PERBAIKAN KONFIGURASI UNTUK VERCEL ---
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
+      port: 465, // Gunakan port 465 (Implicit SSL) yang jauh lebih stabil di Vercel
+      secure: true, // Ubah menjadi true karena pakai port 465
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-      family: 4,
-      tls: { rejectUnauthorized: false }
-    } as any);
+      // Hapus 'family: 4' dan 'tls: { rejectUnauthorized: false }'
+    });
 
     let mailSubject = '';
     let mailHtml = '';

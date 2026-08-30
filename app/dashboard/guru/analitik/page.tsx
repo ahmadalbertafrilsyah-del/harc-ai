@@ -47,7 +47,7 @@ export default function AnalitikGuru() {
     });
   };
 
-  if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-blue-500 w-10 h-10"/></div>;
+  if (isLoading) return <div className="flex h-[70vh] items-center justify-center"><Loader2 className="animate-spin text-blue-500 w-10 h-10"/></div>;
 
   return (
     <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`max-w-6xl mx-auto space-y-6 pb-20 ${teachersFont.className}`}>
