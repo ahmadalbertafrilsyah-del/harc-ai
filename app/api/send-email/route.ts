@@ -3,20 +3,19 @@ import nodemailer from 'nodemailer';
 
 export async function POST(req: Request) {
   try {
-    // Tambahkan parameter 'tipeEmail' dan 'otpCode'
     const { email, nama, role, passwordAwal, tipeEmail, otpCode } = await req.json();
 
-    // --- PERBAIKAN KONFIGURASI UNTUK VERCEL ---
+    // --- PERBAIKAN KONFIGURASI UNTUK RAILWAY ---
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
-      port: 465, // Gunakan port 465 (Implicit SSL) yang jauh lebih stabil di Vercel
-      secure: true, // Ubah menjadi true karena pakai port 465
+      port: 465, 
+      secure: true, 
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: process.env.EMAIL_USER as string,
+        pass: process.env.EMAIL_PASS as string,
       },
-      // Hapus 'family: 4' dan 'tls: { rejectUnauthorized: false }'
-    });
+      family: 4, // WAJIB ditambahkan untuk Railway agar terhindar dari error IPv6 (ENETUNREACH)
+    } as any);
 
     let mailSubject = '';
     let mailHtml = '';
@@ -42,7 +41,7 @@ export async function POST(req: Request) {
         </div>
       `;
     } 
-    // LOGIKA 2: EMAIL UNTUK ACC MANUAL ADMIN (Kodingan Asli)
+    // LOGIKA 2: EMAIL UNTUK ACC MANUAL ADMIN
     else {
       mailSubject = 'Akses Portal Akademik HARC-AI Disetujui';
       mailHtml = `
