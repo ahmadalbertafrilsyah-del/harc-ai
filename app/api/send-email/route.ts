@@ -5,22 +5,21 @@ export async function POST(req: Request) {
   try {
     const { email, nama, role, passwordAwal, tipeEmail, otpCode } = await req.json();
 
-    // --- PERBAIKAN KONFIGURASI UNTUK RAILWAY ---
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
-      port: 465, 
-      secure: true, 
+      port: 587, 
+      secure: false,
+      requireTLS: true, 
       auth: {
         user: process.env.EMAIL_USER as string,
         pass: process.env.EMAIL_PASS as string,
       },
-      family: 4, // WAJIB ditambahkan untuk Railway agar terhindar dari error IPv6 (ENETUNREACH)
+      family: 4,
     } as any);
 
     let mailSubject = '';
     let mailHtml = '';
 
-    // LOGIKA 1: EMAIL UNTUK OTP (6 ANGKA)
     if (tipeEmail === 'otp') {
       mailSubject = 'Kode Verifikasi Pendaftaran HARC-AI';
       mailHtml = `
@@ -40,8 +39,8 @@ export async function POST(req: Request) {
           </div>
         </div>
       `;
-    } 
-    // LOGIKA 2: EMAIL UNTUK ACC MANUAL ADMIN
+    }
+
     else {
       mailSubject = 'Akses Portal Akademik HARC-AI Disetujui';
       mailHtml = `
@@ -67,7 +66,6 @@ export async function POST(req: Request) {
       `;
     }
 
-    // Susun pesan final
     const mailOptions = {
       from: `"Sistem HARC-AI" <${process.env.EMAIL_USER}>`,
       to: email,
