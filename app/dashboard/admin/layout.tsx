@@ -106,7 +106,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className={`min-h-screen bg-[#f8fafc] flex ${latoFont.className}`}>
       
       <aside className={`hidden md:flex flex-col bg-[#0f172a] text-slate-100 transition-all duration-300 z-50 border-r border-slate-800 relative ${isSidebarCollapsed ? "w-[80px]" : "w-[240px]"}`}>
-        <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="absolute -right-3 top-20 bg-[#0f172a] border border-slate-700 text-slate-300 hover:text-white rounded-full p-1 z-50 shadow-md transition-colors">
+        <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="absolute -right-3 top-20 bg-[#0f172a] border border-slate-700 text-slate-300 hover:text-white rounded-full p-1 z-50 shadow-md transition-colors" aria-label="Toggle Sidebar">
           {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
 
@@ -144,7 +144,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden pb-[70px] md:pb-0 relative">
+      {/* PERBAIKAN: Mengubah tinggi dan padding bawah agar tidak ada jarak berlebih di bawah konten */}
+      <main className="flex-1 flex flex-col min-w-0 h-[100dvh] overflow-hidden pb-[70px] md:pb-0 relative">
         <header className="h-16 bg-white border-b border-slate-200/80 flex items-center justify-between px-4 md:px-6 shrink-0 z-30">
           <div className="flex items-center w-full md:w-auto">
             <div className="md:hidden flex items-center gap-2">
@@ -184,7 +185,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-4 md:p-6 lg:p-8 bg-[#f8fafc] pb-24 md:pb-6">
+        {/* PERBAIKAN: Mengganti padding bawah pembungkus agar pas dan rapi */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-[#f8fafc] pb-6">
           {children}
         </div>
       </main>
@@ -222,7 +224,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           >
             <div className="h-16 flex items-center justify-between px-5 bg-white border-b border-slate-200 shrink-0">
               <h2 className={`text-xl font-bold text-slate-800 ${teachersFont.className}`}>Semua Menu</h2>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200 transition-colors">
+              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200 transition-colors" aria-label="Tutup Menu">
                 <X size={20} />
               </button>
             </div>

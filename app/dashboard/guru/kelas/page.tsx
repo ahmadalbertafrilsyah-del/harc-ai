@@ -39,13 +39,9 @@ export default function ManajemenKelas() {
   const [isSubmittingAbsen, setIsSubmittingAbsen] = useState(false);
   const [statusPesanAbsen, setStatusPesanAbsen] = useState<{tipe: "sukses"|"error", teks: string} | null>(null);
   const [isRiwayatAbsenOpen, setIsRiwayatAbsenOpen] = useState(false);
-  const [absenViewMode, setAbsenViewMode] = useState<"bulan" | "semester">("bulan");
   const [riwayatAbsenData, setRiwayatAbsenData] = useState<any[]>([]); 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
-  const [filterBulan, setFilterBulan] = useState(`${currentYear}-${currentMonth.toString().padStart(2, '0')}`);
-  const [filterSemester, setFilterSemester] = useState("Ganjil");
-  const [filterTahunAjaran, setFilterTahunAjaran] = useState(`${currentYear}/${currentYear+1}`);
 
   const [jurnal, setJurnal] = useState({ materi: "", kegiatan: "", hambatan: "", solusi: "" });
   const [isSubmittingJurnal, setIsSubmittingJurnal] = useState(false);
@@ -333,7 +329,6 @@ export default function ManajemenKelas() {
        if (selectedKol && selectedKol.konten) {
           const content = selectedKol.konten;
           
-          // Cari block [SOAL_START] sampai [SOAL_END] (Multiline Support)
           const soalBlocks = content.match(/\[SOAL_START\]([\s\S]*?)\[SOAL_END\]/g);
 
           if (soalBlocks && soalBlocks.length > 0) {
@@ -345,7 +340,6 @@ export default function ManajemenKelas() {
                   let kunci = "A";
                   let panduanAI = "";
 
-                  // Ekstrak Tipe
                   const tipeMatch = block.match(/\[TIPE:(.*?)\]/i);
                   if (tipeMatch) {
                       const tipeRaw = tipeMatch[1].trim().toUpperCase();
@@ -355,7 +349,6 @@ export default function ManajemenKelas() {
                       else if(tipeRaw === "URAIAN") tipe = "Uraian";
                   }
 
-                  // Ekstrak Kunci Jawaban dengan multiline ([\s\S]*?)
                   const kunciMatch = block.match(/\[KUNCI:([\s\S]*?)\]/i);
                   if (kunciMatch) {
                       let rawKunci = kunciMatch[1].trim();
@@ -364,16 +357,13 @@ export default function ManajemenKelas() {
                       else panduanAI = rawKunci;
                   }
 
-                  // Bersihkan Teks Soal dari tag
                   let cleanText = block.replace(/\[SOAL_START\]/gi, '').replace(/\[SOAL_END\]/gi, '')
                                        .replace(/\[TIPE:.*?\]/gi, '').replace(/\[KUNCI:[\s\S]*?\]/gi, '').trim();
 
                   const lines = cleanText.split('\n').map((l: string) => l.trim()).filter((l: string) => l);
                   const qLines: string[] = [];
 
-                  // Parsing berdasarkan Tipe
                   if (tipe === "PG") {
-                      // Regex untuk menangkap A. Opsi, * A. Opsi, - A) Opsi, dll
                       const optRegex = /^(?:[\*\-]\s*)?(?:\*\*)?([A-E])[\.\)](?:\*\*)?\s+(.*)/i;
                       lines.forEach((line: string) => {
                           const m = line.match(optRegex);
@@ -385,15 +375,12 @@ export default function ManajemenKelas() {
                   } 
                   else if (tipe === "Jodohkan") {
                       lines.forEach((line: string) => {
-                          // Deteksi format Tabel Markdown
                           if(line.includes("|") && !line.match(/\|[-\s:]+\|/)) {
                               const cols = line.split("|").map((c: string) => c.trim()).filter((c: string) => c);
-                              // Abaikan Header Tabel
                               if(cols.length >= 2 && !cols[0].toLowerCase().includes("pernyataan") && !cols[0].toLowerCase().includes("kiri") && !cols[0].toLowerCase().includes("lajur")) {
                                   pasangan.push({ kiri: cols[0].replace(/^\d+\.\s*/, ''), kanan: cols[1] });
                               }
                           } 
-                          // Deteksi format Teks biasa (Kiri = Kanan) atau (Kiri - Kanan)
                           else if (!line.includes("|") && (line.includes("=") || (line.includes(" - ") && !line.match(/^[\*\-]\s/)))) {
                               const sp = line.split(/\s*=\s*|\s+-\s+/);
                               if(sp.length >= 2) {
@@ -402,7 +389,6 @@ export default function ManajemenKelas() {
                                   qLines.push(line);
                               }
                           } 
-                          // Jika bukan baris tabel atau pembatas tabel
                           else if (!line.match(/\|[-\s:]+\|/)) {
                               qLines.push(line);
                           }
@@ -411,8 +397,7 @@ export default function ManajemenKelas() {
                       if(pasangan.length === 0) pasangan = [{kiri:"", kanan:""}];
                   } 
                   else {
-                      // Uraian, BS, Isian Singkat
-                      pertanyaan = cleanText.replace(/^\d+\.\s*/, '').trim(); // Hapus penomoran di depan
+                      pertanyaan = cleanText.replace(/^\d+\.\s*/, '').trim();
                   }
 
                   initialSoal.push({
@@ -422,10 +407,6 @@ export default function ManajemenKelas() {
                   });
               });
           } else {
-             // ==========================================
-             // FALLBACK: PARSER CERDAS UNTUK FORMAT LAMA
-             // (Jika file dari bank soal lama yang tidak pakai Tag)
-             // ==========================================
              let kunciJawabanSection = "";
              const kunciMatch = content.match(/(?:Kunci Jawaban|KUNCI JAWABAN|Pedoman Penskoran)[\s\S]*/i);
              if (kunciMatch) { kunciJawabanSection = kunciMatch[0]; }
@@ -653,36 +634,51 @@ export default function ManajemenKelas() {
     setTimeout(() => { printWindow.print(); }, 800);
   };
 
-  if (isLoading) return <div className="w-full h-[70vh] flex flex-col justify-center items-center"><Loader2 size={40} className="animate-spin text-blue-600" /></div>;
+  if (isLoading) return <div className="w-full h-[70vh] flex flex-col justify-center items-center"><Loader2 size={36} className="animate-spin text-blue-600" /></div>;
   const realClassData = selectedClass ? (kelasData.find(k => k.id === selectedClass.id) || selectedClass) : null;
   const siswaKelasAsli = realClassData ? daftarSiswaGlobal.filter(s => realClassData.peserta?.includes(s.id) || s.kelas === realClassData.nama) : [];
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-full lg:max-w-6xl mx-auto space-y-6 pb-10 relative px-2 md:px-0">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-7xl mx-auto space-y-5 pb-6">
       
       {/* TAMPILAN 1: DAFTAR KELAS (HOME) */}
       {!selectedClass && (
         <>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-            <div><h1 className={`text-2xl font-bold text-slate-900 ${teachersFont.className}`}>Manajemen Kelas & Akademik</h1></div>
-            <button onClick={() => setIsModalOpen(true)} className="w-full sm:w-auto bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2"><Plus size={18} /> Buat Kelas Baru</button>
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-200 pb-5">
+            <div>
+              <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>Manajemen Kelas & Akademik</h1>
+              <p className="text-slate-500 text-sm mt-1">Kelola data peserta didik, absensi, rekap nilai, dan asesmen CBT.</p>
+            </div>
+            <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 shrink-0">
+              <Plus size={16} /> Buat Kelas Baru
+            </button>
           </div>
+
           <AnimatePresence>
             {kelasData.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {kelasData.map((kelas) => (
-                  <motion.div key={kelas.id} className="bg-white rounded-xl shadow-sm border border-slate-200 cursor-pointer hover:shadow-md transition-shadow relative" onClick={() => setSelectedClass(kelas)}>
-                    <div className="p-5 pb-4 flex justify-between items-start">
-                      <div className="min-w-0"><h3 className={`text-xl font-bold truncate ${teachersFont.className}`}>{kelas.nama}</h3><p className="text-xs text-slate-500 mt-1 truncate">{kelas.mapel}</p></div>
-                      <div className="bg-blue-50 text-blue-700 font-mono text-xs font-bold px-2 py-1 rounded-md border border-blue-100">{kelas.kode}</div>
+                  <motion.div key={kelas.id} whileHover={{ y: -2 }} className="bg-white rounded-2xl shadow-sm border border-slate-200 cursor-pointer p-5 flex flex-col justify-between transition-all" onClick={() => setSelectedClass(kelas)}>
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="min-w-0 pr-2">
+                        <h3 className={`text-lg font-bold text-slate-900 truncate ${teachersFont.className}`}>{kelas.nama}</h3>
+                        <p className="text-xs text-slate-400 mt-0.5 truncate">{kelas.mapel}</p>
+                      </div>
+                      <span className="bg-indigo-50 text-indigo-700 font-mono text-xs font-bold px-2.5 py-1 rounded-xl border border-indigo-100 shrink-0">{kelas.kode}</span>
                     </div>
-                    <div className="px-5 py-4 border-t border-slate-50">
-                      <div className="flex justify-between items-center text-sm"><span className="text-slate-500 flex items-center gap-2"><Users size={16}/> Siswa Terdaftar</span><span className="font-bold text-slate-700">{kelas.peserta?.length || 0}</span></div>
+                    
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                      <span className="flex items-center gap-1.5"><Users size={14}/> Peserta Didik</span>
+                      <span className="font-bold text-slate-800">{kelas.peserta?.length || 0} Siswa</span>
                     </div>
                   </motion.div>
                 ))}
               </div>
-            ) : (<div className="text-center py-24 bg-white rounded-xl border border-dashed border-slate-300 w-full"><h3 className="font-bold text-slate-700">Belum Ada Kelas</h3></div>)}
+            ) : (
+              <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-slate-200">
+                <p className="text-xs font-bold text-slate-400">Belum ada kelas yang dibuat.</p>
+              </div>
+            )}
           </AnimatePresence>
         </>
       )}
@@ -690,61 +686,131 @@ export default function ManajemenKelas() {
       {/* TAMPILAN 2: DETAIL KELAS & TABS */}
       {selectedClass && !isEditorOpen && (
         <>
-          <button onClick={() => { setSelectedClass(null); setIsEditorOpen(false); }} className="flex items-center gap-2 text-slate-500 hover:text-blue-600 font-bold w-fit"><ArrowLeft size={16} /> Kembali</button>
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 md:p-8 flex flex-col md:flex-row justify-between md:items-center gap-4 w-full">
-            <div><h1 className={`text-2xl md:text-3xl font-bold truncate ${teachersFont.className}`}>{realClassData.nama}</h1><p className="text-slate-500 mt-1">{realClassData.mapel} • {siswaKelasAsli.length} Siswa</p></div>
-            <div className="bg-blue-50 border border-blue-100 px-5 py-3 rounded-lg flex items-center justify-between md:justify-start gap-4 shrink-0">
-              <div><p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">Kode Akses</p><p className="text-2xl font-mono font-bold text-blue-700 tracking-widest">{realClassData.kode}</p></div>
-              <Key size={24} className="text-blue-300" />
+          <button onClick={() => { setSelectedClass(null); setIsEditorOpen(false); }} className="inline-flex items-center gap-1.5 text-slate-500 hover:text-blue-600 font-bold text-xs bg-white border border-slate-200 px-3 py-1.5 rounded-xl transition-all shadow-sm">
+            <ArrowLeft size={15} /> Kembali ke Daftar Kelas
+          </button>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6 flex flex-col md:flex-row justify-between md:items-center gap-4">
+            <div>
+              <h1 className={`text-xl md:text-2xl font-bold text-slate-900 truncate ${teachersFont.className}`}>{realClassData.nama}</h1>
+              <p className="text-xs text-slate-400 mt-0.5">{realClassData.mapel} • {siswaKelasAsli.length} Siswa Terdaftar</p>
+            </div>
+            <div className="bg-indigo-50 border border-indigo-100 px-4 py-3 rounded-2xl flex items-center justify-between gap-4 shrink-0">
+              <div>
+                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Kode Akses Kelas</p>
+                <p className="text-lg font-mono font-bold text-indigo-700 tracking-widest">{realClassData.kode}</p>
+              </div>
+              <Key size={20} className="text-indigo-300" />
             </div>
           </div>
 
-          <div className="flex gap-4 md:gap-8 border-b border-slate-200 overflow-x-auto custom-scrollbar pt-2 px-2 w-full whitespace-nowrap" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex gap-2 border-b border-slate-200 overflow-x-auto scrollbar-none pb-0" style={{ scrollbarWidth: 'none' }}>
             {["siswa", "absensi", "jurnal", "rekap", "cbt", "koreksi"].map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-3 text-sm font-bold capitalize relative ${activeTab === tab ? "text-blue-600" : "text-slate-500 hover:text-slate-700"}`}>
-                {tab === "cbt" ? "E-Ujian (CBT)" : tab} {activeTab === tab && <motion.span layoutId="activeTab" className="absolute bottom-[-1px] left-0 w-full h-0.5 bg-blue-600"></motion.span>}
+              <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-3 px-3 text-xs md:text-sm font-bold capitalize transition-all relative shrink-0 ${activeTab === tab ? "text-indigo-600 font-extrabold" : "text-slate-500 hover:text-slate-700"}`}>
+                {tab === "cbt" ? "E-Ujian (CBT)" : tab} 
+                {activeTab === tab && <span className="absolute bottom-0 left-0 w-full h-1 bg-indigo-600 rounded-t-full"></span>}
               </button>
             ))}
           </div>
 
-          <div className="bg-white p-4 md:p-8 rounded-xl shadow-sm border border-slate-200 min-h-[400px]">
+          <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 min-h-[400px]">
             
             {/* TAB: SISWA */}
             {activeTab === "siswa" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col space-y-5 w-full min-w-0 h-full">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
-                  <div><h3 className="font-bold text-slate-800 text-lg">Database Siswa</h3></div>
-                  <button onClick={handleDownloadCSVSiswa} className="w-full sm:w-auto bg-white hover:bg-blue-50 text-slate-600 hover:text-blue-700 border border-slate-200 px-4 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2"><ArrowDownToLine size={16} /> Unduh CSV</button>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pb-3 border-b border-slate-100">
+                  <h3 className="font-bold text-slate-800 text-sm md:text-base">Database Siswa</h3>
+                  <button onClick={handleDownloadCSVSiswa} className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all">
+                    <ArrowDownToLine size={14} /> Unduh CSV
+                  </button>
                 </div>
-                <div className="w-full border border-slate-200 rounded-lg overflow-hidden">
-                  <div className="w-full overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-left border-collapse min-w-[600px]">
-                      <thead><tr className="bg-slate-50 text-slate-500 text-[11px] uppercase font-bold border-b border-slate-200"><th className="px-6 py-4 text-center w-16">No</th><th className="px-6 py-4">Nama Lengkap</th><th className="px-6 py-4">NISN / Email</th><th className="px-6 py-4 text-center w-32">Status</th></tr></thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {siswaKelasAsli.map((siswa, idx) => (
-                          <tr key={siswa.id} className="hover:bg-slate-50"><td className="px-6 py-4 text-center text-sm font-bold text-slate-400">{idx + 1}</td><td className="px-6 py-4 text-sm font-bold text-slate-800">{siswa.nama}</td><td className="px-6 py-4"><p className="text-sm font-mono text-slate-600">{siswa.nisn || "-"}</p><p className="text-[11px] text-slate-400 mt-0.5">{siswa.email || "-"}</p></td><td className="px-6 py-4 text-center"><span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-md inline-flex items-center gap-1.5 shadow-sm"><CheckCircle2 size={12}/> Aktif</span></td></tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+
+                <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                  <table className="w-full text-left border-collapse min-w-[500px] text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-400 text-[10px] uppercase font-bold border-b border-slate-200">
+                        <th className="px-4 py-3 text-center w-12">No</th>
+                        <th className="px-4 py-3">Nama Lengkap</th>
+                        <th className="px-4 py-3">NISN / Email</th>
+                        <th className="px-4 py-3 text-center w-28">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {siswaKelasAsli.length > 0 ? siswaKelasAsli.map((siswa, idx) => (
+                        <tr key={siswa.id} className="hover:bg-slate-50/50">
+                          <td className="px-4 py-3 text-center font-bold text-slate-400">{idx + 1}</td>
+                          <td className="px-4 py-3 font-bold text-slate-800">{siswa.nama}</td>
+                          <td className="px-4 py-3">
+                            <p className="font-mono text-slate-600">{siswa.nisn || "-"}</p>
+                            <p className="text-[10px] text-slate-400">{siswa.email || "-"}</p>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-lg inline-flex items-center gap-1">
+                              <CheckCircle2 size={11}/> Aktif
+                            </span>
+                          </td>
+                        </tr>
+                      )) : (
+                        <tr><td colSpan={4} className="text-center py-10 text-slate-400">Belum ada siswa terdaftar di kelas ini.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </motion.div>
             )}
 
             {/* TAB: ABSENSI */}
             {activeTab === "absensi" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col space-y-5 w-full min-w-0">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
-                  <div><h3 className="font-bold text-slate-800 text-lg">Absensi Harian</h3></div>
-                  <div className="flex flex-wrap items-center gap-3 shrink-0">
-                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg"><CalendarDays size={16} className="text-slate-500"/><input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className="bg-transparent w-full sm:w-auto text-sm font-bold text-slate-700 outline-none" /></div>
-                    <button type="button" onClick={() => setIsRiwayatAbsenOpen(true)} className="w-full sm:w-auto justify-center bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"><FileSpreadsheet size={16} /> Lihat Riwayat</button>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pb-3 border-b border-slate-100">
+                  <h3 className="font-bold text-slate-800 text-sm md:text-base">Absensi Harian</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
+                      <CalendarDays size={15} className="text-slate-400"/>
+                      <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className="bg-transparent text-xs font-bold text-slate-700 outline-none" />
+                    </div>
+                    <button type="button" onClick={() => setIsRiwayatAbsenOpen(true)} className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all">
+                      <FileSpreadsheet size={15} /> Riwayat
+                    </button>
                   </div>
                 </div>
-                <div className="w-full bg-white rounded-lg shadow-sm border border-slate-300 overflow-hidden">
-                  <form onSubmit={handleSimpanAbsensi} className="w-full flex flex-col min-w-0">
-                    <div className="w-full overflow-x-auto"><table className="w-full text-left border-collapse min-w-[600px]"><thead><tr className="bg-slate-100 text-[10px] uppercase font-bold border-b border-slate-300"><th className="px-4 py-3 text-center border-r border-slate-200 w-12">No</th><th className="px-4 py-3 border-r border-slate-200">Identitas Siswa</th><th className="px-4 py-3 text-center">Keterangan</th></tr></thead><tbody className="divide-y divide-slate-200">{siswaKelasAsli.map((siswa, idx) => (<tr key={siswa.id} className="hover:bg-slate-50/50"><td className="px-4 py-3 text-center text-xs font-bold text-slate-500 border-r border-slate-200">{idx + 1}</td><td className="px-4 py-3 border-r border-slate-200"><p className="text-sm font-bold text-slate-800">{siswa.nama}</p></td><td className="px-4 py-3"><div className="flex justify-center gap-2 sm:gap-4">{["Hadir", "Sakit", "Izin", "Alpha"].map((opsi) => (<label key={opsi} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer border ${absensi[siswa.id] === opsi ? 'border-blue-500 bg-blue-50' : 'border-transparent hover:bg-slate-100'}`}><input type="radio" name={`absen-${siswa.id}`} value={opsi} checked={absensi[siswa.id] === opsi} onChange={(e) => setAbsensi(prev => ({ ...prev, [siswa.id]: e.target.value }))} className="w-3.5 h-3.5 accent-blue-600" /><span className={`text-xs font-bold ${absensi[siswa.id] === opsi ? 'text-blue-700' : 'text-slate-600'}`}>{opsi}</span></label>))}</div></td></tr>))}</tbody></table></div>
-                    <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end"><button type="submit" disabled={isSubmittingAbsen} className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-xs font-bold flex items-center gap-2">{isSubmittingAbsen ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Simpan</button></div>
+
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                  <form onSubmit={handleSimpanAbsensi}>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse min-w-[550px] text-xs">
+                        <thead>
+                          <tr className="bg-slate-50 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-200">
+                            <th className="px-4 py-3 text-center w-12">No</th>
+                            <th className="px-4 py-3">Nama Siswa</th>
+                            <th className="px-4 py-3 text-center">Keterangan Kehadiran</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {siswaKelasAsli.map((siswa, idx) => (
+                            <tr key={siswa.id} className="hover:bg-slate-50/50">
+                              <td className="px-4 py-3 text-center font-bold text-slate-400">{idx + 1}</td>
+                              <td className="px-4 py-3 font-bold text-slate-800">{siswa.nama}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex justify-center gap-2">
+                                  {["Hadir", "Sakit", "Izin", "Alpha"].map((opsi) => (
+                                    <label key={opsi} className={`px-2.5 py-1 rounded-lg cursor-pointer border text-[11px] font-bold transition-all ${absensi[siswa.id] === opsi ? 'border-indigo-400 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                                      <input type="radio" name={`absen-${siswa.id}`} value={opsi} checked={absensi[siswa.id] === opsi} onChange={(e) => setAbsensi(prev => ({ ...prev, [siswa.id]: e.target.value }))} className="hidden" />
+                                      {opsi}
+                                    </label>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+                      <button type="submit" disabled={isSubmittingAbsen} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 disabled:opacity-50">
+                        {isSubmittingAbsen ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Simpan Absensi
+                      </button>
+                    </div>
                   </form>
                 </div>
               </motion.div>
@@ -752,41 +818,111 @@ export default function ManajemenKelas() {
 
             {/* TAB: JURNAL */}
             {activeTab === "jurnal" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col space-y-5 w-full min-w-0">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
-                  <div><h3 className="font-bold text-slate-800 text-lg">Jurnal Mengajar</h3></div>
-                  <div className="flex flex-wrap items-center gap-3 shrink-0">
-                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg"><CalendarDays size={16} className="text-slate-500"/><input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className="bg-transparent w-full sm:w-auto text-sm font-bold text-slate-700 outline-none" /></div>
-                    <button type="button" onClick={() => setIsRiwayatJurnalOpen(true)} className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"><FileSpreadsheet size={16} /> Lihat Riwayat</button>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pb-3 border-b border-slate-100">
+                  <h3 className="font-bold text-slate-800 text-sm md:text-base">Jurnal Mengajar</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
+                      <CalendarDays size={15} className="text-slate-400"/>
+                      <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className="bg-transparent text-xs font-bold text-slate-700 outline-none" />
+                    </div>
+                    <button type="button" onClick={() => setIsRiwayatJurnalOpen(true)} className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all">
+                      <FileSpreadsheet size={15} /> Riwayat
+                    </button>
                   </div>
                 </div>
-                <form onSubmit={handleSimpanJurnal} className="space-y-4">
-                  <div><label className="block text-sm font-bold text-slate-700 mb-1.5">Materi Pembelajaran *</label><input type="text" required value={jurnal.materi} onChange={(e) => setJurnal({...jurnal, materi: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg text-sm outline-none" /></div>
-                  <div><label className="block text-sm font-bold text-slate-700 mb-1.5">Uraian Kegiatan Belajar *</label><textarea required rows={4} value={jurnal.kegiatan} onChange={(e) => setJurnal({...jurnal, kegiatan: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg text-sm outline-none resize-none"></textarea></div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block text-sm font-bold text-slate-700 mb-1.5">Hambatan (Opsional)</label><textarea rows={3} value={jurnal.hambatan} onChange={(e) => setJurnal({...jurnal, hambatan: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg text-sm outline-none resize-none"></textarea></div>
-                    <div><label className="block text-sm font-bold text-slate-700 mb-1.5">Solusi (Opsional)</label><textarea rows={3} value={jurnal.solusi} onChange={(e) => setJurnal({...jurnal, solusi: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg text-sm outline-none resize-none"></textarea></div>
+
+                <form onSubmit={handleSimpanJurnal} className="space-y-3.5 text-xs">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Materi Pembelajaran *</label>
+                    <input type="text" required value={jurnal.materi} onChange={(e) => setJurnal({...jurnal, materi: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-800 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 font-medium" placeholder="Contoh: Teks Deskripsi Budaya Lokal" />
                   </div>
-                  <div className="pt-4 flex justify-end"><button type="submit" disabled={isSubmittingJurnal} className="bg-blue-600 text-white px-8 py-3 rounded-lg text-sm font-bold flex items-center gap-2">{isSubmittingJurnal ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>} Kirim Jurnal</button></div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Uraian Kegiatan Belajar *</label>
+                    <textarea required rows={3} value={jurnal.kegiatan} onChange={(e) => setJurnal({...jurnal, kegiatan: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-800 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 font-medium resize-none" placeholder="Deskripsikan jalannya pembelajaran..." />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Hambatan (Opsional)</label>
+                      <textarea rows={2} value={jurnal.hambatan} onChange={(e) => setJurnal({...jurnal, hambatan: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-800 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 font-medium resize-none" />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Solusi (Opsional)</label>
+                      <textarea rows={2} value={jurnal.solusi} onChange={(e) => setJurnal({...jurnal, solusi: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-800 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 font-medium resize-none" />
+                    </div>
+                  </div>
+                  <div className="pt-2 flex justify-end">
+                    <button type="submit" disabled={isSubmittingJurnal} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 disabled:opacity-50">
+                      {isSubmittingJurnal ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Kirim Jurnal KBM
+                    </button>
+                  </div>
                 </form>
               </motion.div>
             )}
 
             {/* TAB: REKAP NILAI */}
             {activeTab === "rekap" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col space-y-5 w-full min-w-0">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
-                  <div><h3 className="font-bold text-slate-800 text-lg">Buku Nilai Digital</h3></div>
-                  <div className="flex items-center gap-3 shrink-0 overflow-x-auto">
-                    <button type="button" onClick={() => setIsPengaturanNilaiOpen(true)} className="bg-amber-50 text-amber-700 border border-amber-200 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5"><SlidersHorizontal size={14} /> Indikator</button>
-                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg"><label className="text-[10px] font-bold text-slate-500 uppercase">KKM:</label><input type="number" value={kkm} onChange={(e) => setKkm(Number(e.target.value))} className="w-12 bg-white border border-slate-300 rounded text-center text-xs font-bold outline-none" /></div>
-                    <button type="button" onClick={handleDownloadExcel} className="bg-slate-100 text-slate-700 border border-slate-200 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5"><ArrowDownToLine size={14} /> CSV</button>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pb-3 border-b border-slate-100">
+                  <h3 className="font-bold text-slate-800 text-sm md:text-base">Buku Nilai Digital</h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button type="button" onClick={() => setIsPengaturanNilaiOpen(true)} className="bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1">
+                      <SlidersHorizontal size={13} /> Indikator & Bobot
+                    </button>
+                    <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-xl text-xs">
+                      <span className="font-bold text-slate-500 uppercase text-[10px]">KKM:</span>
+                      <input type="number" value={kkm} onChange={(e) => setKkm(Number(e.target.value))} className="w-10 bg-white border border-slate-300 rounded text-center font-bold outline-none" />
+                    </div>
+                    <button type="button" onClick={handleDownloadExcel} className="bg-slate-100 text-slate-700 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1">
+                      <ArrowDownToLine size={13} /> CSV
+                    </button>
                   </div>
                 </div>
-                <div className="w-full bg-white rounded-lg shadow-sm border border-slate-300 overflow-hidden">
-                  <form onSubmit={handleSimpanRekap} className="w-full flex flex-col min-w-0">
-                    <div className="w-full overflow-x-auto"><table className="w-full text-left border-collapse min-w-[700px]"><thead><tr className="bg-slate-100 text-[10px] uppercase font-bold border-b border-slate-300"><th className="px-3 py-3 text-center border-r w-10">No</th><th className="px-4 py-3 border-r min-w-[150px]">Nama Siswa</th>{indikatorNilai.map(ind => (<th key={ind.id} className="px-2 py-3 text-center border-r">{ind.nama} <span className="block text-[8px] font-normal">({ind.bobot > 0 ? `${ind.bobot}%` : 'Opsional'})</span></th>))}<th className="px-4 py-3 text-center bg-slate-200 border-l">Nilai Akhir</th></tr></thead><tbody className="divide-y divide-slate-200">{siswaKelasAsli.map((siswa, idx) => { const dataN = nilai[siswa.id] || {}; const nilaiAkhir = hitungNilaiAkhir(dataN); const tuntas = nilaiAkhir >= kkm; return (<tr key={siswa.id} className="hover:bg-blue-50/20"><td className="px-3 py-2 text-center text-xs font-bold text-slate-500 border-r">{idx + 1}</td><td className="px-4 py-2 border-r"><p className="text-xs font-bold text-slate-800 truncate">{siswa.nama}</p></td>{indikatorNilai.map(ind => (<td key={ind.id} className="px-2 py-2 border-r"><input type="number" value={dataN[ind.id] || ""} onChange={(e) => handleUbahNilai(siswa.id, ind.id, e.target.value)} className="w-14 mx-auto block p-1.5 border rounded-md text-center text-xs font-bold outline-none" /></td>))}<td className="px-4 py-2 text-center border-l"><span className={`text-base font-black ${nilaiAkhir > 0 ? (tuntas ? 'text-emerald-600' : 'text-rose-600') : 'text-slate-400'}`}>{nilaiAkhir}</span></td></tr>) })}</tbody></table></div>
-                    <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end"><button type="submit" disabled={isSubmittingRekap} className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-xs font-bold flex items-center gap-2">{isSubmittingRekap ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Simpan</button></div>
+
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                  <form onSubmit={handleSimpanRekap}>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse min-w-[600px] text-xs">
+                        <thead>
+                          <tr className="bg-slate-50 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-200">
+                            <th className="px-3 py-3 text-center w-10">No</th>
+                            <th className="px-4 py-3 min-w-[140px]">Nama Siswa</th>
+                            {indikatorNilai.map(ind => (
+                              <th key={ind.id} className="px-2 py-3 text-center">
+                                {ind.nama} <span className="block text-[8px] font-normal text-slate-400">({ind.bobot}%)</span>
+                              </th>
+                            ))}
+                            <th className="px-4 py-3 text-center bg-indigo-50/50 text-indigo-900 border-l">Nilai Akhir</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {siswaKelasAsli.map((siswa, idx) => { 
+                            const dataN = nilai[siswa.id] || {}; 
+                            const nilaiAkhir = hitungNilaiAkhir(dataN); 
+                            const tuntas = nilaiAkhir >= kkm; 
+                            return (
+                              <tr key={siswa.id} className="hover:bg-slate-50/50">
+                                <td className="px-3 py-2 text-center font-bold text-slate-400">{idx + 1}</td>
+                                <td className="px-4 py-2 font-bold text-slate-800 truncate">{siswa.nama}</td>
+                                {indikatorNilai.map(ind => (
+                                  <td key={ind.id} className="px-2 py-2 text-center">
+                                    <input type="number" value={dataN[ind.id] || ""} onChange={(e) => handleUbahNilai(siswa.id, ind.id, e.target.value)} className="w-12 mx-auto block p-1 border border-slate-200 rounded-lg text-center font-bold outline-none focus:border-indigo-400 text-xs" />
+                                  </td>
+                                ))}
+                                <td className="px-4 py-2 text-center border-l bg-indigo-50/20">
+                                  <span className={`font-black text-sm ${nilaiAkhir > 0 ? (tuntas ? 'text-emerald-600' : 'text-rose-600') : 'text-slate-400'}`}>{nilaiAkhir}</span>
+                                </td>
+                              </tr>
+                            ); 
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+                      <button type="submit" disabled={isSubmittingRekap} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 disabled:opacity-50">
+                        {isSubmittingRekap ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Simpan Rekap Nilai
+                      </button>
+                    </div>
                   </form>
                 </div>
               </motion.div>
@@ -794,79 +930,82 @@ export default function ManajemenKelas() {
 
             {/* TAB: E-UJIAN (CBT) */}
             {activeTab === "cbt" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
-                  <h3 className="font-bold text-slate-800 text-lg">Bank Soal & Penugasan CBT</h3>
-                  <button type="button" onClick={() => setIsCbtModalOpen(true)} className="bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 shadow-sm w-full sm:w-auto"><Plus size={16}/> Pengaturan Ujian Baru</button>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pb-3 border-b border-slate-100">
+                  <h3 className="font-bold text-slate-800 text-sm md:text-base">Bank Soal & Penugasan CBT</h3>
+                  <button type="button" onClick={() => setIsCbtModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95">
+                    <Plus size={15}/> Pengaturan Ujian Baru
+                  </button>
                 </div>
+
                 {daftarUjian.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                     {daftarUjian.map((ujian) => (
-                      <div key={ujian.id} className="p-5 rounded-lg border border-slate-200 bg-slate-50 relative group flex flex-col justify-between">
+                      <div key={ujian.id} className="p-4 rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col justify-between relative">
                         <div>
-                          <button type="button" onClick={() => hapusUjian(ujian.id)} className="absolute top-4 right-4 text-slate-400 hover:text-rose-500"><Trash2 size={18} /></button>
-                          <h4 className="font-bold text-slate-800 text-lg pr-8">{ujian.pengaturan.judul}</h4>
-                          <p className="text-xs font-bold text-blue-600 mt-1 mb-3">{ujian.pengaturan.jenisUjian}</p>
-                          <div className="flex flex-wrap gap-3 text-xs text-slate-500 mb-4">
-                            <span className="flex items-center gap-1 bg-white px-2 py-1 rounded-md border border-slate-200"><Target size={12}/> {ujian.soal?.length || 0} Soal</span>
-                            <span className="flex items-center gap-1 bg-white px-2 py-1 rounded-md border border-slate-200"><Clock size={12}/> {ujian.pengaturan.waktuMenit} Mnt</span>
+                          <button type="button" onClick={() => hapusUjian(ujian.id)} className="absolute top-4 right-4 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
+                          <h4 className="font-bold text-slate-900 text-sm pr-6">{ujian.pengaturan.judul}</h4>
+                          <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mt-0.5 mb-2.5">{ujian.pengaturan.jenisUjian}</p>
+                          <div className="flex flex-wrap gap-2 text-[11px] text-slate-500 mb-3">
+                            <span className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100"><Target size={12}/> {ujian.soal?.length || 0} Soal</span>
+                            <span className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100"><Clock size={12}/> {ujian.pengaturan.waktuMenit} Menit</span>
                           </div>
                         </div>
-                        <div className="pt-4 border-t border-slate-200 flex flex-col gap-2">
+
+                        <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
                           <div className="grid grid-cols-2 gap-2">
-                            <button type="button" onClick={() => handlePrintSoal(ujian)} className="flex justify-center items-center gap-1 text-[10px] font-bold bg-white border border-slate-200 py-1.5 rounded-md text-slate-600 hover:bg-slate-100"><Printer size={12}/> Print Soal</button>
-                            <button type="button" onClick={() => handlePrintLJK(ujian)} className="flex justify-center items-center gap-1 text-[10px] font-bold bg-white border border-slate-200 py-1.5 rounded-md text-slate-600 hover:bg-slate-100"><FileCheck size={12}/> Unduh LJK</button>
+                            <button type="button" onClick={() => handlePrintSoal(ujian)} className="flex justify-center items-center gap-1 text-[10px] font-bold bg-slate-50 border border-slate-200 py-1.5 rounded-xl text-slate-600 hover:bg-slate-100"><Printer size={12}/> Print Soal</button>
+                            <button type="button" onClick={() => handlePrintLJK(ujian)} className="flex justify-center items-center gap-1 text-[10px] font-bold bg-slate-50 border border-slate-200 py-1.5 rounded-xl text-slate-600 hover:bg-slate-100"><FileCheck size={12}/> Unduh LJK</button>
                           </div>
-                          <p className="text-[9px] text-amber-600 text-center font-bold">*Mencetak LJK kertas akan menghilangkan pelacakan analitik kemandirian [x-AI].</p>
-                          <button type="button" onClick={() => { setSelectedUjianView(ujian); setIsHasilUjianOpen(true); }} className="w-full mt-1 flex justify-center items-center gap-1 text-[10px] font-bold bg-blue-100 border border-blue-200 py-1.5 rounded-md text-blue-700 hover:bg-blue-200"><Eye size={12}/> Lihat Hasil & Feedback AI</button>
+                          <button type="button" onClick={() => { setSelectedUjianView(ujian); setIsHasilUjianOpen(true); }} className="w-full flex justify-center items-center gap-1 text-[11px] font-bold bg-indigo-50 border border-indigo-100 py-2 rounded-xl text-indigo-700 hover:bg-indigo-100 transition-colors">
+                            <Eye size={13}/> Lihat Hasil & Feedback AI
+                          </button>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="p-10 border border-dashed border-slate-300 rounded-lg text-center bg-slate-50"><p className="font-bold text-slate-700">Belum Ada Ujian di Kelas Ini</p></div>
+                  <div className="p-12 border border-dashed border-slate-200 rounded-2xl text-center">
+                    <p className="text-xs font-bold text-slate-400">Belum ada ujian di kelas ini.</p>
+                  </div>
                 )}
               </motion.div>
             )}
 
             {/* TAB: KOREKSI AI */}
             {activeTab === "koreksi" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
-                  <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2 text-lg"><BrainCircuit size={22} className="text-blue-600"/> Pengaturan Koreksi AI</h3>
-                  <p className="text-sm text-slate-500 mb-5 leading-relaxed">Sistem AI akan memindai Lembar Jawaban (LJK) & mengoreksi jawaban secara otomatis berdasarkan rubrik.</p>
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase mb-2">Pilih Rubrik Kunci Jawaban</label>
-                  <select className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium outline-none mb-5 focus:border-blue-500">
+                  <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2 text-sm md:text-base"><BrainCircuit size={18} className="text-indigo-600"/> Pengaturan Koreksi AI</h3>
+                  <p className="text-xs text-slate-400 mb-4 leading-relaxed">Sistem AI memindai Lembar Jawaban (LJK) & mengoreksi otomatis berdasarkan rubrik.</p>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Pilih Rubrik Kunci Jawaban</label>
+                  <select className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400">
                     <option>Pilih Rubrik Asesmen...</option>
                     {daftarUjian.map(u => <option key={u.id}>Kunci Jawaban: {u.pengaturan.judul}</option>)}
                   </select>
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-800 mb-3 text-lg">Unggah LJK / Jawaban Siswa</h3>
+                  <h3 className="font-bold text-slate-800 mb-2 text-sm md:text-base">Unggah LJK / Jawaban Siswa</h3>
                   <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf" onChange={handleUploadLJK} />
-                  <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-blue-200 bg-blue-50/30 rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-blue-50/80 transition-colors h-[200px]">
-                    <UploadCloud size={48} className="text-blue-400 mb-4" />
-                    <p className="font-bold text-slate-700 text-sm mb-1">Klik untuk mengunggah Berkas LJK</p>
-                    <p className="text-xs text-slate-500">Format: PNG, JPG, PDF</p>
+                  <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-indigo-200 bg-indigo-50/20 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-indigo-50/50 transition-colors h-[180px]">
+                    <UploadCloud size={36} className="text-indigo-400 mb-2.5" />
+                    <p className="font-bold text-slate-800 text-xs mb-0.5">Klik untuk mengunggah Berkas LJK</p>
+                    <p className="text-[10px] text-slate-400">Format: PNG, JPG, PDF</p>
                   </div>
                   
-                  {/* HASIL KOREKSI MANUAL (OVERRIDE) */}
                   <AnimatePresence>
                     {hasilKoreksiAI && (
-                      <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} className="mt-4 p-4 border border-emerald-200 bg-emerald-50 rounded-lg">
-                        <h4 className="font-bold text-emerald-800 text-sm mb-2 flex items-center gap-2"><CheckCircle2 size={16}/> Koreksi AI Selesai</h4>
-                        <p className="text-xs text-slate-700 mb-1">Siswa: <strong>{hasilKoreksiAI.namaSiswa}</strong></p>
-                        <p className="text-xs text-slate-700 mb-3">Nilai Asli AI: <strong className="text-rose-600">{hasilKoreksiAI.nilaiAwal}</strong></p>
-                        <div className="p-3 bg-white border border-slate-200 rounded text-[10px] text-slate-500 italic mb-4">
+                      <motion.div initial={{opacity:0, y:8}} animate={{opacity:1, y:0}} className="mt-4 p-4 border border-emerald-200 bg-emerald-50 rounded-2xl text-xs space-y-2">
+                        <h4 className="font-bold text-emerald-800 flex items-center gap-1.5"><CheckCircle2 size={15}/> Koreksi AI Selesai</h4>
+                        <p className="text-slate-700">Siswa: <strong>{hasilKoreksiAI.namaSiswa}</strong> | Nilai AI: <strong className="text-rose-600">{hasilKoreksiAI.nilaiAwal}</strong></p>
+                        <div className="p-2.5 bg-white border border-emerald-100 rounded-xl text-[10px] text-slate-500 italic">
                            Catatan AI: {hasilKoreksiAI.diagnosa}
                         </div>
-                        
-                        <div className="pt-3 border-t border-emerald-100 flex flex-col gap-2">
-                           <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><Info size={14} className="text-blue-500"/> Otoritas Guru (Override)</label>
-                           <p className="text-[10px] text-slate-500 leading-relaxed mb-1">AI mungkin menganggap variasi dialek lokal sebagai kesalahan. Silakan koreksi manual jika jawaban siswa sah secara budaya.</p>
+                        <div className="pt-2 border-t border-emerald-200/60 space-y-1.5">
+                           <label className="font-bold text-slate-700 flex items-center gap-1"><Info size={13} className="text-indigo-500"/> Otoritas Guru (Override)</label>
                            <div className="flex gap-2">
-                             <input type="number" value={overrideScore || 0} onChange={e=>setOverrideScore(Number(e.target.value))} className="w-20 p-2 text-center rounded border border-slate-300 text-sm font-bold outline-none focus:border-blue-500"/>
-                             <button onClick={simpanOverrideNilai} className="flex-1 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700">Simpan Override Nilai</button>
+                             <input type="number" value={overrideScore || 0} onChange={e=>setOverrideScore(Number(e.target.value))} className="w-16 p-2 text-center rounded-xl border border-slate-200 text-xs font-bold outline-none bg-white"/>
+                             <button onClick={simpanOverrideNilai} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all">Simpan Nilai</button>
                            </div>
                         </div>
                       </motion.div>
@@ -879,148 +1018,95 @@ export default function ManajemenKelas() {
         </>
       )}
 
-      {/* ========================================================
-          TAMPILAN 3: SAAT BUAT UJIAN BARU (EDITOR SOAL KOMPLEKS)
-      ======================================================== */}
+      {/* TAMPILAN 3: EDITOR SOAL CBT */}
       {selectedClass && isEditorOpen && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-lg shadow-sm border border-slate-200 p-5 md:p-8">
-          <div className="flex flex-col md:flex-row justify-between md:items-center mb-8 pb-6 border-b border-slate-100 gap-4">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6 space-y-5">
+          <div className="flex flex-col md:flex-row justify-between md:items-center pb-4 border-b border-slate-100 gap-3">
             <div>
-              <h2 className={`text-xl font-bold text-slate-900 ${teachersFont.className}`}>{cbtForm.judul}</h2>
-              <p className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md inline-block mt-2">{cbtForm.jenisUjian === 'Custom' ? cbtForm.jenisUjianCustom : cbtForm.jenisUjian}</p>
+              <h2 className={`text-lg md:text-xl font-bold text-slate-900 ${teachersFont.className}`}>{cbtForm.judul}</h2>
+              <p className="text-xs font-bold text-indigo-600 mt-0.5">{cbtForm.jenisUjian === 'Custom' ? cbtForm.jenisUjianCustom : cbtForm.jenisUjian}</p>
             </div>
-            {/* TOMBOL BATAL/TUTUP EDITOR DITAMBAHKAN DI SINI */}
-            <div className="flex items-center gap-3 w-full md:w-auto">
-               <button onClick={() => setIsEditorOpen(false)} className="px-5 py-3 bg-white border border-slate-300 text-slate-600 rounded-lg text-sm font-bold hover:bg-slate-50 transition-all flex-1 md:flex-none">
-                 Batal / Tutup Editor
+            <div className="flex items-center gap-2 w-full md:w-auto">
+               <button onClick={() => setIsEditorOpen(false)} className="px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-50 transition-all flex-1 md:flex-none">
+                 Tutup Editor
                </button>
-               <button type="button" onClick={simpanUjianKeDatabase} className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg text-sm font-bold shadow-sm flex items-center justify-center gap-2 transition-all flex-1 md:flex-none">
-                 <Save size={16} /> Simpan Ujian
+               <button type="button" onClick={simpanUjianKeDatabase} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-sm flex items-center justify-center gap-1.5 transition-all flex-1 md:flex-none">
+                 <Save size={15} /> Simpan Ujian
                </button>
             </div>
           </div>
-          <div className="space-y-8">
+
+          <div className="space-y-4">
             {daftarSoal.map((soal, index) => (
-              <div key={soal.id} className="p-6 border border-slate-200 rounded-lg relative bg-white shadow-sm">
-                <button type="button" onClick={() => hapusSoal(soal.id)} className="absolute top-4 right-4 text-slate-400 hover:text-rose-500 bg-slate-50 p-2 rounded-md border border-slate-200"><Trash2 size={16} /></button>
-                <div className="flex flex-col gap-3 mb-4">
+              <div key={soal.id} className="p-4 md:p-5 border border-slate-200 rounded-2xl relative bg-white shadow-sm space-y-3">
+                <button type="button" onClick={() => hapusSoal(soal.id)} className="absolute top-4 right-4 text-slate-300 hover:text-rose-500 bg-slate-50 p-2 rounded-xl border border-slate-200 transition-colors"><Trash2 size={15} /></button>
+                
+                <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100 pr-10">
+                  <span className="font-bold text-xs bg-indigo-50 text-indigo-700 w-6 h-6 flex items-center justify-center rounded-lg">{index + 1}</span>
+                  <select value={soal.tipe} onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].tipe = e.target.value; setDaftarSoal(newSoal); }} className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 outline-none">
+                    <option value="PG">Pilihan Ganda</option>
+                    <option value="Benar/Salah">Benar / Salah</option>
+                    <option value="Jodohkan">Menjodohkan</option>
+                    <option value="Isian Singkat">Isian Singkat</option>
+                    <option value="Uraian">Uraian</option>
+                  </select>
+                </div>
+
+                <div className="border border-slate-200 rounded-xl bg-white overflow-hidden text-xs">
+                  <textarea className="w-full p-3 text-xs outline-none resize-none font-medium min-h-[80px]" value={soal.pertanyaan} onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].pertanyaan = e.target.value; setDaftarSoal(newSoal); }} placeholder="Ketik deskripsi pertanyaan di sini..." />
                   
-                  {/* Tipe Soal Select */}
-                  <div className="flex items-center gap-2 mb-2 border-b border-slate-100 pb-3">
-                    <span className="font-black text-lg text-slate-800 bg-slate-100 w-8 h-8 flex items-center justify-center rounded-md">{index + 1}</span>
-                    <select value={soal.tipe} onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].tipe = e.target.value; setDaftarSoal(newSoal); }} className="text-sm font-bold text-slate-700 bg-white border border-slate-300 rounded-md px-3 py-1.5 outline-none">
-                      <option value="PG">Pilihan Ganda</option>
-                      <option value="Benar/Salah">Benar / Salah</option>
-                      <option value="Jodohkan">Menjodohkan</option>
-                      <option value="Isian Singkat">Isian Singkat</option>
-                      <option value="Uraian">Uraian</option>
-                    </select>
-                  </div>
-
-                  {/* TEKS SOAL (EDITOR) */}
-                  <div className="border border-slate-300 rounded-md bg-white overflow-hidden">
-                    <div className="flex gap-2 p-2 border-b border-slate-200 bg-slate-50">
-                      <button type="button" className="p-1.5 text-slate-600 hover:bg-slate-200 rounded"><Bold size={14}/></button>
-                      <button type="button" className="p-1.5 text-slate-600 hover:bg-slate-200 rounded"><Italic size={14}/></button>
-                      <button type="button" className="p-1.5 text-slate-600 hover:bg-slate-200 rounded"><Underline size={14}/></button>
-                      <div className="w-px h-4 bg-slate-300 my-auto mx-1"></div>
-                      <button type="button" className="p-1.5 text-slate-600 hover:bg-slate-200 rounded"><AlignLeft size={14}/></button>
-                      <button type="button" className="p-1.5 text-slate-600 hover:bg-slate-200 rounded"><ListOrdered size={14}/></button>
-                    </div>
-                    <textarea className="w-full p-4 text-sm outline-none resize-none font-medium min-h-[100px]" value={soal.pertanyaan} onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].pertanyaan = e.target.value; setDaftarSoal(newSoal); }} placeholder="Ketik deskripsi pertanyaan di sini..." />
-                    
-                    {/* Render Opsi Sesuai Tipe di dalam Kotak Editor */}
-                    <div className="p-4 bg-slate-50 border-t border-slate-200">
-                      {soal.tipe === "PG" && (
-                        <div className="flex flex-col gap-2">
-                          {soal.opsi?.map((opt: any, oIdx: number) => (
-                            <div key={opt.id} className="flex items-center gap-3">
-                              <span className="font-bold text-sm w-6">{opt.id}.</span>
-                              <input type="text" value={opt.teks} onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].opsi[oIdx].teks = e.target.value; setDaftarSoal(newSoal); }} placeholder={`Teks Pilihan ${opt.id}`} className="flex-1 bg-white border border-slate-300 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-500" />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {soal.tipe === "Jodohkan" && (
-                        <div className="w-full">
-                          <div className="grid grid-cols-2 gap-4 text-[10px] font-bold text-slate-500 uppercase mb-2">
-                            <div>Pernyataan (Kiri)</div><div>Pasangan (Kanan)</div>
+                  <div className="p-3 bg-slate-50 border-t border-slate-100">
+                    {soal.tipe === "PG" && (
+                      <div className="space-y-2">
+                        {soal.opsi?.map((opt: any, oIdx: number) => (
+                          <div key={opt.id} className="flex items-center gap-2">
+                            <span className="font-bold w-5">{opt.id}.</span>
+                            <input type="text" value={opt.teks} onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].opsi[oIdx].teks = e.target.value; setDaftarSoal(newSoal); }} placeholder={`Teks Pilihan ${opt.id}`} className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs outline-none" />
                           </div>
-                          {(soal.pasangan || []).map((pas: any, pIdx: number) => (
-                            <div key={pIdx} className="grid grid-cols-2 gap-4 mb-2">
-                              <input type="text" value={pas.kiri} onChange={(e) => { const n = [...daftarSoal]; n[index].pasangan[pIdx].kiri = e.target.value; setDaftarSoal(n); }} placeholder="Teks Kiri..." className="w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-sm outline-none" />
-                              <input type="text" value={pas.kanan} onChange={(e) => { const n = [...daftarSoal]; n[index].pasangan[pIdx].kanan = e.target.value; setDaftarSoal(n); }} placeholder="Teks Kanan..." className="w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-sm outline-none" />
-                            </div>
-                          ))}
-                          <button type="button" onClick={() => { const n = [...daftarSoal]; n[index].pasangan.push({kiri:"", kanan:""}); setDaftarSoal(n); }} className="text-xs text-blue-600 font-bold mt-2">+ Tambah Baris</button>
-                        </div>
-                      )}
-
-                      {(soal.tipe === "Isian Singkat" || soal.tipe === "Uraian") && (
-                        <div className="w-full p-4 border border-dashed border-slate-300 bg-slate-50 text-slate-400 text-sm text-center rounded-md">
-                          (Area Jawaban Teks Siswa)
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Kunci Jawaban (Blue Box) */}
-                  <div className="mt-4 bg-blue-50/40 p-4 rounded-md border border-blue-200">
-                    <div className="flex justify-between items-center mb-3">
-                      <label className="flex items-center gap-2 text-[11px] font-bold text-blue-800 uppercase"><Key size={14}/> Kunci Jawaban & Panduan Koreksi AI</label>
-                      <span className="text-[9px] font-bold text-rose-500 bg-rose-50 px-2 py-0.5 rounded border border-rose-100">(Hanya Dilihat Guru & Lembaga)</span>
-                    </div>
-                    
-                    {(soal.tipe === "PG" || soal.tipe === "Benar/Salah") && (
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-bold text-slate-700">Kunci Jawaban Tepat:</span>
-                        <select value={soal.kunci} onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].kunci = e.target.value; setDaftarSoal(newSoal); }} className="bg-white border border-blue-300 rounded-md px-3 py-1.5 text-sm font-bold outline-none text-blue-700">
-                          {soal.tipe === "PG" ? soal.opsi?.map((opt:any) => <option key={opt.id} value={opt.id}>Opsi {opt.id}</option>) : <><option value="Benar">Benar</option><option value="Salah">Salah</option></>}
-                        </select>
+                        ))}
                       </div>
                     )}
-
-                    {(soal.tipe === "Isian Singkat" || soal.tipe === "Uraian" || soal.tipe === "Jodohkan") && (
-                      <textarea className="w-full p-3 bg-white border border-blue-200 rounded-md text-sm outline-none focus:border-blue-500 resize-none min-h-[60px]" value={soal.panduanAI} onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].panduanAI = e.target.value; setDaftarSoal(newSoal); }} placeholder="Tuliskan kata kunci wajib (rubrik) agar AI dapat mengoreksi otomatis jawaban uraian siswa..." />
-                    )}
                   </div>
+                </div>
 
-                  {/* Analisis Butir Soal AI */}
-                  <div className="flex flex-wrap gap-4 md:gap-8 mt-2 pt-3 border-t border-slate-100">
-                     <div className="flex flex-col"><span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Tingkat Kesukaran</span><span className={`text-xs font-bold ${soal.analisis?.kesukaran === 'Sukar' ? 'text-rose-600' : 'text-slate-700'}`}>{soal.analisis?.kesukaran || 'Sedang'}</span></div>
-                     <div className="flex flex-col"><span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Daya Pembeda</span><span className="text-xs font-bold text-slate-700">{soal.analisis?.dayaPembeda || 'Baik'}</span></div>
-                     <div className="flex flex-col"><span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Rekomendasi AI</span><span className="text-xs font-bold text-emerald-600 flex items-center gap-1"><CheckCircle2 size={12}/> {soal.analisis?.status || 'Layak Digunakan'}</span></div>
-                  </div>
-
+                <div className="bg-indigo-50/50 p-3.5 rounded-xl border border-indigo-100 text-xs space-y-2">
+                  <label className="font-bold text-indigo-900 flex items-center gap-1.5 uppercase tracking-wider text-[10px]"><Key size={13}/> Kunci Jawaban</label>
+                  {(soal.tipe === "PG" || soal.tipe === "Benar/Salah") && (
+                    <select value={soal.kunci} onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].kunci = e.target.value; setDaftarSoal(newSoal); }} className="bg-white border border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-bold text-indigo-700 outline-none">
+                      {soal.tipe === "PG" ? soal.opsi?.map((opt:any) => <option key={opt.id} value={opt.id}>Opsi {opt.id}</option>) : <><option value="Benar">Benar</option><option value="Salah">Salah</option></>}
+                    </select>
+                  )}
                 </div>
               </div>
             ))}
-            <div className="flex flex-wrap gap-3 pt-6 border-t border-slate-200">
-              <button type="button" onClick={() => tambahSoalManual("PG")} className="px-5 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm font-bold rounded-lg flex items-center gap-2 hover:bg-slate-50"><Plus size={16}/> Pilihan Ganda</button>
-              <button type="button" onClick={() => tambahSoalManual("Benar/Salah")} className="px-5 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm font-bold rounded-lg flex items-center gap-2 hover:bg-slate-50"><Plus size={16}/> Benar / Salah</button>
-              <button type="button" onClick={() => tambahSoalManual("Jodohkan")} className="px-5 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm font-bold rounded-lg flex items-center gap-2 hover:bg-slate-50"><Plus size={16}/> Menjodohkan</button>
-              <button type="button" onClick={() => tambahSoalManual("Isian Singkat")} className="px-5 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm font-bold rounded-lg flex items-center gap-2 hover:bg-slate-50"><Plus size={16}/> Isian Singkat</button>
-              <button type="button" onClick={() => tambahSoalManual("Uraian")} className="px-5 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm font-bold rounded-lg flex items-center gap-2 hover:bg-slate-50"><Plus size={16}/> Uraian Lengkap</button>
+
+            <div className="flex flex-wrap gap-2 pt-3">
+              <button type="button" onClick={() => tambahSoalManual("PG")} className="px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1.5 hover:bg-slate-50"><Plus size={14}/> PG</button>
+              <button type="button" onClick={() => tambahSoalManual("Benar/Salah")} className="px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1.5 hover:bg-slate-50"><Plus size={14}/> B/S</button>
+              <button type="button" onClick={() => tambahSoalManual("Uraian")} className="px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1.5 hover:bg-slate-50"><Plus size={14}/> Uraian</button>
             </div>
           </div>
         </motion.div>
       )}
 
-      {/* ========================================================
-          MODAL PENGATURAN KECIL (KELAS & UJIAN BARU)
-      ======================================================== */}
+      {/* MODAL BUAT KELAS */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50"><h3 className="font-bold text-slate-800">Buat Kelas Baru</h3></div>
-              <form onSubmit={handleBuatKelas} className="p-6 space-y-4">
-                <div><label className="block text-xs font-bold text-slate-500 mb-1">Nama Kelas</label><input type="text" required value={newClass.nama} onChange={(e) => setNewClass({...newClass, nama: e.target.value})} className="w-full p-2.5 border rounded-md outline-none focus:border-blue-500" /></div>
-                <div><label className="block text-xs font-bold text-slate-500 mb-1">Mata Pelajaran</label><input type="text" required value={newClass.mapel} onChange={(e) => setNewClass({...newClass, mapel: e.target.value})} className="w-full p-2.5 border rounded-md outline-none focus:border-blue-500" /></div>
-                <div className="pt-4 flex justify-end gap-2">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-bold text-slate-500 rounded-md">Batal</button>
-                  <button type="submit" disabled={isSubmitting} className="px-5 py-2 bg-blue-600 text-white text-sm font-bold rounded-md">Simpan</button>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 bg-slate-50"><h3 className="font-bold text-slate-800 text-sm">Buat Kelas Baru</h3></div>
+              <form onSubmit={handleBuatKelas} className="p-5 space-y-3 text-xs">
+                <div>
+                  <label className="block font-bold text-slate-600 mb-1 uppercase tracking-wider">Nama Kelas</label>
+                  <input type="text" required value={newClass.nama} onChange={(e) => setNewClass({...newClass, nama: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-800 font-medium" placeholder="Contoh: Kelas 7A" />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-600 mb-1 uppercase tracking-wider">Mata Pelajaran</label>
+                  <input type="text" required value={newClass.mapel} onChange={(e) => setNewClass({...newClass, mapel: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-800 font-medium" placeholder="Contoh: Bahasa Indonesia" />
+                </div>
+                <div className="pt-3 flex justify-end gap-2">
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-bold text-slate-500 rounded-xl">Batal</button>
+                  <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl shadow-sm">Simpan</button>
                 </div>
               </form>
             </motion.div>
@@ -1028,191 +1114,135 @@ export default function ManajemenKelas() {
         )}
       </AnimatePresence>
 
-      {/* ========================================================
-          MODAL PENGATURAN UJIAN CBT
-      ======================================================== */}
+      {/* MODAL CBT CONFIG */}
       <AnimatePresence>
         {isCbtModalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh]">
-              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
-                <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2"><Target size={20} className="text-blue-600"/> Pengaturan Ujian Baru</h3>
-                <button type="button" onClick={() => setIsCbtModalOpen(false)} className="text-slate-400 bg-slate-100 p-1.5 rounded-md hover:bg-slate-200"><X size={20}/></button>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-xl flex flex-col max-h-[90vh]">
+              <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5"><Target size={16} className="text-indigo-600"/> Pengaturan Ujian Baru</h3>
+                <button type="button" onClick={() => setIsCbtModalOpen(false)} className="text-slate-400 p-1 rounded-lg hover:bg-slate-200"><X size={18}/></button>
               </div>
-              <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar bg-slate-50">
-                
-                <div className="bg-white p-5 rounded-md border border-slate-200 shadow-sm">
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2">1. Sumber Soal & Identitas</label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">Judul Ujian / Penugasan <span className="text-rose-500">*</span></label>
-                      <input type="text" value={cbtForm.judul} onChange={(e) => setCbtForm({...cbtForm, judul: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-md text-sm font-bold focus:border-blue-500 outline-none" />
-                    </div>
-                    <div className="md:col-span-1">
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">Jenis Ujian (Kategori Nilai)</label>
-                      <select value={cbtForm.jenisUjian} onChange={(e) => setCbtForm({...cbtForm, jenisUjian: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-md text-sm font-bold text-slate-700 focus:border-blue-500 outline-none">
-                        <option value="Ulangan Harian">Ulangan Harian</option><option value="Asesmen Formatif">Asesmen Formatif</option><option value="Sumatif Lingkup Materi">Sumatif Lingkup Materi</option><option value="Sumatif Tengah Semester (STS)">Sumatif Tengah Semester (STS)</option><option value="Sumatif Akhir Semester (SAS)">Sumatif Akhir Semester (SAS)</option><option value="Ujian Sekolah (US)">Ujian Sekolah (US)</option><option value="Try Out">Try Out</option><option value="Custom">Lainnya (Tulis Sendiri)...</option>
-                      </select>
-                    </div>
-                    <div className="md:col-span-1">
-                      {cbtForm.jenisUjian === "Custom" && (
-                        <>
-                          <label className="block text-xs font-bold text-slate-700 mb-1.5">Nama Jenis Ujian Custom <span className="text-rose-500">*</span></label>
-                          <input type="text" value={cbtForm.jenisUjianCustom} onChange={(e) => setCbtForm({...cbtForm, jenisUjianCustom: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-blue-400 rounded-md text-sm font-bold focus:border-blue-600 outline-none" placeholder="Ketik jenis ujian..." />
-                        </>
-                      )}
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">Metode Import Soal</label>
-                      <select value={cbtForm.sumberSoal} onChange={(e) => setCbtForm({...cbtForm, sumberSoal: e.target.value, koleksiId: ""})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-md text-sm font-bold text-blue-700 focus:border-blue-500 outline-none">
-                        <option value="Buat Manual (Ketik Sendiri)">Buat Manual (Ketik Sendiri)</option>
-                        <option value="Tarik dari Bank Soal AI (Generator)">Tarik dari Bank Soal AI (Generator)</option>
-                        <option value="Upload dari Kisi-kisi / LKPD (Word/PDF)">Upload dari Kisi-kisi / LKPD (Word/PDF)</option>
-                      </select>
-                    </div>
-
-                    {(cbtForm.sumberSoal === 'Tarik dari Bank Soal AI (Generator)' || cbtForm.sumberSoal === 'Upload dari Kisi-kisi / LKPD (Word/PDF)') && (
-                      <div className="md:col-span-2 mt-2 p-4 bg-blue-50/70 border border-blue-100 rounded-lg">
-                        <label className="block text-xs font-bold text-blue-800 mb-1.5">Pilih Koleksi Hasil Generate AI <span className="text-rose-500">*</span></label>
-                        <select value={cbtForm.koleksiId || ''} onChange={(e) => setCbtForm({...cbtForm, koleksiId: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-blue-200 rounded-md text-sm font-medium text-slate-700 focus:border-blue-500 outline-none">
-                          <option value="" disabled>-- Pilih Koleksi AI yang Tersedia --</option>
-                          {koleksiAI.map(kol => (<option key={kol.id} value={kol.id}>{kol.tipe} - {kol.mapel} ({kol.materi || kol.topik || `ID: ${kol.id}`})</option>))}
-                        </select>
-                        <p className="text-[11px] text-blue-600 mt-2 flex items-center gap-1 font-medium">
-                          <Target size={12} /> Data soal dan kunci jawaban akan dipetakan secara otomatis.
-                        </p>
-                      </div>
-                    )}
+              <div className="p-5 space-y-4 overflow-y-auto text-xs">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Judul Ujian / Penugasan *</label>
+                  <input type="text" value={cbtForm.judul} onChange={(e) => setCbtForm({...cbtForm, judul: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="Contoh: Sumatif Harian Bab 1" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Jenis Ujian</label>
+                    <select value={cbtForm.jenisUjian} onChange={(e) => setCbtForm({...cbtForm, jenisUjian: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none">
+                      <option value="Ulangan Harian">Ulangan Harian</option>
+                      <option value="Asesmen Formatif">Asesmen Formatif</option>
+                      <option value="Sumatif Lingkup Materi">Sumatif Lingkup Materi</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Durasi (Menit)</label>
+                    <input type="number" value={cbtForm.waktuMenit} onChange={(e) => setCbtForm({...cbtForm, waktuMenit: Number(e.target.value)})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" />
                   </div>
                 </div>
-
-                <div className="bg-white p-5 rounded-md border border-slate-200 shadow-sm">
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3 border-b border-slate-100 pb-2">2. Waktu & Pelaksanaan</label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
-                    <div className="md:col-span-1">
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">Durasi (Menit) <span className="text-rose-500">*</span></label>
-                      <div className="flex items-center gap-2">
-                        <Clock size={16} className="text-slate-400"/>
-                        <input type="number" value={cbtForm.waktuMenit} onChange={(e) => setCbtForm({...cbtForm, waktuMenit: Number(e.target.value)})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-md text-sm font-bold focus:border-blue-500 outline-none" />
-                      </div>
-                    </div>
-                    <div className="md:col-span-1">
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">Waktu Buka <span className="text-rose-500">*</span></label>
-                      <input type="datetime-local" value={cbtForm.waktuMulai} onChange={(e) => setCbtForm({...cbtForm, waktuMulai: e.target.value})} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-md text-xs font-medium outline-none" />
-                    </div>
-                    <div className="md:col-span-1">
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">Waktu Tutup <span className="text-rose-500">*</span></label>
-                      <input type="datetime-local" value={cbtForm.waktuSelesai} onChange={(e) => setCbtForm({...cbtForm, waktuSelesai: e.target.value})} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-md text-xs font-medium outline-none" />
-                    </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Waktu Buka</label>
+                    <input type="datetime-local" value={cbtForm.waktuMulai} onChange={(e) => setCbtForm({...cbtForm, waktuMulai: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Waktu Tutup</label>
+                    <input type="datetime-local" value={cbtForm.waktuSelesai} onChange={(e) => setCbtForm({...cbtForm, waktuSelesai: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 outline-none" />
                   </div>
                 </div>
-
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Sumber Soal</label>
+                  <select value={cbtForm.sumberSoal} onChange={(e) => setCbtForm({...cbtForm, sumberSoal: e.target.value, koleksiId: ""})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-indigo-700 outline-none">
+                    <option value="Buat Manual (Ketik Sendiri)">Buat Manual (Ketik Sendiri)</option>
+                    <option value="Tarik dari Bank Soal AI (Generator)">Tarik dari Bank Soal AI (Generator)</option>
+                  </select>
+                </div>
+                {cbtForm.sumberSoal === 'Tarik dari Bank Soal AI (Generator)' && (
+                  <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl space-y-1">
+                    <label className="block font-bold text-indigo-900 uppercase text-[10px]">Pilih Koleksi AI</label>
+                    <select value={cbtForm.koleksiId || ''} onChange={(e) => setCbtForm({...cbtForm, koleksiId: e.target.value})} className="w-full p-2 bg-white border border-indigo-200 rounded-lg text-xs outline-none">
+                      <option value="" disabled>-- Pilih Koleksi AI --</option>
+                      {koleksiAI.map(kol => (<option key={kol.id} value={kol.id}>{kol.tipe} - {kol.mapel}</option>))}
+                    </select>
+                  </div>
+                )}
               </div>
-              <div className="px-6 py-4 border-t border-slate-100 flex justify-end bg-white shrink-0">
-                <button type="button" onClick={prosesLanjutPembuatan} className="w-full sm:w-auto px-8 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-md flex items-center justify-center gap-2 hover:bg-blue-700 shadow-sm transition-colors">Lanjutkan <ChevronRight size={16} /></button>
+              <div className="px-5 py-3 border-t border-slate-100 flex justify-end bg-slate-50 shrink-0">
+                <button type="button" onClick={prosesLanjutPembuatan} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition-all">Lanjutkan <ChevronRight size={15}/></button>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* ========================================================
-          MODAL ANALISIS HASIL UJIAN CBT
-      ======================================================== */}
+      {/* MODAL HASIL UJIAN */}
       <AnimatePresence>
         {isHasilUjianOpen && selectedUjianView && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="px-4 md:px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
                 <div>
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg"><Target size={20} className="text-indigo-600" /> Analisis Hasil & Asesmen Siswa</h3>
-                  <p className="text-xs text-slate-500 mt-1">{selectedUjianView.pengaturan.judul}</p>
+                  <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5"><Target size={16} className="text-indigo-600" /> Hasil & Feedback AI</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">{selectedUjianView.pengaturan.judul}</p>
                 </div>
-                <button type="button" onClick={() => setIsHasilUjianOpen(false)} className="text-slate-400 bg-slate-100 p-1.5 rounded-md hover:bg-slate-200"><X size={20}/></button>
+                <button type="button" onClick={() => setIsHasilUjianOpen(false)} className="text-slate-400 p-1 rounded-lg hover:bg-slate-200"><X size={18}/></button>
               </div>
-              <div className="p-4 md:p-6 overflow-y-auto bg-slate-50 custom-scrollbar">
-                
-                <div className="mb-4 bg-indigo-50/80 border border-indigo-200 p-4 rounded-lg flex gap-3 items-start">
-                  <Activity size={24} className="text-indigo-600 mt-0.5" />
-                  <div>
-                    <h4 className="font-bold text-indigo-900 text-sm">Dashboard Asesmen AI</h4>
-                    <p className="text-xs text-indigo-700 leading-relaxed mt-1">Sistem menganalisis kemampuan kognitif tiap siswa berdasarkan pola jawaban mereka. Klik "Feedback AI" untuk melihat rekomendasi intervensi personal dari sistem kepada guru.</p>
-                  </div>
+              <div className="p-5 overflow-y-auto space-y-4 text-xs">
+                <div className="bg-indigo-50 border border-indigo-100 p-3.5 rounded-xl flex gap-2.5 items-start">
+                  <Activity size={18} className="text-indigo-600 shrink-0 mt-0.5" />
+                  <p className="text-indigo-900 leading-relaxed">Sistem menganalisis kemampuan kognitif tiap peserta didik secara otomatis berdasarkan pola pengerjaan ujian.</p>
                 </div>
 
-                <div className="bg-white border border-slate-300 shadow-sm rounded-md overflow-hidden">
-                  <div className="w-full overflow-x-auto">
-                    <table className="w-full text-left border-collapse min-w-[800px] text-sm">
-                      <thead>
-                        <tr className="bg-slate-200 border-b border-slate-300 font-bold text-slate-700 text-xs">
-                          <th className="p-3 border-r border-slate-300 w-10 text-center">No</th>
-                          <th className="p-3 border-r border-slate-300 min-w-[150px]">Nama Siswa</th>
-                          <th className="p-3 border-r border-slate-300 text-center">Nilai Ujian</th>
-                          <th className="p-3 border-r border-slate-300 text-center">Jawaban Benar</th>
-                          <th className="p-3 border-r border-slate-300 text-center">Jawaban Salah</th>
-                          <th className="p-3 text-center w-40">Aksi Asesmen</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {siswaKelasAsli.length > 0 ? (
-                          siswaKelasAsli.map((siswa, idx) => {
-                            const hasilSiswa = hasilUjianData.find(h => h.uid === siswa.id);
-                            const isExpanded = expandedFeedbackId === siswa.id;
-                            
-                            return (
-                              <React.Fragment key={siswa.id}>
-                                <tr className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-                                  <td className="p-3 border-r border-slate-300 text-center font-bold text-slate-500">{idx + 1}</td>
-                                  <td className="p-3 border-r border-slate-300 font-bold text-slate-800">{siswa.nama}</td>
-                                  <td className={`p-3 border-r border-slate-300 text-center font-black text-lg ${hasilSiswa?.nilai >= kkm ? 'text-emerald-600' : 'text-rose-600'}`}>{hasilSiswa?.nilai ?? "-"}</td>
-                                  <td className="p-3 border-r border-slate-300 text-center font-bold text-slate-700">{hasilSiswa?.benar ?? "-"}</td>
-                                  <td className="p-3 border-r border-slate-300 text-center font-bold text-slate-700">{hasilSiswa?.salah ?? "-"}</td>
-                                  <td className="p-3 text-center">
-                                    {hasilSiswa ? (
-                                      <button onClick={() => {
-                                        setExpandedFeedbackId(isExpanded ? null : siswa.id);
-                                        // Panggil fungsi feedback jika belum ada (Bisa Anda integrasikan dengan prompt API sesungguhnya nanti)
-                                        if (!isExpanded && !hasilSiswa.feedbackGuru) {
-                                          generateFeedbackAI(siswa, hasilSiswa);
-                                        }
-                                      }} 
-                                      className={`text-[10px] px-3 py-1.5 rounded font-bold transition-colors ${isExpanded ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'} flex items-center justify-center gap-1.5 w-full`}>
-                                        <MessageSquareText size={12}/> Detail Feedback
-                                      </button>
-                                    ) : (
-                                      <span className="text-[10px] text-slate-400 italic">Belum Mengerjakan</span>
-                                    )}
-                                  </td>
-                                </tr>
-                                {isExpanded && hasilSiswa && (
-                                  <tr className="bg-indigo-50/30">
-                                    <td colSpan={6} className="p-5 border-b border-indigo-100">
-                                      <div className="bg-white border border-indigo-100 p-4 rounded-lg shadow-sm relative">
-                                        <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500 rounded-l-lg"></div>
-                                        <h5 className="font-bold text-indigo-900 text-xs mb-2 uppercase tracking-wider">Hasil Asesmen & Umpan Balik</h5>
-                                        <p className="text-sm text-slate-700 leading-relaxed font-medium mb-3">
-                                          {hasilSiswa.feedbackGuru || "Belum ada umpan balik yang ter-generate."}
-                                        </p>
-                                        {/* Jika ada sanggahan siswa */}
-                                        {hasilSiswa.sanggahan && (
-                                           <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-md">
-                                             <h6 className="font-bold text-amber-800 text-[10px] uppercase mb-1">Sanggahan Siswa:</h6>
-                                             <p className="text-xs text-amber-900 italic">"{hasilSiswa.sanggahan.teks}"</p>
-                                           </div>
-                                        )}
-                                      </div>
-                                    </td>
-                                  </tr>
-                                )}
-                              </React.Fragment>
-                            )
-                          })
-                        ) : (
-                          <tr><td colSpan={6} className="p-6 text-center text-sm font-bold text-slate-400">Belum ada siswa di kelas ini.</td></tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-left border-collapse min-w-[650px]">
+                    <thead>
+                      <tr className="bg-slate-50 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-200">
+                        <th className="p-3 text-center w-10">No</th>
+                        <th className="p-3">Nama Siswa</th>
+                        <th className="p-3 text-center">Nilai</th>
+                        <th className="p-3 text-center">Benar / Salah</th>
+                        <th className="p-3 text-center w-36">Aksi Feedback</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {siswaKelasAsli.map((siswa, idx) => {
+                        const hasilSiswa = hasilUjianData.find(h => h.uid === siswa.id);
+                        const isExpanded = expandedFeedbackId === siswa.id;
+                        return (
+                          <React.Fragment key={siswa.id}>
+                            <tr className="hover:bg-slate-50/50">
+                              <td className="p-3 text-center font-bold text-slate-400">{idx + 1}</td>
+                              <td className="p-3 font-bold text-slate-800">{siswa.nama}</td>
+                              <td className={`p-3 text-center font-black text-sm ${hasilSiswa?.nilai >= kkm ? 'text-emerald-600' : 'text-rose-600'}`}>{hasilSiswa?.nilai ?? "-"}</td>
+                              <td className="p-3 text-center font-bold text-slate-600">{hasilSiswa?.benar ?? "-"} / {hasilSiswa?.salah ?? "-"}</td>
+                              <td className="p-3 text-center">
+                                {hasilSiswa ? (
+                                  <button onClick={() => {
+                                    setExpandedFeedbackId(isExpanded ? null : siswa.id);
+                                    if (!isExpanded && !hasilSiswa.feedbackGuru) generateFeedbackAI(siswa, hasilSiswa);
+                                  }} className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-3 py-1 rounded-xl text-[10px] font-bold transition-all w-full">
+                                    <MessageSquareText size={12} className="inline mr-1"/> Feedback
+                                  </button>
+                                ) : <span className="text-slate-400 italic">Belum Ujian</span>}
+                              </td>
+                            </tr>
+                            {isExpanded && hasilSiswa && (
+                              <tr className="bg-indigo-50/20">
+                                <td colSpan={5} className="p-4">
+                                  <div className="bg-white border border-indigo-100 p-3.5 rounded-xl space-y-1.5 shadow-sm">
+                                    <p className="font-bold text-indigo-900 uppercase tracking-wider text-[9px]">Umpan Balik Sistem AI:</p>
+                                    <p className="text-slate-700 leading-relaxed font-medium">{hasilSiswa.feedbackGuru || "Menyiapkan rekomendasi..."}</p>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </motion.div>
@@ -1220,116 +1250,83 @@ export default function ManajemenKelas() {
         )}
       </AnimatePresence>
 
-      {/* ========================================================
-          MODAL PENGATURAN INDIKATOR & BOBOT
-      ======================================================== */}
+      {/* MODAL PENGATURAN BOBOT NILAI */}
       <AnimatePresence>
         {isPengaturanNilaiOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2"><SlidersHorizontal size={18} className="text-amber-600"/> Pengaturan Indikator & Bobot</h3>
-                <button onClick={() => setIsPengaturanNilaiOpen(false)} className="text-slate-400 hover:text-rose-500 transition-colors p-1"><X size={18}/></button>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5"><SlidersHorizontal size={16} className="text-amber-600"/> Pengaturan Bobot Indikator</h3>
+                <button onClick={() => setIsPengaturanNilaiOpen(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"><X size={18}/></button>
               </div>
-              <div className="p-6 overflow-y-auto flex-1">
-                <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 font-medium">
-                  Total bobot indikator yang masuk perhitungan Nilai Akhir Kognitif sebaiknya 100%. Ubah bobot menjadi 0 jika indikator tidak dimasukkan ke dalam perhitungan akhir (misal: Praktik).
-                </div>
-                <div className="space-y-3">
-                  {indikatorNilai.map((ind, idx) => (
-                    <div key={ind.id} className="flex items-center gap-3">
-                      <div className="flex-1">
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase">Nama Indikator</label>
-                        <input type="text" value={ind.nama} onChange={(e) => { const newInd = [...indikatorNilai]; newInd[idx].nama = e.target.value; setIndikatorNilai(newInd); }} className="w-full text-sm font-bold text-slate-800 outline-none border-b border-slate-200 focus:border-blue-500 pb-1 mt-1" />
-                      </div>
-                      <div className="w-20">
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase text-center">Bobot (%)</label>
-                        <input type="number" value={ind.bobot} onChange={(e) => { const newInd = [...indikatorNilai]; newInd[idx].bobot = Number(e.target.value); setIndikatorNilai(newInd); }} className="w-full text-center text-sm font-bold text-slate-800 outline-none border-b border-slate-200 focus:border-blue-500 pb-1 mt-1" />
-                      </div>
-                      <button type="button" onClick={() => handleHapusIndikator(ind.id)} className="mt-4 p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-colors"><Trash2 size={16}/></button>
+              <div className="p-5 overflow-y-auto space-y-3 text-xs">
+                {indikatorNilai.map((ind, idx) => (
+                  <div key={ind.id} className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                    <input type="text" value={ind.nama} onChange={(e) => { const newInd = [...indikatorNilai]; newInd[idx].nama = e.target.value; setIndikatorNilai(newInd); }} className="flex-1 bg-transparent font-bold text-slate-800 outline-none" />
+                    <div className="flex items-center gap-1">
+                      <input type="number" value={ind.bobot} onChange={(e) => { const newInd = [...indikatorNilai]; newInd[idx].bobot = Number(e.target.value); setIndikatorNilai(newInd); }} className="w-12 bg-white border border-slate-200 rounded-lg text-center font-bold p-1 outline-none" />
+                      <span className="text-slate-400 font-bold">%</span>
                     </div>
-                  ))}
-                </div>
-                <button type="button" onClick={handleTambahIndikator} className="w-full mt-6 border-2 border-dashed border-slate-300 text-slate-500 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all">
-                  <Plus size={16}/> Tambah Indikator
+                    <button type="button" onClick={() => handleHapusIndikator(ind.id)} className="text-slate-400 hover:text-rose-500 p-1"><Trash2 size={15}/></button>
+                  </div>
+                ))}
+                <button type="button" onClick={handleTambahIndikator} className="w-full border-2 border-dashed border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all">
+                  <Plus size={15}/> Tambah Indikator Baru
                 </button>
               </div>
-              <div className="px-6 py-4 border-t border-slate-100 flex justify-end bg-slate-50 shrink-0">
-                <button onClick={() => setIsPengaturanNilaiOpen(false)} className="px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded-md hover:bg-blue-700 shadow-sm transition-colors">Selesai</button>
+              <div className="px-5 py-3 border-t border-slate-100 flex justify-end bg-slate-50 shrink-0">
+                <button onClick={() => setIsPengaturanNilaiOpen(false)} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all">Selesai</button>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* ========================================================
-          MODAL RIWAYAT ABSENSI
-      ======================================================== */}
+      {/* MODAL RIWAYAT ABSENSI */}
       <AnimatePresence>
         {isRiwayatAbsenOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2"><CalendarDays className="text-blue-600" size={18}/> Riwayat Absensi</h3>
-                <button onClick={() => setIsRiwayatAbsenOpen(false)} className="text-slate-400 hover:text-rose-500 transition-colors p-1"><X size={18}/></button>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5"><CalendarDays className="text-indigo-600" size={16}/> Riwayat Absensi Kelas</h3>
+                <button onClick={() => setIsRiwayatAbsenOpen(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"><X size={18}/></button>
               </div>
-              <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
-                {riwayatAbsenData.length > 0 ? (
-                  <div className="space-y-3">
-                    {riwayatAbsenData.map((absen, idx) => {
-                      const totalHadir = Object.values(absen.dataKehadiran || {}).filter((v) => v === "Hadir").length;
-                      return (
-                        <div key={idx} className="p-4 border border-slate-200 rounded-lg flex justify-between items-center bg-white hover:bg-slate-50 transition-colors">
-                          <div>
-                            <p className="font-bold text-slate-800">{absen.tanggal}</p>
-                            <p className="text-xs text-slate-500 mt-1">Hadir: {totalHadir} Siswa</p>
-                          </div>
-                          <button onClick={() => { setTanggal(absen.tanggal); setAbsensi(absen.dataKehadiran || {}); setIsRiwayatAbsenOpen(false); }} className="text-xs font-bold bg-blue-50 text-blue-600 px-3 py-1.5 rounded-md hover:bg-blue-100 transition-colors">Pilih Tanggal</button>
-                        </div>
-                      );
-                    })}
+              <div className="p-5 overflow-y-auto space-y-2.5 text-xs custom-scrollbar">
+                {riwayatAbsenData.length > 0 ? riwayatAbsenData.map((absen, idx) => (
+                  <div key={idx} className="p-3.5 border border-slate-200 rounded-xl flex justify-between items-center bg-white shadow-sm">
+                    <div>
+                      <p className="font-bold text-slate-800">{absen.tanggal}</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Hadir: {Object.values(absen.dataKehadiran || {}).filter(v => v === "Hadir").length} Siswa</p>
+                    </div>
+                    <button onClick={() => { setTanggal(absen.tanggal); setAbsensi(absen.dataKehadiran || {}); setIsRiwayatAbsenOpen(false); }} className="text-xs font-bold bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-xl hover:bg-indigo-100 transition-all">Muat Data</button>
                   </div>
-                ) : (
-                  <div className="text-center py-10 text-slate-400"><CalendarDays className="mx-auto mb-3 opacity-50" size={32}/><p className="text-sm font-bold">Belum ada riwayat absensi.</p></div>
-                )}
+                )) : <p className="text-center py-8 text-slate-400 font-bold">Belum ada riwayat absensi.</p>}
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* ========================================================
-          MODAL RIWAYAT JURNAL
-      ======================================================== */}
+      {/* MODAL RIWAYAT JURNAL */}
       <AnimatePresence>
         {isRiwayatJurnalOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-xl shadow-xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2"><FileSpreadsheet className="text-blue-600" size={18}/> Riwayat Jurnal Mengajar</h3>
-                <button onClick={() => setIsRiwayatJurnalOpen(false)} className="text-slate-400 hover:text-rose-500 transition-colors p-1"><X size={18}/></button>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5"><FileSpreadsheet className="text-indigo-600" size={16}/> Riwayat Jurnal Mengajar</h3>
+                <button onClick={() => setIsRiwayatJurnalOpen(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"><X size={18}/></button>
               </div>
-              <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
-                {riwayatJurnalData.length > 0 ? (
-                  <div className="space-y-4">
-                    {riwayatJurnalData.map((j, idx) => (
-                      <div key={idx} className="p-5 border border-slate-200 rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex justify-between items-start mb-3 border-b border-slate-100 pb-3">
-                          <span className="font-bold text-slate-800 bg-slate-100 px-3 py-1 rounded-md text-sm">{j.tanggal}</span>
-                          <button onClick={async () => { if(confirm("Hapus jurnal ini?")) await deleteDoc(doc(db, "jurnal_kbm", j.id)); }} className="text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={16}/></button>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 text-sm">
-                          <div><p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Materi</p><p className="font-medium text-slate-800 bg-slate-50 p-2 rounded">{j.materi}</p></div>
-                          <div><p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Kegiatan</p><p className="text-slate-700 bg-slate-50 p-2 rounded">{j.kegiatan}</p></div>
-                          <div><p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Hambatan</p><p className="text-slate-600 italic bg-rose-50 p-2 rounded">{j.hambatan || "-"}</p></div>
-                          <div><p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Solusi</p><p className="text-slate-600 italic bg-emerald-50 p-2 rounded">{j.solusi || "-"}</p></div>
-                        </div>
-                      </div>
-                    ))}
+              <div className="p-5 overflow-y-auto space-y-3 text-xs custom-scrollbar">
+                {riwayatJurnalData.length > 0 ? riwayatJurnalData.map((j, idx) => (
+                  <div key={idx} className="p-4 border border-slate-200 rounded-2xl bg-white shadow-sm space-y-2">
+                    <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                      <span className="font-bold text-slate-800 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">{j.tanggal}</span>
+                      <button onClick={async () => { if(confirm("Hapus jurnal ini?")) await deleteDoc(doc(db, "jurnal_kbm", j.id)); }} className="text-slate-300 hover:text-rose-500"><Trash2 size={15}/></button>
+                    </div>
+                    <p className="font-bold text-slate-900">Materi: {j.materi}</p>
+                    <p className="text-slate-600 leading-relaxed">{j.kegiatan}</p>
                   </div>
-                ) : (
-                  <div className="text-center py-10 text-slate-400"><FileText className="mx-auto mb-3 opacity-50" size={32}/><p className="text-sm font-bold">Belum ada riwayat jurnal.</p></div>
-                )}
+                )) : <p className="text-center py-8 text-slate-400 font-bold">Belum ada riwayat jurnal.</p>}
               </div>
             </motion.div>
           </div>

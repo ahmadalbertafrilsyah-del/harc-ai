@@ -49,7 +49,7 @@ export default function MasterDataAdmin() {
         terakhirDiperbarui: serverTimestamp()
       }, { merge: true });
       
-      setStatusPesan({ tipe: "sukses", teks: "Master Data berhasil diperbarui ke seluruh sistem." });
+      setStatusPesan({ tipe: "sukses", teks: "Master data berhasil diperbarui." });
       setTimeout(() => setStatusPesan(null), 3000);
     } catch (error) {
       setStatusPesan({ tipe: "error", teks: "Gagal menyimpan pengaturan." });
@@ -58,37 +58,54 @@ export default function MasterDataAdmin() {
     }
   };
 
-  if (isLoading) return <div className="w-full h-[60vh] flex items-center justify-center"><Loader2 size={40} className="animate-spin text-indigo-600" aria-hidden="true"/></div>;
+  if (isLoading) {
+    return (
+      <div className="w-full h-[70vh] flex flex-col items-center justify-center text-slate-500" role="status">
+        <Loader2 size={36} className="animate-spin text-indigo-600 mb-3" />
+        <p className="text-xs font-bold text-slate-700">Memuat Master Data...</p>
+      </div>
+    );
+  }
 
   return (
-    <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl mx-auto space-y-6 pb-10">
-      <header className="border-b border-slate-200 pb-5 flex items-center gap-3">
-        <div className="p-3 bg-indigo-100 text-indigo-700 rounded-xl" aria-hidden="true"><Database size={24}/></div>
+    // DIUBAH: Mengganti pb-12 menjadi pb-6 agar jarak bawah lebih pas dan tidak ada sisa ruang kosong yang berlebih
+    <motion.main initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-4xl mx-auto space-y-4 pb-6">
+      
+      {/* HEADER DESKTOP */}
+      <header className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`} tabIndex={0}>Master Data Akademik</h1>
-          <p className="text-slate-600 text-sm mt-1">Atur parameter dasar yang akan menjadi acuan seluruh transaksi data (Absensi, Jurnal, Rapor) di sistem.</p>
+          <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>Master Data Akademik</h1>
+          <p className="text-slate-500 text-sm mt-1">Atur parameter dasar yang menjadi acuan seluruh transaksi data di sistem.</p>
         </div>
       </header>
 
+      {/* HEADER MOBILE (App-Like Card) */}
+      <div className="md:hidden bg-gradient-to-br from-indigo-900 to-indigo-700 rounded-2xl p-4 text-white shadow-md relative overflow-hidden">
+        <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-xl"></div>
+        <span className="text-xs font-medium text-indigo-200 uppercase tracking-wider">Academic Engine</span>
+        <h2 className={`text-xl font-bold mt-1 ${teachersFont.className}`}>Master Data Akademik</h2>
+        <p className="text-xs text-indigo-100 mt-0.5">Atur tahun ajaran, semester, dan acuan kurikulum aktif.</p>
+      </div>
+
       <AnimatePresence>
         {statusPesan && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className={`p-4 rounded-xl flex items-center gap-3 border ${statusPesan.tipe === 'sukses' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`} role="alert" aria-live="assertive">
-            {statusPesan.tipe === 'sukses' ? <CheckCircle2 size={20}/> : <AlertCircle size={20}/>}
-            <p className="text-sm font-bold">{statusPesan.teks}</p>
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={`p-3.5 rounded-2xl flex items-center gap-3 border shadow-sm ${statusPesan.tipe === 'sukses' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`} role="alert">
+            {statusPesan.tipe === 'sukses' ? <CheckCircle2 size={18} className="shrink-0"/> : <AlertCircle size={18} className="shrink-0"/>}
+            <p className="text-xs font-bold">{statusPesan.teks}</p>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <section className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200" aria-label="Formulir Pengaturan Tahun Ajaran">
-        <form onSubmit={handleSimpan} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <section className="bg-white p-5 md:p-8 rounded-2xl shadow-sm border border-slate-200">
+        <form onSubmit={handleSimpan} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="tahunAjaran" className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
-                <Calendar size={16} className="text-indigo-500" aria-hidden="true"/> Tahun Ajaran Aktif
+              <label htmlFor="tahunAjaran" className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-2">
+                <Calendar size={15} className="text-indigo-600"/> Tahun Ajaran Aktif
               </label>
               <select 
                 id="tahunAjaran" value={masterData.tahunAjaran} onChange={e => setMasterData({...masterData, tahunAjaran: e.target.value})}
-                className="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400"
               >
                 <option value="2025/2026">2025/2026</option>
                 <option value="2026/2027">2026/2027</option>
@@ -96,12 +113,12 @@ export default function MasterDataAdmin() {
               </select>
             </div>
             <div>
-              <label htmlFor="semester" className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
-                <BookOpen size={16} className="text-indigo-500" aria-hidden="true"/> Semester Berjalan
+              <label htmlFor="semester" className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-2">
+                <BookOpen size={15} className="text-indigo-600"/> Semester Berjalan
               </label>
               <select 
                 id="semester" value={masterData.semester} onChange={e => setMasterData({...masterData, semester: e.target.value})}
-                className="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400"
               >
                 <option value="Ganjil">Semester Ganjil</option>
                 <option value="Genap">Semester Genap</option>
@@ -110,27 +127,26 @@ export default function MasterDataAdmin() {
           </div>
 
           <div>
-            <label htmlFor="kurikulum" className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
-              <GraduationCap size={16} className="text-indigo-500" aria-hidden="true"/> Acuan Kurikulum Nasional
+            <label htmlFor="kurikulum" className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-2">
+              <GraduationCap size={15} className="text-indigo-600"/> Acuan Kurikulum Nasional
             </label>
             <select 
               id="kurikulum" value={masterData.kurikulum} onChange={e => setMasterData({...masterData, kurikulum: e.target.value})}
-              className="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400"
             >
-              <option value="Kurikulum Merdeka">Kurikulum Merdeka (Kemdikbud/Kemenag)</option>
+              <option value="Kurikulum Merdeka">Kurikulum Merdeka (Kemendikdasmen/Kemenag)</option>
               <option value="Kurikulum 2013">Kurikulum 2013 Revisi</option>
             </select>
-            <p className="text-xs text-slate-500 mt-2">Acuan ini akan digunakan oleh mesin AI untuk merumuskan Standar Kompetensi Lulusan (SKL) dan Modul Ajar.</p>
+            <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">Acuan ini digunakan oleh mesin AI untuk merumuskan Standar Kompetensi Lulusan (SKL) dan Modul Ajar.</p>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex justify-end">
+          <div className="pt-3 border-t border-slate-100 flex justify-end">
             <button 
               type="submit" disabled={isSaving}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl text-sm font-bold flex items-center gap-2 shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
-              aria-label="Simpan Pengaturan Master Data"
+              className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50 active:scale-95"
             >
-              {isSaving ? <Loader2 size={18} className="animate-spin" aria-hidden="true"/> : <Save size={18} aria-hidden="true"/>}
-              Simpan Master Data
+              {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>}
+              <span>Simpan Master Data</span>
             </button>
           </div>
         </form>

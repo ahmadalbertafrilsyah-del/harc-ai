@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { BrainCircuit, Save, Loader2, CheckCircle2, AlertCircle, Settings2, Code2 } from "lucide-react";
+import { BrainCircuit, Save, Loader2, CheckCircle2, AlertCircle, Settings2, Code2, Sliders } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, FormEvent, useEffect } from "react";
 import { db } from "@/lib/firebase"; 
@@ -47,7 +47,7 @@ export default function KonfigurasiAI() {
         ...prompts,
         terakhirDiperbarui: serverTimestamp()
       });
-      setStatusPesan({ tipe: "sukses", teks: "Instruksi Sistem AI berhasil diperbarui!" });
+      setStatusPesan({ tipe: "sukses", teks: "Instruksi sistem berhasil disimpan." });
       setTimeout(() => setStatusPesan(null), 3000);
     } catch (error) {
       setStatusPesan({ tipe: "error", teks: "Gagal menyimpan konfigurasi AI." });
@@ -56,101 +56,119 @@ export default function KonfigurasiAI() {
     }
   };
 
-  if (isLoading) return <div className="w-full h-[70vh] flex items-center justify-center"><Loader2 size={40} className="animate-spin text-indigo-600" aria-hidden="true"/></div>;
+  if (isLoading) {
+    return (
+      <div className="w-full h-[70vh] flex flex-col items-center justify-center text-slate-600" role="status">
+        <Loader2 size={36} className="animate-spin text-indigo-600 mb-3" aria-hidden="true"/>
+        <p className="text-xs font-bold text-slate-700">Memuat Konfigurasi...</p>
+      </div>
+    );
+  }
 
   return (
-    <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-5xl mx-auto space-y-5 md:space-y-6 pb-10 px-4 md:px-6 lg:px-0 pt-2 md:pt-0">
+    <motion.main initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-5xl mx-auto space-y-5 pb-12">
       
-      {/* HEADER */}
-      <header className="border-b border-slate-200 pb-4 md:pb-5 flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 md:p-3 bg-indigo-100 text-indigo-700 rounded-xl shrink-0" aria-hidden="true">
-            <BrainCircuit size={24} className="w-5 h-5 md:w-6 md:h-6"/>
-          </div>
-          <div>
-            <h1 className={`text-xl md:text-2xl lg:text-3xl font-bold text-slate-900 ${teachersFont.className}`} tabIndex={0}>Konfigurasi Prompt AI</h1>
-            <p className="text-slate-600 text-xs md:text-sm mt-1 leading-relaxed">Kendalikan cara kerja, gaya bahasa, dan output <i>Large Language Model</i> (LLM) di seluruh fitur.</p>
-          </div>
+      {/* HEADER DESKTOP */}
+      <header className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-5">
+        <div>
+          <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>Konfigurasi Prompt AI</h1>
+          <p className="text-slate-500 text-sm mt-1">Kendalikan parameter dan instruksi dasar Large Language Model (LLM).</p>
         </div>
       </header>
+
+      {/* HEADER MOBILE (App-Like Card) */}
+      <div className="md:hidden bg-gradient-to-br from-indigo-900 to-indigo-700 rounded-2xl p-5 text-white shadow-md relative overflow-hidden">
+        <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-xl"></div>
+        <span className="text-xs font-medium text-indigo-200 uppercase tracking-wider">Engine Controller</span>
+        <h2 className={`text-xl font-bold mt-1 ${teachersFont.className}`}>Pengaturan Sistem AI</h2>
+        <p className="text-xs text-indigo-100 mt-1">Sesuaikan perilaku respon AI sesuai standar modul.</p>
+      </div>
 
       {/* NOTIFIKASI */}
       <AnimatePresence>
         {statusPesan && (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className={`p-4 rounded-xl flex items-center gap-3 border shadow-sm ${statusPesan.tipe === 'sukses' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`} role="alert" aria-live="assertive">
-            {statusPesan.tipe === 'sukses' ? <CheckCircle2 size={20} className="shrink-0"/> : <AlertCircle size={20} className="shrink-0"/>}
-            <p className="text-xs md:text-sm font-bold">{statusPesan.teks}</p>
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={`p-4 rounded-2xl flex items-center gap-3 border shadow-sm ${statusPesan.tipe === 'sukses' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`} role="alert">
+            {statusPesan.tipe === 'sukses' ? <CheckCircle2 size={18} className="shrink-0"/> : <AlertCircle size={18} className="shrink-0"/>}
+            <p className="text-xs font-bold">{statusPesan.teks}</p>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 md:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
         
-        {/* KOLOM KIRI / ATAS: Navigasi Kategori (Mobile: Horizontal Swipe, Desktop: Vertical List) */}
-        <aside className="lg:col-span-1 flex flex-col gap-4" role="tablist" aria-orientation="vertical">
+        {/* NAVIGASI KATEGORI (Mobile Swipeable Cards) */}
+        <aside className="lg:col-span-1 flex flex-col gap-4">
           <div>
-            <h2 className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 lg:mb-3 px-1">Kategori Sistem</h2>
-            <div className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-visible gap-2 pb-2 lg:pb-0 snap-x hide-scrollbar" style={{ scrollbarWidth: 'none' }}>
+            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Pilih Kategori</h3>
+            <div className="flex lg:flex-col overflow-x-auto gap-2 pb-1 lg:pb-0 scrollbar-none" style={{ scrollbarWidth: 'none' }}>
               {(['modul', 'asesmen', 'feedback'] as const).map((tab) => (
                 <button
-                  key={tab} role="tab" aria-selected={activeTab === tab} onClick={() => setActiveTab(tab)}
-                  className={`snap-start shrink-0 w-auto lg:w-full text-left px-4 py-2.5 lg:py-3 rounded-xl text-xs lg:text-sm font-bold flex items-center gap-2 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 whitespace-nowrap ${activeTab === tab ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'}`}
+                  key={tab} 
+                  onClick={() => setActiveTab(tab)}
+                  className={`shrink-0 lg:w-full text-left px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2.5 transition-all ${activeTab === tab ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'}`}
                 >
-                  <Code2 size={16} className="w-4 h-4" aria-hidden="true"/> 
-                  {tab === 'modul' ? 'Modul Ajar' : tab === 'asesmen' ? 'Asesmen & Kisi' : 'Feedback Naratif'}
+                  <Code2 size={16} className={activeTab === tab ? 'text-indigo-200' : 'text-slate-400'}/> 
+                  <span>{tab === 'modul' ? 'Modul Ajar' : tab === 'asesmen' ? 'Asesmen & Kisi' : 'Feedback Naratif'}</span>
                 </button>
               ))}
             </div>
           </div>
           
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mt-1 lg:mt-4">
-            <label htmlFor="temp-slider" className="block text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5"><Settings2 size={14} className="text-indigo-600"/> Kreativitas AI</label>
+          {/* SLIDER KREATIVITAS */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex justify-between items-center mb-3">
+              <label htmlFor="temp-slider" className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                <Sliders size={14} className="text-indigo-600"/> Kreativitas AI
+              </label>
+              <span className="bg-indigo-50 text-indigo-700 text-xs font-mono font-bold px-2 py-0.5 rounded-lg border border-indigo-100">{prompts.temperature}</span>
+            </div>
             <input 
-              id="temp-slider" type="range" min="0" max="1" step="0.1" 
-              value={prompts.temperature} onChange={(e) => setPrompts({...prompts, temperature: parseFloat(e.target.value)})}
-              className="w-full accent-indigo-600 mb-1" aria-valuemin={0} aria-valuemax={1} aria-valuenow={prompts.temperature}
+              id="temp-slider" 
+              type="range" min="0" max="1" step="0.1" 
+              value={prompts.temperature} 
+              onChange={(e) => setPrompts({...prompts, temperature: parseFloat(e.target.value)})}
+              className="w-full accent-indigo-600 cursor-pointer"
             />
-            <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 mt-1">
+            <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 mt-2">
               <span>0.0 (Kaku)</span>
-              <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">{prompts.temperature}</span>
               <span>1.0 (Kreatif)</span>
             </div>
           </div>
         </aside>
 
-        {/* KOLOM KANAN / BAWAH: Editor Prompt */}
-        <section className="lg:col-span-3 bg-white p-1 rounded-2xl shadow-sm border border-slate-200">
-          <form onSubmit={handleSimpan} className="flex flex-col h-[60vh] lg:h-full min-h-[400px]">
-            <div className="bg-slate-900 text-slate-300 p-3 md:p-4 rounded-t-xl flex justify-between items-center border-b border-slate-800">
-              <label htmlFor="prompt-editor" className="text-xs md:text-sm font-mono font-bold text-indigo-400 flex items-center gap-2 truncate">
-                <Code2 size={16} className="hidden sm:block" /> system_instructions_{activeTab}.txt
-              </label>
-              <span className="text-[9px] md:text-[10px] uppercase tracking-widest bg-slate-800 px-2 py-1 rounded shrink-0">Edit Mode</span>
+        {/* EDITOR PROMPT */}
+        <section className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+          <form onSubmit={handleSimpan} className="flex flex-col h-[55vh] lg:h-[500px]">
+            <div className="bg-slate-900 text-slate-300 px-4 py-3.5 flex justify-between items-center border-b border-slate-800">
+              <div className="flex items-center gap-2 min-w-0">
+                <Code2 size={16} className="text-indigo-400 shrink-0" />
+                <span className="text-xs font-mono font-bold text-indigo-300 truncate">system_instructions_{activeTab}.txt</span>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-800 text-slate-400 px-2.5 py-1 rounded-lg">Active Editor</span>
             </div>
             
             <textarea
-              id="prompt-editor" required
+              required
               value={activeTab === 'modul' ? prompts.modulAjar : activeTab === 'asesmen' ? prompts.asesmen : prompts.feedback}
               onChange={(e) => setPrompts({...prompts, [activeTab === 'modul' ? 'modulAjar' : activeTab === 'asesmen' ? 'asesmen' : 'feedback']: e.target.value})}
-              className="flex-1 w-full bg-[#0d1117] text-slate-300 p-4 md:p-5 font-mono text-xs md:text-sm focus:outline-none resize-none leading-relaxed custom-scrollbar"
-              placeholder="Ketik instruksi dasar (System Prompt) di sini..."
-              aria-label={`Editor Prompt untuk ${activeTab}`}
+              className="flex-1 w-full bg-[#0d1117] text-slate-200 p-4 md:p-5 font-mono text-xs md:text-sm focus:outline-none resize-none leading-relaxed custom-scrollbar"
+              placeholder="Masukkan instruksi sistem..."
             ></textarea>
 
-            <div className="p-4 border-t border-slate-200 bg-slate-50 rounded-b-xl flex justify-end">
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
               <button 
-                type="submit" disabled={isSaving}
-                className="w-full lg:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 lg:py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 active:scale-95"
-                aria-label="Simpan Konfigurasi Prompt"
+                type="submit" 
+                disabled={isSaving}
+                className="w-full lg:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50 active:scale-95"
               >
-                {isSaving ? <Loader2 size={18} className="animate-spin" aria-hidden="true"/> : <Save size={18} aria-hidden="true"/>}
-                Terapkan Konfigurasi
+                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                Simpan Perubahan
               </button>
             </div>
           </form>
         </section>
-      </div>
 
+      </div>
     </motion.main>
   );
 }

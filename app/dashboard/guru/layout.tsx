@@ -111,7 +111,7 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
       
       {/* SIDEBAR DESKTOP */}
       <aside className={`hidden md:flex flex-col bg-[#1e3a8a] text-blue-100 transition-all duration-300 z-50 border-r border-blue-900 relative ${isSidebarCollapsed ? "w-[80px]" : "w-[240px]"}`}>
-        <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="absolute -right-3 top-20 bg-[#1e3a8a] border border-blue-800 text-blue-300 hover:text-white rounded-full p-1 z-50 shadow-md transition-colors">
+        <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="absolute -right-3 top-20 bg-[#1e3a8a] border border-blue-800 text-blue-300 hover:text-white rounded-full p-1 z-50 shadow-md transition-colors" aria-label="Toggle Sidebar">
           {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
 
@@ -149,8 +149,8 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
         </div>
       </aside>
 
-      {/* KONTEN UTAMA */}
-      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden pb-[70px] md:pb-0 relative">
+      {/* KONTEN UTAMA (Diperbaiki tinggi h-[100dvh]) */}
+      <main className="flex-1 flex flex-col min-w-0 h-[100dvh] overflow-hidden pb-[70px] md:pb-0 relative">
         <header className="h-16 bg-white border-b border-slate-200/80 flex items-center justify-between px-4 md:px-6 shrink-0 z-30">
           <div className="flex items-center w-full md:w-auto">
             <div className="hidden md:flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full text-amber-700">
@@ -201,7 +201,8 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-4 md:p-6 lg:p-8 bg-[#f8fafc] pb-24 md:pb-6">
+        {/* Diperbaiki padding bawah menjadi pb-6 agar pas dan rapat */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-[#f8fafc] pb-6">
           {children}
         </div>
       </main>
@@ -221,7 +222,7 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
             </Link>
           );
         })}
-        <button onClick={() => setIsMobileMenuOpen(true)} className="flex-1 flex flex-col justify-center items-center h-full text-slate-400 group">
+        <button onClick={() => setIsMobileMenuOpen(true)} className="flex-1 flex flex-col justify-center items-center h-full text-slate-400 group" aria-label="Buka Menu Lanjutan">
           <div className="p-1.5 rounded-xl transition-all mb-1 group-hover:text-blue-500">
             <Menu size={22} />
           </div>
@@ -239,7 +240,7 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
           >
             <div className="h-16 flex items-center justify-between px-5 bg-white border-b border-slate-200 shrink-0">
               <h2 className={`text-xl font-bold text-slate-800 ${teachersFont.className}`}>Semua Menu</h2>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200 transition-colors">
+              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200 transition-colors" aria-label="Tutup Menu">
                 <X size={20} />
               </button>
             </div>

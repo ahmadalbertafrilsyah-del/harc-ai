@@ -4,13 +4,12 @@ import { motion } from "framer-motion";
 import { 
   Users, Server, BrainCircuit, Activity, AlertTriangle, 
   CheckCircle2, Loader2, Database, ShieldCheck, AlertCircle, 
-  BellRing, ArrowRight, Zap, Clock, HardDrive, Cpu
+  BellRing, ArrowRight, Zap, Clock, HardDrive, Cpu, Check
 } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
-// IMPORT FIREBASE SEBENARNYA
 import { db } from "@/lib/firebase"; 
 import { doc, collection, onSnapshot, query, orderBy, limit, where } from "firebase/firestore";
 
@@ -20,7 +19,6 @@ export default function BerandaAdmin() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState("");
   
-  // State untuk metrik sistem
   const [systemStats, setSystemStats] = useState({
     totalGuru: 0,
     totalSiswa: 0,
@@ -33,7 +31,6 @@ export default function BerandaAdmin() {
   const [statusEngine, setStatusEngine] = useState("Online");
 
   useEffect(() => {
-    // Set Tanggal untuk Aksesibilitas
     const dateOptions: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     setCurrentDate(new Date().toLocaleDateString('id-ID', dateOptions));
 
@@ -80,292 +77,253 @@ export default function BerandaAdmin() {
   if (isLoading) {
     return (
       <div className="w-full h-[70vh] flex flex-col items-center justify-center text-slate-600" role="status" aria-live="polite">
-        <Loader2 size={40} className="animate-spin text-indigo-600 mb-4" aria-hidden="true" />
-        <p className="font-bold text-lg">Mengakses Server Utama...</p>
-        <p className="text-sm mt-1">Menarik metrik kesehatan sistem dari Database</p>
-        <span className="sr-only">Harap tunggu, halaman sedang memuat data.</span>
+        <motion.div 
+          animate={{ rotate: 360 }} 
+          transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+        >
+          <Loader2 size={40} className="text-indigo-600 mb-4" aria-hidden="true" />
+        </motion.div>
+        <p className="font-bold text-lg text-slate-800">Memuat Sistem...</p>
+        <p className="text-xs text-slate-500 mt-1">Menghubungkan ke database utama</p>
       </div>
     );
   }
 
   return (
-    <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="max-w-7xl mx-auto space-y-6 md:space-y-8 pb-10">
+    <motion.main initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-7xl mx-auto space-y-6 pb-12">
       
-      {/* HEADER PC / LAPTOP (Sembunyikan di HP) */}
-      <header className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-4">
+      {/* HEADER DESKTOP */}
+      <header className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`} tabIndex={0}>Ikhtisar Sistem Admin</h1>
-          <p className="text-slate-600 text-sm mt-1.5 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true"></span>
+          <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>Ikhtisar Sistem Admin</h1>
+          <p className="text-slate-500 text-sm mt-1 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             Terhubung ke Database • {currentDate}
           </p>
         </div>
-        <div className="bg-indigo-50 px-4 py-2 rounded-lg border border-indigo-100 text-indigo-800 text-xs font-bold flex items-center gap-2 w-fit shadow-sm" role="status">
-          <Server size={14} aria-hidden="true" /> Sinkronisasi Real-time Aktif
+        <div className="bg-indigo-50 px-4 py-2 rounded-xl border border-indigo-100 text-indigo-700 text-xs font-bold flex items-center gap-2 shadow-sm">
+          <Server size={14} /> Sinkronisasi Real-time Aktif
         </div>
       </header>
 
-      {/* HEADER HP / MOBILE (Tampil Hanya di HP) */}
-      <div className="md:hidden bg-gradient-to-r from-indigo-800 to-indigo-600 rounded-3xl p-5 text-white shadow-lg relative overflow-hidden -mx-1">
-        <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
-        <h2 className="text-sm font-medium text-indigo-200 mb-1">Ikhtisar Sistem</h2>
-        <p className={`text-2xl font-bold ${teachersFont.className}`}>Server {statusEngine}</p>
-        <div className="mt-4 flex items-center gap-2 bg-white/20 w-fit px-3 py-1.5 rounded-full backdrop-blur-sm text-xs font-bold">
-          <Server size={14} /> Sinkronisasi Aktif
+      {/* HEADER MOBILE (App-Like Style) */}
+      <div className="md:hidden bg-gradient-to-br from-indigo-900 to-indigo-700 rounded-2xl p-5 text-white shadow-md relative overflow-hidden">
+        <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-xl"></div>
+        <span className="text-xs font-medium text-indigo-200 uppercase tracking-wider">Status Server</span>
+        <h2 className={`text-2xl font-bold mt-1 ${teachersFont.className}`}>{statusEngine} & Responsif</h2>
+        <div className="mt-3 flex items-center gap-2 bg-white/15 w-fit px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">
+          <Check size={14} className="text-emerald-400" /> Sistem Normal
         </div>
       </div>
 
-      {/* Banner Notifikasi Cerdas (Aksesibel Alert) */}
+      {/* BANNER NOTIFIKASI PENGJUAN */}
       {pengajuanPending > 0 && (
-        <motion.section initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="bg-amber-50 border border-amber-200 rounded-xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm" role="alert" aria-live="assertive">
+        <motion.section initial={{ opacity: 0, scale: 0.99 }} animate={{ opacity: 1, scale: 1 }} className="bg-amber-50 border border-amber-200 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
           <div className="flex items-start gap-3">
-            <div className="p-2 bg-amber-100 text-amber-700 rounded-lg shrink-0 mt-0.5" aria-hidden="true">
+            <div className="p-2 bg-amber-100 text-amber-700 rounded-xl shrink-0 mt-0.5">
               <BellRing size={20} />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-amber-900">Tindakan Diperlukan: Pengajuan Pendidik Baru</h2>
-              <p className="text-xs md:text-sm text-amber-800 mt-1">
-                Terdapat <strong className="text-amber-900 font-black bg-amber-200/50 px-1.5 rounded">{pengajuanPending}</strong> pendidik yang menunggu persetujuan akses sistem.
+              <h2 className="text-sm font-bold text-amber-900">Persetujuan Akun Pending</h2>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Terdapat <strong className="font-bold text-amber-950 underline">{pengajuanPending} pendaftar</strong> menunggu validasi akses.
               </p>
             </div>
           </div>
-          <Link href="/dashboard/admin/pengguna" className="shrink-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 w-full sm:w-auto">
-            <button className="w-full sm:w-auto px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs md:text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm" aria-label={`Tinjau ${pengajuanPending} pengajuan pendidik sekarang`}>
-              Tinjau Sekarang <ArrowRight size={16} aria-hidden="true" />
+          <Link href="/dashboard/admin/pengguna" className="w-full sm:w-auto">
+            <button className="w-full sm:w-auto px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95">
+              Tinjau Sekarang <ArrowRight size={14} />
             </button>
           </Link>
         </motion.section>
       )}
 
-      {/* TAMPILAN METRIK PC / LAPTOP (Grid Kotak) */}
-      <section aria-label="Metrik Utama Sistem" className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
-        <article className="bg-white p-4 md:p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group" tabIndex={0}>
-          <div className="flex justify-between items-start mb-3 md:mb-4">
+      {/* METRIK UTAMA: DESKTOP (Grid Standar) */}
+      <section className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex justify-between items-start mb-3">
             <div>
-              <h2 className="text-[10px] md:text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Total Pendidik</h2>
-              <p className={`text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>
-                <span className="sr-only">Jumlah total pendidik adalah </span>{systemStats.totalGuru}
-              </p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Pendidik</p>
+              <h3 className={`text-3xl font-black text-slate-800 mt-1 ${teachersFont.className}`}>{systemStats.totalGuru}</h3>
             </div>
-            <div className="p-2 bg-blue-50 text-blue-700 rounded-lg shrink-0" aria-hidden="true"><Users size={20} /></div>
+            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl"><Users size={20} /></div>
           </div>
-          <p className="text-[10px] md:text-xs text-slate-500 font-medium truncate">Akun aktif terdaftar</p>
-        </article>
+          <p className="text-xs text-slate-500">Akun aktif terdaftar</p>
+        </div>
 
-        <article className="bg-white p-4 md:p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group" tabIndex={0}>
-          <div className="flex justify-between items-start mb-3 md:mb-4">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex justify-between items-start mb-3">
             <div>
-              <h2 className="text-[10px] md:text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Peserta Didik</h2>
-              <p className={`text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>
-                <span className="sr-only">Jumlah peserta didik yang tersinkronisasi adalah </span>{systemStats.totalSiswa}
-              </p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Peserta Didik</p>
+              <h3 className={`text-3xl font-black text-slate-800 mt-1 ${teachersFont.className}`}>{systemStats.totalSiswa}</h3>
             </div>
-            <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg shrink-0" aria-hidden="true"><Users size={20} /></div>
+            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl"><Users size={20} /></div>
           </div>
-          <p className="text-[10px] md:text-xs text-slate-500 font-medium truncate">Akun siswa tersinkron</p>
-        </article>
+          <p className="text-xs text-slate-500">Siswa tersinkronisasi</p>
+        </div>
 
-        <article className="bg-white p-4 md:p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group" tabIndex={0}>
-          <div className="flex justify-between items-start mb-3 md:mb-4">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex justify-between items-start mb-3">
             <div>
-              <h2 className="text-[10px] md:text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Total Modul</h2>
-              <p className={`text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>
-                <span className="sr-only">Jumlah total modul yang telah di-generate adalah </span>{systemStats.totalModul}
-              </p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Modul</p>
+              <h3 className={`text-3xl font-black text-slate-800 mt-1 ${teachersFont.className}`}>{systemStats.totalModul}</h3>
             </div>
-            <div className="p-2 bg-purple-50 text-purple-700 rounded-lg shrink-0" aria-hidden="true"><Database size={20} /></div>
+            <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl"><Database size={20} /></div>
           </div>
-          <p className="text-[10px] md:text-xs text-slate-500 font-medium truncate">Di-generate otomatis oleh AI</p>
-        </article>
+          <p className="text-xs text-slate-500">Digenerate otomatis AI</p>
+        </div>
 
-        <article className="bg-white p-4 md:p-5 rounded-xl border border-indigo-200 shadow-sm relative overflow-hidden ring-1 ring-indigo-50" tabIndex={0}>
-          <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600" aria-hidden="true"></div>
-          <div className="flex justify-between items-start mb-3 md:mb-4 pl-2 md:pl-3">
+        <div className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600"></div>
+          <div className="flex justify-between items-start mb-3 pl-2">
             <div>
-              <h2 className="text-[10px] md:text-xs font-bold text-indigo-700 uppercase tracking-wider mb-1">Token AI Terpakai</h2>
-              <p className={`text-xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>
-                <span className="sr-only">Kapasitas Token AI yang terpakai adalah </span>
+              <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Token AI Terpakai</p>
+              <h3 className={`text-3xl font-black text-slate-800 mt-1 ${teachersFont.className}`}>
                 {systemStats.aiTokens >= 1000000 ? `${(systemStats.aiTokens / 1000000).toFixed(1)}M` : systemStats.aiTokens.toLocaleString('id-ID')}
-              </p>
+              </h3>
             </div>
-            <div className="p-2 bg-indigo-50 text-indigo-700 rounded-lg shrink-0" aria-hidden="true"><BrainCircuit size={20} /></div>
+            <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl"><BrainCircuit size={20} /></div>
           </div>
-          <p className="text-[10px] md:text-xs text-slate-600 font-medium pl-2 md:pl-3 truncate">Kapasitas API aktif sistem</p>
-        </article>
+          <p className="text-xs text-slate-500 pl-2">Kapasitas API aktif</p>
+        </div>
       </section>
 
-      {/* TAMPILAN METRIK MOBILE (Horizontal Scroll Swipeable) */}
+      {/* METRIK UTAMA: MOBILE (Swipeable Cards ala App) */}
       <div className="md:hidden">
-        <h3 className="text-sm font-bold text-slate-800 mb-3 ml-1">Metrik Utama</h3>
-        <div className="flex overflow-x-auto gap-4 pb-2 snap-x" style={{ scrollbarWidth: 'none' }}>
-          {/* Item 1 */}
-          <div className="snap-start shrink-0 w-36 bg-white p-4 rounded-3xl shadow-sm border border-slate-200 flex flex-col justify-between h-32">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-50 text-blue-600"><Users size={20} /></div>
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1">Metrik Utama</h3>
+        <div className="flex overflow-x-auto gap-3 pb-2 snap-x scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+          <div className="snap-start shrink-0 w-36 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between h-32">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-blue-50 text-blue-600"><Users size={18} /></div>
             <div>
-              <p className={`text-xl font-black text-slate-800 ${teachersFont.className}`}>{systemStats.totalGuru}</p>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Total Pendidik</p>
+              <p className={`text-2xl font-black text-slate-800 ${teachersFont.className}`}>{systemStats.totalGuru}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pendidik</p>
             </div>
           </div>
-          {/* Item 2 */}
-          <div className="snap-start shrink-0 w-36 bg-white p-4 rounded-3xl shadow-sm border border-slate-200 flex flex-col justify-between h-32">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-emerald-50 text-emerald-600"><Users size={20} /></div>
+          <div className="snap-start shrink-0 w-36 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between h-32">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-emerald-50 text-emerald-600"><Users size={18} /></div>
             <div>
-              <p className={`text-xl font-black text-slate-800 ${teachersFont.className}`}>{systemStats.totalSiswa}</p>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Peserta Didik</p>
+              <p className={`text-2xl font-black text-slate-800 ${teachersFont.className}`}>{systemStats.totalSiswa}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Siswa</p>
             </div>
           </div>
-          {/* Item 3 */}
-          <div className="snap-start shrink-0 w-36 bg-white p-4 rounded-3xl shadow-sm border border-slate-200 flex flex-col justify-between h-32">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-purple-50 text-purple-600"><Database size={20} /></div>
+          <div className="snap-start shrink-0 w-36 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between h-32">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-purple-50 text-purple-600"><Database size={18} /></div>
             <div>
-              <p className={`text-xl font-black text-slate-800 ${teachersFont.className}`}>{systemStats.totalModul}</p>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">Total Modul</p>
+              <p className={`text-2xl font-black text-slate-800 ${teachersFont.className}`}>{systemStats.totalModul}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Modul</p>
             </div>
           </div>
-          {/* Item 4 */}
-          <div className="snap-start shrink-0 w-40 bg-white p-4 rounded-3xl shadow-sm border border-indigo-200 flex flex-col justify-between h-32 relative overflow-hidden">
-             <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600" aria-hidden="true"></div>
-            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-amber-50 text-amber-600 pl-1"><BrainCircuit size={20} /></div>
-            <div className="pl-1">
+          <div className="snap-start shrink-0 w-40 bg-white p-4 rounded-2xl shadow-sm border border-indigo-100 flex flex-col justify-between h-32 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-600"></div>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-indigo-50 text-indigo-600 pl-0.5"><BrainCircuit size={18} /></div>
+            <div className="pl-0.5">
               <p className={`text-xl font-black text-slate-800 ${teachersFont.className}`}>
                 {systemStats.aiTokens >= 1000000 ? `${(systemStats.aiTokens / 1000000).toFixed(1)}M` : systemStats.aiTokens.toLocaleString('id-ID')}
               </p>
-              <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider mt-0.5">Token AI</p>
+              <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Token AI</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Menu Akses Cepat Khusus Mobile (Grid 2 Kolom) */}
-      <div className="md:hidden grid grid-cols-2 gap-4">
-        <Link href="/dashboard/admin/pengguna" className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center gap-2 active:bg-slate-50">
-          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-full"><Users size={24} /></div>
-          <p className="text-xs font-bold text-slate-700">Data Pengguna</p>
+      {/* QUICK ACTIONS MOBILE */}
+      <div className="md:hidden grid grid-cols-2 gap-3">
+        <Link href="/dashboard/admin/pengguna" className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3 active:scale-95 transition-transform">
+          <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl"><Users size={20} /></div>
+          <div>
+            <p className="text-xs font-bold text-slate-800">Pengguna</p>
+            <p className="text-[10px] text-slate-400">Kelola akun</p>
+          </div>
         </Link>
-        <Link href="/dashboard/admin/korpus" className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center gap-2 active:bg-slate-50">
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-full"><Database size={24} /></div>
-          <p className="text-xs font-bold text-slate-700">Korpus Data</p>
+        <Link href="/dashboard/admin/korpus" className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3 active:scale-95 transition-transform">
+          <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl"><Database size={20} /></div>
+          <div>
+            <p className="text-xs font-bold text-slate-800">Korpus AI</p>
+            <p className="text-[10px] text-slate-400">Database teks</p>
+          </div>
         </Link>
       </div>
 
-      {/* Baris 2: Log Sistem & Dashboard Sidebar Kanan */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 md:gap-6">
+      {/* LOG AKTIVITAS & KESEHATAN SISTEM */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Log Sistem Keamanan */}
-        <section aria-labelledby="log-heading" className="bg-white rounded-xl md:rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden lg:col-span-2">
-          <header className="px-4 md:px-6 py-4 md:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-            <h2 id="log-heading" className={`text-sm md:text-base font-bold text-slate-900 flex items-center gap-2 ${teachersFont.className}`}>
-              <Activity size={20} className="text-indigo-600" aria-hidden="true" /> Log Aktivitas AI Utama
+        {/* LOG SISTEM */}
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden lg:col-span-2">
+          <header className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h2 className={`text-sm md:text-base font-bold text-slate-900 flex items-center gap-2 ${teachersFont.className}`}>
+              <Activity size={18} className="text-indigo-600" /> Log Aktivitas AI Terbaru
             </h2>
-            <Link href="/dashboard/admin/logs" className="text-[10px] md:text-xs font-bold text-indigo-700 hover:text-indigo-800 hover:underline focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded p-1" aria-label="Lihat semua log aktivitas">
+            <Link href="/dashboard/admin/logs" className="text-xs font-bold text-indigo-600 hover:underline">
               Lihat Semua
             </Link>
           </header>
           
-          <div className="flex-grow p-2">
+          <div className="p-2 flex-1">
             {aktivitasTerbaru.length > 0 ? (
-              <ul className="divide-y divide-slate-50" role="list">
+              <ul className="divide-y divide-slate-50">
                 {aktivitasTerbaru.map((log: any) => (
-                  <li key={log.id} className="p-3 md:p-4 hover:bg-slate-50 transition-colors flex items-start gap-3 rounded-lg focus-within:ring-2 focus-within:ring-indigo-100" tabIndex={0}>
-                    <div className="mt-0.5 shrink-0" aria-hidden="true">
-                      {log.status === "Sukses" || log.status === "sukses" ? (
-                        <CheckCircle2 className="w-4 h-4 md:w-[18px] md:h-[18px] text-emerald-600" />
-                      ) : (
-                        <AlertTriangle className="w-4 h-4 md:w-[18px] md:h-[18px] text-amber-600" />
-                      )}
+                  <li key={log.id} className="p-3.5 hover:bg-slate-50 rounded-xl transition-colors flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${log.status === "Sukses" || log.status === "sukses" ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                        {log.status === "Sukses" || log.status === "sukses" ? <Check size={16} strokeWidth={3} /> : <AlertTriangle size={16} />}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs md:text-sm font-bold text-slate-800 truncate">{log.aksi}</p>
+                        <p className="text-[11px] text-slate-400 truncate mt-0.5">Oleh: <span className="text-slate-600 font-medium">{log.pengguna || "Sistem"}</span></p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs md:text-sm font-bold text-slate-800 truncate">{log.aksi}</p>
-                      <p className="text-[10px] md:text-xs text-slate-600 mt-1 truncate">
-                        Oleh: <strong className="text-slate-800">{log.pengguna || log.entitas || "Sistem"}</strong> • <span className="text-slate-500">{log.timestamp ? new Date(log.timestamp.toDate()).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}) : 'Baru saja'} WIB</span>
-                      </p>
-                      {log.status !== "Sukses" && log.status !== "sukses" && (
-                        <p className="text-[10px] font-bold text-amber-700 mt-1 bg-amber-50 px-2 py-0.5 rounded inline-block">Status: {log.status}</p>
-                      )}
-                    </div>
+                    <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                      {log.timestamp ? new Date(log.timestamp.toDate()).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}) : 'Baru saja'}
+                    </span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-slate-500">
-                <AlertCircle size={32} className="mb-3 text-slate-300" aria-hidden="true" />
-                <p className="text-sm font-bold text-slate-700">Belum ada log terekam.</p>
-                <p className="text-xs mt-1 text-center max-w-xs">Aktivitas generasi AI akan muncul di sini secara otomatis.</p>
+              <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                <AlertCircle size={32} className="mb-2 opacity-50" />
+                <p className="text-xs font-medium">Belum ada aktivitas terekam.</p>
               </div>
             )}
           </div>
         </section>
 
-        {/* Kolom Kanan: Quick Access & System Health (Hanya tampil di PC/Tablet) */}
-        <div className="hidden md:flex flex-col space-y-5 md:space-y-6">
-          
-          <section aria-labelledby="quick-access" className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+        {/* STATUS LAYANAN (DESKTOP) */}
+        <div className="hidden lg:flex flex-col space-y-6">
+          <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1">
             <header className="px-5 py-4 border-b border-slate-100 bg-slate-50">
-              <h2 id="quick-access" className={`text-base font-bold text-slate-900 flex items-center gap-2 ${teachersFont.className}`}>
-                <ShieldCheck size={20} className="text-indigo-600" aria-hidden="true" /> Akses Kendali Cepat
-              </h2>
-            </header>
-            <div className="p-4 md:p-5 grid grid-cols-2 lg:grid-cols-1 gap-3 md:gap-4">
-              <Link href="/dashboard/admin/pengguna" className="block focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-xl" aria-label="Kelola pengguna dan pendaftaran">
-                <div className="p-4 rounded-xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 transition-all h-full group">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Users size={20} className="text-indigo-700 group-hover:scale-110 transition-transform" aria-hidden="true" />
-                    <h3 className="text-sm font-bold text-slate-900">Manajemen Pengguna</h3>
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed hidden md:block">Kelola akses, pendaftaran, dan data pendidik.</p>
-                </div>
-              </Link>
-              <Link href="/dashboard/admin/korpus" className="block focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded-xl" aria-label="Kelola korpus dan database AI">
-                <div className="p-4 rounded-xl border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/50 transition-all h-full group">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Database size={20} className="text-emerald-700 group-hover:scale-110 transition-transform" aria-hidden="true" />
-                    <h3 className="text-sm font-bold text-slate-900">Korpus Data AI</h3>
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed hidden md:block">Sinkronisasi dataset bahasa daerah dan rubrik.</p>
-                </div>
-              </Link>
-            </div>
-          </section>
-
-          <section aria-labelledby="health-heading" className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex-grow">
-            <header className="px-5 py-4 border-b border-slate-100 bg-slate-50">
-              <h2 id="health-heading" className={`text-base font-bold text-slate-900 flex items-center gap-2 ${teachersFont.className}`}>
-                <Activity size={20} className="text-blue-600" aria-hidden="true" /> Status Layanan Inti
+              <h2 className={`text-base font-bold text-slate-900 flex items-center gap-2 ${teachersFont.className}`}>
+                <Activity size={18} className="text-blue-600" /> Status Layanan Inti
               </h2>
             </header>
             <div className="p-5 space-y-5">
-              
-              <div aria-label="Status Firebase Database: Optimal">
+              <div>
                 <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><HardDrive size={14} className="text-slate-500" aria-hidden="true"/> Firebase Database</span>
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded" aria-hidden="true">Optimal</span>
+                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><HardDrive size={14} className="text-slate-400"/> Firebase Database</span>
+                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 flex items-center gap-1"><Check size={10} strokeWidth={3}/> Optimal</span>
                 </div>
-                <div className="w-full bg-slate-100 rounded-full h-2" role="progressbar" aria-valuenow={95} aria-valuemin={0} aria-valuemax={100} aria-label="Kapasitas database aman">
+                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                   <div className="bg-emerald-500 h-2 rounded-full" style={{width: '95%'}}></div>
                 </div>
               </div>
               
-              <div aria-label={`Status Mesin LLM AI: ${statusEngine}`}>
+              <div>
                 <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><Cpu size={14} className="text-slate-500" aria-hidden="true"/> Mesin LLM Utama</span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${statusEngine === 'Online' ? 'text-blue-700 bg-blue-100' : 'text-rose-700 bg-rose-100'}`} aria-hidden="true">
-                    {statusEngine}
-                  </span>
+                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><Cpu size={14} className="text-slate-400"/> Mesin LLM Utama</span>
+                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 flex items-center gap-1"><Check size={10} strokeWidth={3}/> {statusEngine}</span>
                 </div>
-                <div className="w-full bg-slate-100 rounded-full h-2" role="progressbar" aria-valuenow={100} aria-valuemin={0} aria-valuemax={100} aria-label={statusEngine === 'Online' ? "Mesin menyala dan responsif" : "Mesin mengalami gangguan"}>
-                  <div className={`${statusEngine === 'Online' ? 'bg-blue-600' : 'bg-rose-600'} h-2 rounded-full`} style={{width: '100%'}}></div>
+                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                  <div className="bg-blue-600 h-2 rounded-full" style={{width: '100%'}}></div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-                <Clock size={14} className="text-slate-500" aria-hidden="true" />
-                <span className="text-xs text-slate-600 font-medium">Sinkronisasi terakhir: <span className="font-bold">Baru saja</span></span>
+              <div className="flex items-center gap-2 pt-3 border-t border-slate-100 text-slate-400 text-xs">
+                <Clock size={14} />
+                <span>Sinkronisasi otomatis aktif</span>
               </div>
-
             </div>
           </section>
-
         </div>
+
       </div>
     </motion.main>
   );
