@@ -17,6 +17,9 @@ export async function POST(req: Request) {
       family: 4,
     } as any);
 
+    // Tambahkan baris ini untuk mengecek koneksi SMTP sebelum email dikirim
+    await transporter.verify();
+
     let mailSubject = '';
     let mailHtml = '';
 
