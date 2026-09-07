@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { Teachers, Lato } from "next/font/google";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  LayoutDashboard, Users, Activity, LogOut, Settings, Clock, 
+  LayoutDashboard, MessageSquare, Users, Activity, LogOut, Settings, Clock, 
   ChevronLeft, ChevronRight, Server, ShieldCheck, Database,
   BrainCircuit, Menu, X, ScrollText
 } from "lucide-react";
@@ -38,6 +38,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: "Konfigurasi AI", icon: BrainCircuit, path: "/dashboard/admin/konfigurasi-ai" },
     { name: "Monitoring AI", icon: Activity, path: "/dashboard/admin/monitoring" },
     { name: "Logs Aktivitas", icon: ScrollText, path: "/dashboard/admin/logs" },
+    { name: "Pengaturan Chat Bot", icon: MessageSquare, path: "/dashboard/admin/pengaturan-bot" },
     { name: "Pengaturan Global", icon: Settings, path: "/dashboard/admin/pengaturan" },
   ];
 
@@ -53,6 +54,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: "Monitoring AI", icon: Activity, path: "/dashboard/admin/monitoring" },
     { name: "Logs Aktivitas", icon: ScrollText, path: "/dashboard/admin/logs" },
     { name: "Pengaturan", icon: Settings, path: "/dashboard/admin/pengaturan" },
+    { name: "Chat Bot", icon: MessageSquare, path: "/dashboard/admin/pengaturan-bot" },
   ];
 
   useEffect(() => {
@@ -124,7 +126,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 px-6 truncate">Kendali Sistem</div>
           )}
           {menuItems.map((item) => {
-            const isActive = pathname.startsWith(item.path);
+            const isActive = pathname === item.path || pathname.startsWith(item.path + '/');
             return (
               <Link key={item.name} href={item.path} title={isSidebarCollapsed ? item.name : ""}>
                 <div className={`flex items-center px-6 py-3 transition-all text-sm font-medium border-l-[3px] ${isActive ? "bg-indigo-900/50 text-white border-indigo-400" : "border-transparent text-slate-400 hover:bg-slate-800 hover:text-slate-200"} ${isSidebarCollapsed ? "justify-center px-0" : "gap-3"}`}>
@@ -194,7 +196,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* BOTTOM NAVIGATION MOBILE */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200/80 z-40 flex justify-around items-center h-[70px] shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)] pb-safe">
         {bottomNavItems.map((item) => {
-          const isActive = pathname.startsWith(item.path);
+          const isActive = pathname === item.path || pathname.startsWith(item.path + '/');
           return (
             <Link key={item.name} href={item.path} className="flex-1 flex flex-col justify-center items-center h-full group">
               <div className={`p-1.5 rounded-xl transition-all mb-1 ${isActive ? "bg-indigo-100 text-indigo-700" : "text-slate-400 group-hover:text-indigo-500"}`}>
