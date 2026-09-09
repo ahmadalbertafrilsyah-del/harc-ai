@@ -61,11 +61,38 @@ export default function ManajemenKelas() {
   // === STATE KOREKSI AI OVERRIDE ===
   const [hasilKoreksiAI, setHasilKoreksiAI] = useState<any | null>(null);
   const [overrideScore, setOverrideScore] = useState<number | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [streamObj, setStreamObj] = useState<MediaStream | null>(null);
 
   const [cbtForm, setCbtForm] = useState({
     judul: "", jenisUjian: "Asesmen Formatif", jenisUjianCustom: "", sumberSoal: "Buat Manual (Ketik Sendiri)", bahanBacaan: "", opsiPG: "A - D (4 Opsi)",
     waktuMenit: 60, waktuMulai: "", waktuSelesai: "", koleksiId: "" 
   });
+
+  const bukaKameraPerangkat = async () => {
+    try {
+      setIsCameraActive(true);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "environment" } 
+      });
+      setStreamObj(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      alert("Gagal mengakses kamera. Pastikan Anda telah memberikan izin (permission) akses kamera pada peramban/browser.");
+      setIsCameraActive(false);
+    }
+  };
+
+  const tutupKameraPerangkat = () => {
+    if (streamObj) {
+      streamObj.getTracks().forEach(track => track.stop());
+      setStreamObj(null);
+    }
+    setIsCameraActive(false);
+  };
 
   // === STATE REKAP NILAI ===
   const [kkm, setKkm] = useState(75); 
@@ -1035,29 +1062,40 @@ export default function ManajemenKelas() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
                   <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2 text-sm md:text-base">
-                    <BrainCircuit size={18} className="text-indigo-600"/> Pemindai Kamera LJK & Kartu Offline
+                    <Camera size={18} className="text-indigo-600"/> Pemindai Kamera LJK & Kartu Offline
                   </h3>
                   <p className="text-xs text-slate-400 mb-4 leading-relaxed">
                     Arahkan kamera ke QR Code pada LJK siswa atau Kartu Isyarat Pesantren untuk memproses kehadiran dan nilai secara instan.
                   </p>
                   
-                  <div className="bg-slate-900 rounded-2xl p-4 text-white text-center relative overflow-hidden h-[220px] flex flex-col items-center justify-center border border-slate-800">
-                    <div className="absolute inset-0 border-2 border-indigo-500/40 m-4 rounded-xl pointer-events-none flex items-center justify-center">
-                      <div className="w-full h-0.5 bg-indigo-500/60 animate-pulse"></div>
-                    </div>
-                    <Camera size={36} className="text-indigo-400 mb-2 animate-bounce" />
-                    <p className="text-xs font-bold text-slate-300">Kamera Pemindai Siap</p>
-                    <p className="text-[10px] text-slate-500 mt-1">Posisikan QR Code di dalam kotak area pemindaian</p>
-                    <button type="button" onClick={() => alert("Mengaktifkan modul kamera perangkat...")} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">
-                      Buka Kamera Scanner
-                    </button>
+                  <div className="bg-slate-900 rounded-2xl text-white text-center relative overflow-hidden h-[260px] flex flex-col items-center justify-center border border-slate-800">
+                    {isCameraActive ? (
+                      <div className="relative w-full h-full flex items-center justify-center bg-black">
+                        <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                        <button type="button" onClick={tutupKameraPerangkat} className="absolute bottom-3 bg-rose-600 hover:bg-rose-700 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md transition-all z-10">
+                          Tutup Kamera
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center p-4">
+                        <div className="absolute inset-0 border-2 border-indigo-500/40 m-4 rounded-xl pointer-events-none flex items-center justify-center">
+                          <div className="w-full h-0.5 bg-indigo-500/60 animate-pulse"></div>
+                        </div>
+                        <Camera size={36} className="text-indigo-400 mb-2 animate-bounce" />
+                        <p className="text-xs font-bold text-slate-300">Kamera Pemindai Siap</p>
+                        <p className="text-[10px] text-slate-500 mt-1">Posisikan QR Code di dalam kotak area pemindaian</p>
+                        <button type="button" onClick={bukaKameraPerangkat} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">
+                          Buka Kamera Scanner
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
             
                 <div>
                   <h3 className="font-bold text-slate-800 mb-2 text-sm md:text-base">Unggah Berkas LJK Manual</h3>
                   <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf" onChange={handleUploadLJK} />
-                  <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-indigo-200 bg-indigo-50/20 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-indigo-50/50 transition-colors h-[220px]">
+                  <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-indigo-200 bg-indigo-50/20 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-indigo-50/50 transition-colors h-[260px]">
                     <UploadCloud size={36} className="text-indigo-400 mb-2.5" />
                     <p className="font-bold text-slate-800 text-xs mb-0.5">Klik untuk mengunggah Berkas LJK</p>
                     <p className="text-[10px] text-slate-400">Format: PNG, JPG, PDF</p>
