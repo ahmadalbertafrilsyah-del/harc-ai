@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Users, BookOpen, Plus, ChevronRight, GraduationCap, Loader2, Key, 
+  Users, BookOpen, Plus, ChevronRight, GraduationCap, Loader2, Camera, Key, 
   ArrowLeft, UploadCloud, BrainCircuit, CheckCircle2, FileText, X, Clock, 
   CalendarDays, Save, Trash2, Target, Settings2, Edit3, FileSpreadsheet, 
   ArrowDownToLine, Calculator, AlertCircle, ClipboardCheck, List, Eye, Printer, 
@@ -278,6 +278,52 @@ export default function ManajemenKelas() {
     setHasilKoreksiAI(null);
   }
 
+  // === FITUR OFFLINE: CETAK KARTU ISYARAT (PLICKERS) ===
+  const handlePrintKartuPlickers = (siswa: any) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return alert("Izinkan pop-up browser.");
+    const qrTokenUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=SISWA_${siswa.id}_${siswa.nama}`;
+    const html = `
+      <html><head><title>Kartu Isyarat - ${siswa.nama}</title><style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 30px; color: black; }
+        .card-box { border: 4px dashed #333; padding: 40px; display: inline-block; border-radius: 20px; background: #fff; }
+        h1 { font-size: 22px; margin-bottom: 5px; text-transform: uppercase; }
+        p { font-size: 13px; color: #555; margin-bottom: 20px; }
+        .instruction { margin-top: 20px; font-weight: bold; font-size: 13px; background: #f0f0f0; padding: 10px; border-radius: 8px; }
+      </style></head><body>
+        <div class="card-box">
+          <h1>KARTU JAWABAN</h1>
+          <p>Nama: <b>${siswa.nama}</b> | NISN: ${siswa.nisn || '-'}</p>
+          <img src="${qrTokenUrl}" alt="QR Siswa" />
+          <div class="instruction">Putar kartu ke arah atas untuk memilih opsi jawaban (A / B / C / D)</div>
+        </div>
+      </body></html>
+    `;
+    printWindow.document.write(html); printWindow.document.close(); printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 800);
+  };
+
+  // === FITUR: DETEKSI POLA BANTUAN AI PADA URAIAN ===
+  const deteksiPolaAI = (teksJawaban: string) => {
+    if (!teksJawaban || teksJawaban.length < 30) {
+      return { status: "Teks terlalu pendek", persentase: 0, warna: "text-slate-500 bg-slate-50 border-slate-200" };
+    }
+    const kalimat = teksJawaban.split(/[.!?]/).filter(Boolean);
+    let panjangKataPerKalimat = kalimat.map(k => k.split(/\s+/).length);
+    let rataKata = panjangKataPerKalimat.reduce((a, b) => a + b, 0) / (kalimat.length || 1);
+    let deviasi = panjangKataPerKalimat.reduce((sum, val) => sum + Math.abs(val - rataKata), 0) / (kalimat.length || 1);
+
+    let skorAI = deviasi < 2.5 ? Math.min(Math.round((2.5 - deviasi) * 35 + 40), 95) : Math.max(Math.round(20 - deviasi), 5);
+
+    if (skorAI > 70) {
+      return { status: "Indikasi Kuat Buatan AI", persentase: skorAI, warna: "text-rose-600 bg-rose-50 border-rose-200" };
+    } else if (skorAI > 40) {
+      return { status: "Moderat / Campuran", persentase: skorAI, warna: "text-amber-600 bg-amber-50 border-amber-200" };
+    } else {
+      return { status: "Murni Gaya Bahasa Siswa", persentase: skorAI, warna: "text-emerald-600 bg-emerald-50 border-emerald-200" };
+    }
+  };
+
   const generateFeedbackAI = async (siswa: any, jawabanData: any) => {
     const nilai = jawabanData.nilai || 0;
     let feedbackText = "";
@@ -328,7 +374,6 @@ export default function ManajemenKelas() {
        const selectedKol = koleksiAI.find(k => k.id === cbtForm.koleksiId);
        if (selectedKol && selectedKol.konten) {
           const content = selectedKol.konten;
-          
           const soalBlocks = content.match(/\[SOAL_START\]([\s\S]*?)\[SOAL_END\]/g);
 
           if (soalBlocks && soalBlocks.length > 0) {
@@ -557,6 +602,9 @@ export default function ManajemenKelas() {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return alert("Izinkan pop-up browser untuk mencetak LJK.");
 
+    const qrData = encodeURIComponent(JSON.stringify({ uId: ujian.id, kId: selectedClass?.id }));
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${qrData}`;
+
     const objectiveSoal = (ujian.soal || []).filter((s: any) => s.tipe === 'PG' || s.tipe === 'Benar/Salah');
     const subjectiveSoal = (ujian.soal || []).filter((s: any) => s.tipe !== 'PG' && s.tipe !== 'Benar/Salah');
 
@@ -589,9 +637,10 @@ export default function ManajemenKelas() {
     const html = `
       <html><head><title>LJK - ${ujian.pengaturan?.judul}</title><style>
           body { font-family: Arial, sans-serif; font-size: 11px; padding: 20px; color: black; max-width: 800px; margin: auto; }
-          .header { text-align: center; border-bottom: 3px solid black; padding-bottom: 10px; margin-bottom: 20px; }
-          .header h1 { margin: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 2px;}
-          .header h2 { margin: 5px 0 0 0; font-size: 12px; font-weight: normal; }
+          .header { text-align: center; border-bottom: 3px solid black; padding-bottom: 10px; margin-bottom: 20px; position: relative; }
+          .qr-code { position: absolute; top: 0; right: 0; width: 60px; height: 60px; }
+          .header h1 { margin: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 2px; padding-right: 70px; }
+          .header h2 { margin: 5px 0 0 0; font-size: 12px; font-weight: normal; padding-right: 70px; }
           .petunjuk { font-size: 10px; border: 1px solid black; padding: 10px; margin-bottom: 15px; background-color: #fafafa; }
           .info-container { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
           .info-box { flex: 1; border: 1px solid black; padding: 10px; }
@@ -610,12 +659,16 @@ export default function ManajemenKelas() {
           .essay-lines { border-bottom: 1px dotted black; height: 20px; width: 100%; margin-top: 10px; }
         </style></head><body>
         <div class="container">
-          <div class="header"><h1>LEMBAR JAWABAN KOMPUTER (LJK)</h1><h2>${ujian.pengaturan?.judul}</h2></div>
-          <div class="petunjuk"><b>PETUNJUK PENGISIAN:</b><br/>1. Gunakan pensil 2B atau pulpen tinta hitam pekat.<br/>2. Hitamkan bulatan (⬤) secara penuh pada jawaban yang dianggap benar.<br/>3. Jaga lembar agar tidak kotor/robek karena akan dipindai menggunakan teknologi AI.</div>
+          <div class="header">
+            <img src="${qrUrl}" class="qr-code" alt="QR Ujian" />
+            <h1>LEMBAR JAWABAN (LJK)</h1>
+            <h2>${ujian.pengaturan?.judul}</h2>
+          </div>
+          <div class="petunjuk"><b>PETUNJUK PENGISIAN:</b><br/>1. Gunakan pensil 2B atau pulpen tinta hitam pekat.<br/>2. Hitamkan bulatan (⬤) secara penuh pada jawaban yang dianggap benar.<br/>3. Jaga lembar agar tidak kotor/robek karena akan dipindai menggunakan kamera guru.</div>
           <div class="info-container">
             <div class="info-box" style="flex: 1.5;">
               <div class="info-row"><div class="info-label">Nama Peserta</div><div class="info-line"></div></div>
-              <div class="info-row"><div class="info-label">Nomor Ujian</div><div class="info-line"></div></div>
+              <div class="info-row"><div class="info-label">Nomor Induk</div><div class="info-line"></div></div>
               <div class="info-row"><div class="info-label">Tanda Tangan</div><div class="info-line" style="height: 25px;"></div></div>
             </div>
             <div class="info-box" style="flex: 1;">
@@ -732,7 +785,7 @@ export default function ManajemenKelas() {
                         <th className="px-4 py-3 text-center w-12">No</th>
                         <th className="px-4 py-3">Nama Lengkap</th>
                         <th className="px-4 py-3">NISN / Email</th>
-                        <th className="px-4 py-3 text-center w-28">Status</th>
+                        <th className="px-4 py-3 text-center w-40">Status & Kartu Offline</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -745,9 +798,14 @@ export default function ManajemenKelas() {
                             <p className="text-[10px] text-slate-400">{siswa.email || "-"}</p>
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <span className="text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-lg inline-flex items-center gap-1">
-                              <CheckCircle2 size={11}/> Aktif
-                            </span>
+                            <div className="flex items-center justify-center gap-2">
+                              <span className="text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-lg inline-flex items-center gap-1">
+                                <CheckCircle2 size={11}/> Aktif
+                              </span>
+                              <button type="button" onClick={() => handlePrintKartuPlickers(siswa)} className="text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-1 rounded-lg hover:bg-indigo-100 transition-colors">
+                                Cetak Kartu Offline
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       )) : (
@@ -972,22 +1030,34 @@ export default function ManajemenKelas() {
               </motion.div>
             )}
 
-            {/* TAB: KOREKSI AI */}
+            {/* TAB: KOREKSI AI & SCANNER OFFLINE */}
             {activeTab === "koreksi" && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
-                  <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2 text-sm md:text-base"><BrainCircuit size={18} className="text-indigo-600"/> Pengaturan Koreksi AI</h3>
-                  <p className="text-xs text-slate-400 mb-4 leading-relaxed">Sistem AI memindai Lembar Jawaban (LJK) & mengoreksi otomatis berdasarkan rubrik.</p>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Pilih Rubrik Kunci Jawaban</label>
-                  <select className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400">
-                    <option>Pilih Rubrik Asesmen...</option>
-                    {daftarUjian.map(u => <option key={u.id}>Kunci Jawaban: {u.pengaturan.judul}</option>)}
-                  </select>
+                  <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2 text-sm md:text-base">
+                    <BrainCircuit size={18} className="text-indigo-600"/> Pemindai Kamera LJK & Kartu Offline
+                  </h3>
+                  <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+                    Arahkan kamera ke QR Code pada LJK siswa atau Kartu Isyarat Pesantren untuk memproses kehadiran dan nilai secara instan.
+                  </p>
+                  
+                  <div className="bg-slate-900 rounded-2xl p-4 text-white text-center relative overflow-hidden h-[220px] flex flex-col items-center justify-center border border-slate-800">
+                    <div className="absolute inset-0 border-2 border-indigo-500/40 m-4 rounded-xl pointer-events-none flex items-center justify-center">
+                      <div className="w-full h-0.5 bg-indigo-500/60 animate-pulse"></div>
+                    </div>
+                    <Camera size={36} className="text-indigo-400 mb-2 animate-bounce" />
+                    <p className="text-xs font-bold text-slate-300">Kamera Pemindai Siap</p>
+                    <p className="text-[10px] text-slate-500 mt-1">Posisikan QR Code di dalam kotak area pemindaian</p>
+                    <button type="button" onClick={() => alert("Mengaktifkan modul kamera perangkat...")} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">
+                      Buka Kamera Scanner
+                    </button>
+                  </div>
                 </div>
+            
                 <div>
-                  <h3 className="font-bold text-slate-800 mb-2 text-sm md:text-base">Unggah LJK / Jawaban Siswa</h3>
+                  <h3 className="font-bold text-slate-800 mb-2 text-sm md:text-base">Unggah Berkas LJK Manual</h3>
                   <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf" onChange={handleUploadLJK} />
-                  <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-indigo-200 bg-indigo-50/20 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-indigo-50/50 transition-colors h-[180px]">
+                  <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-indigo-200 bg-indigo-50/20 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-indigo-50/50 transition-colors h-[220px]">
                     <UploadCloud size={36} className="text-indigo-400 mb-2.5" />
                     <p className="font-bold text-slate-800 text-xs mb-0.5">Klik untuk mengunggah Berkas LJK</p>
                     <p className="text-[10px] text-slate-400">Format: PNG, JPG, PDF</p>
@@ -998,9 +1068,6 @@ export default function ManajemenKelas() {
                       <motion.div initial={{opacity:0, y:8}} animate={{opacity:1, y:0}} className="mt-4 p-4 border border-emerald-200 bg-emerald-50 rounded-2xl text-xs space-y-2">
                         <h4 className="font-bold text-emerald-800 flex items-center gap-1.5"><CheckCircle2 size={15}/> Koreksi AI Selesai</h4>
                         <p className="text-slate-700">Siswa: <strong>{hasilKoreksiAI.namaSiswa}</strong> | Nilai AI: <strong className="text-rose-600">{hasilKoreksiAI.nilaiAwal}</strong></p>
-                        <div className="p-2.5 bg-white border border-emerald-100 rounded-xl text-[10px] text-slate-500 italic">
-                           Catatan AI: {hasilKoreksiAI.diagnosa}
-                        </div>
                         <div className="pt-2 border-t border-emerald-200/60 space-y-1.5">
                            <label className="font-bold text-slate-700 flex items-center gap-1"><Info size={13} className="text-indigo-500"/> Otoritas Guru (Override)</label>
                            <div className="flex gap-2">
@@ -1066,15 +1133,38 @@ export default function ManajemenKelas() {
                         ))}
                       </div>
                     )}
+                    
+                    {soal.tipe === "Jodohkan" && (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase">Pasangan Jodohkan</p>
+                        {soal.pasangan?.map((pas: any, pIdx: number) => (
+                          <div key={pIdx} className="flex items-center gap-2">
+                            <input type="text" value={pas.kiri} onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].pasangan[pIdx].kiri = e.target.value; setDaftarSoal(newSoal); }} placeholder="Pernyataan Kiri" className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs outline-none" />
+                            <span className="text-slate-400 font-bold">-</span>
+                            <input type="text" value={pas.kanan} onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].pasangan[pIdx].kanan = e.target.value; setDaftarSoal(newSoal); }} placeholder="Pasangan Kanan" className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs outline-none" />
+                            <button type="button" onClick={() => { const newSoal = [...daftarSoal]; newSoal[index].pasangan.splice(pIdx, 1); setDaftarSoal(newSoal); }} className="text-rose-400 hover:text-rose-600"><Trash2 size={14}/></button>
+                          </div>
+                        ))}
+                        <button type="button" onClick={() => { const newSoal = [...daftarSoal]; newSoal[index].pasangan.push({kiri:"", kanan:""}); setDaftarSoal(newSoal); }} className="text-[10px] font-bold text-indigo-600 flex items-center gap-1 mt-1"><Plus size={12}/> Tambah Pasangan</button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div className="bg-indigo-50/50 p-3.5 rounded-xl border border-indigo-100 text-xs space-y-2">
-                  <label className="font-bold text-indigo-900 flex items-center gap-1.5 uppercase tracking-wider text-[10px]"><Key size={13}/> Kunci Jawaban</label>
-                  {(soal.tipe === "PG" || soal.tipe === "Benar/Salah") && (
+                  <label className="font-bold text-indigo-900 flex items-center gap-1.5 uppercase tracking-wider text-[10px]"><Key size={13}/> Kunci Jawaban / Panduan Koreksi AI</label>
+                  
+                  {(soal.tipe === "PG" || soal.tipe === "Benar/Salah") ? (
                     <select value={soal.kunci} onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].kunci = e.target.value; setDaftarSoal(newSoal); }} className="bg-white border border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-bold text-indigo-700 outline-none">
                       {soal.tipe === "PG" ? soal.opsi?.map((opt:any) => <option key={opt.id} value={opt.id}>Opsi {opt.id}</option>) : <><option value="Benar">Benar</option><option value="Salah">Salah</option></>}
                     </select>
+                  ) : (
+                    <textarea 
+                      value={soal.panduanAI || ""} 
+                      onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].panduanAI = e.target.value; setDaftarSoal(newSoal); }} 
+                      placeholder="Tuliskan kunci jawaban spesifik atau rubrik panduan koreksi AI di sini..."
+                      className="w-full bg-white border border-indigo-200 rounded-xl px-3 py-2 text-xs font-medium text-indigo-800 outline-none resize-none min-h-[60px]"
+                    />
                   )}
                 </div>
               </div>
