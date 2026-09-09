@@ -94,6 +94,51 @@ export default function ManajemenKelas() {
     setIsCameraActive(false);
   };
 
+  useEffect(() => {
+  let animationFrameId: number;
+  let isScanning = true;
+
+  const scanQRCode = async () => {
+    if (!isCameraActive || !videoRef.current) return;
+    
+    // Memeriksa dukungan BarcodeDetector di browser seluler
+    if ('BarcodeDetector' in window) {
+      try {
+        const barcodeDetector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+        const barcodes = await barcodeDetector.detect(videoRef.current);
+        
+        if (barcodes.length > 0 && isScanning) {
+          isScanning = false;
+          const rawValue = barcodes[0].rawValue;
+          
+          // Aksi ketika QR Code berhasil terbaca
+          alert(`Berhasil Memindai! Data: ${rawValue}`);
+          
+          // Tutup kamera otomatis setelah berhasil
+          tutupKameraPerangkat();
+        }
+      } catch (e) {
+        // Mengabaikan error per frame saat mendeteksi
+      }
+    }
+    
+    if (isCameraActive) {
+      animationFrameId = requestAnimationFrame(scanQRCode);
+    }
+  };
+
+  if (isCameraActive) {
+    const timer = setTimeout(() => {
+      scanQRCode();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }
+
+  return () => {
+    cancelAnimationFrame(animationFrameId);
+    };
+  }, [isCameraActive]);
+
   // === STATE REKAP NILAI ===
   const [kkm, setKkm] = useState(75); 
   const [nilai, setNilai] = useState<Record<string, Record<string, number>>>({});
