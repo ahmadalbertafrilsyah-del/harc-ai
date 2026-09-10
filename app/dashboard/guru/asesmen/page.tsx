@@ -44,7 +44,6 @@ export default function ModulAsesmenGuru() {
     dimensiXAI: ["Linguistik", "Sosiolinguistik", "Budaya"] 
   });
 
-  // Komposisi Soal
   const [opsiPG, setOpsiPG] = useState("A - D (4 Opsi)");
   const [jmlPG, setJmlPG] = useState("10"); 
   const [jmlBenarSalah, setJmlBenarSalah] = useState("0"); 
@@ -54,6 +53,21 @@ export default function ModulAsesmenGuru() {
 
   const [showKoleksi, setShowKoleksi] = useState(false);
   const [riwayatAsesmen, setRiwayatAsesmen] = useState<any[]>([]);
+  
+  // === STATE MODUL AJAR ===
+  const [modulAjarList, setModulAjarList] = useState<any[]>([]);
+  const [showModulModal, setShowModulModal] = useState(false);
+
+  // === STATE ANALISIS (TAB 2) ===
+  const [analisisInput, setAnalisisInput] = useState("");
+  const [analisisHasil, setAnalisisHasil] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  // === STATE FEEDBACK (TAB 3) ===
+  const [feedbackData, setFeedbackData] = useState({ nama: "", nilai: "", catatan: "" });
+  const [feedbackHasil, setFeedbackHasil] = useState("");
+  const [isGeneratingFeedback, setIsGeneratingFeedback] = useState(false);
+
   const [isExportingGoogle, setIsExportingGoogle] = useState(false);
   const [googleExportType, setGoogleExportType] = useState<"Docs" | "Sheets" | null>(null);
   
@@ -73,9 +87,11 @@ export default function ModulAsesmenGuru() {
 
         const qRiwayat = query(collection(db, "modul_ajar"), where("userId", "==", user.uid), orderBy("createdAt", "desc"));
         onSnapshot(qRiwayat, (snapshot) => {
-          const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }))
-            .filter((d: any) => d.tipe.includes("Asesmen") || d.tipe.includes("Bank Soal") || d.tipe.includes("Kisi"));
-          setRiwayatAsesmen(data);
+          const dataAll = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          
+          // Pisahkan data untuk Koleksi Asesmen dan Pilihan Modul Ajar
+          setRiwayatAsesmen(dataAll.filter((d: any) => d.tipe?.includes("Asesmen") || d.tipe?.includes("Bank Soal") || d.tipe?.includes("Kisi")));
+          setModulAjarList(dataAll.filter((d: any) => d.tipe?.includes("Modul Ajar") || d.tipe?.includes("Bahan Ajar")));
         });
 
         setIsLoading(false); 
@@ -110,9 +126,6 @@ export default function ModulAsesmenGuru() {
       return "";
     }).join("\n");
 
-    // ==========================================
-    // REVISI SYSTEM PROMPT (100% AKURAT CBT PARSER)
-    // ==========================================
     let systemPrompt = `Anda adalah Evaluator Akademik Ahli di Indonesia.\n`;
     systemPrompt += `BUATLAH INSTRUMEN ASESMEN DENGAN ATURAN FORMAT MUTLAK BERIKUT AGAR BISA DIBACA OLEH SISTEM APLIKASI (PARSER):\n\n`;
     
@@ -167,6 +180,50 @@ export default function ModulAsesmenGuru() {
       setIsGenerating(false);
     }
   };
+
+  // Handler Tab 2 (Analisis Butir Soal)
+  const handleAnalisisAI = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!analisisInput || aiTokens <= 0) return;
+    setIsAnalyzing(true);
+    try {
+      const auth = getAuth();
+      const idToken = await auth.currentUser?.getIdToken();
+      const prompt = `Bertindaklah sebagai ahli evaluasi pendidikan. Analisis data butir soal berikut dan berikan evaluasi mengenai tingkat kesukaran, daya pembeda, serta rekomendasi tindak lanjut yang spesifik: \n\n${analisisInput}`;
+      
+      const res = await fetch("/api/chat", {
+        method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${idToken}` },
+        body: JSON.stringify({ model: "gemini-2.5-pro", messages: [{ role: "user", content: prompt }] })
+      });
+      const data = await res.json();
+      setAnalisisHasil(data.choices[0].message.content);
+    } catch(e) { 
+      alert("Terjadi kesalahan saat menganalisis data."); 
+    }
+    setIsAnalyzing(false);
+  }
+
+  // Handler Tab 3 (Feedback Otomatis)
+  const handleFeedbackAI = async (e: FormEvent) => {
+    e.preventDefault();
+    if (aiTokens <= 0) return;
+    setIsGeneratingFeedback(true);
+    try {
+      const auth = getAuth();
+      const idToken = await auth.currentUser?.getIdToken();
+      const prompt = `Buatkan feedback rapor atau evaluasi formatif yang memotivasi, personal, dan konstruktif (mengikuti pendekatan Kurikulum Merdeka) untuk siswa dengan data berikut:\nNama: ${feedbackData.nama}\nNilai: ${feedbackData.nilai}\nCatatan Guru: ${feedbackData.catatan}\n\nGunakan bahasa yang positif, mengapresiasi usaha, dan memberikan saran perbaikan yang jelas.`;
+      
+      const res = await fetch("/api/chat", {
+        method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${idToken}` },
+        body: JSON.stringify({ model: "gemini-2.5-pro", messages: [{ role: "user", content: prompt }] })
+      });
+      const data = await res.json();
+      setFeedbackHasil(data.choices[0].message.content);
+    } catch(e) { 
+      alert("Terjadi kesalahan saat membuat feedback."); 
+    }
+    setIsGeneratingFeedback(false);
+  }
 
   const handleSaveToDatabase = async () => {
     if (!userUid || !hasil) return;
@@ -254,7 +311,6 @@ export default function ModulAsesmenGuru() {
     setTimeout(() => { iframe.contentWindow?.focus(); iframe.contentWindow?.print(); setTimeout(() => document.body.removeChild(iframe), 1000); }, 500);
   };
 
-  // Tampilkan Tag Rahasia sebagai format Markdown yang cantik di Preview
   const sanitasiHasil = hasil
     .replace(/\[SOAL_START\]\n?/gi, '')
     .replace(/\[SOAL_END\]\n?/gi, '')
@@ -266,6 +322,42 @@ export default function ModulAsesmenGuru() {
   return (
     <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-7xl mx-auto space-y-6 pb-20 md:pb-10 pt-4 px-4 md:px-6">
       
+      {/* Modal Mengambil Modul Ajar */}
+      <AnimatePresence>
+        {showModulModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
+              <div className="flex justify-between items-center p-5 border-b border-slate-200 bg-slate-50">
+                <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <BookOpen size={18} className="text-blue-600" /> Ambil Data dari Modul Ajar
+                </h3>
+                <button onClick={() => setShowModulModal(false)} className="text-slate-400 hover:text-rose-600 transition-colors p-1"><X size={18}/></button>
+              </div>
+              <div className="p-5 overflow-y-auto custom-scrollbar flex-1 bg-slate-50/50">
+                <div className="grid grid-cols-1 gap-3">
+                  {modulAjarList.length > 0 ? (
+                    modulAjarList.map(modul => (
+                      <div key={modul.id} onClick={() => {
+                        setFormData(prev => ({ ...prev, mapel: modul.mapel || '', kelas: modul.kelas || '', kompetensiDasar: modul.topik || modul.kompetensiDasar || '' }));
+                        setShowModulModal(false);
+                      }} className="p-4 rounded-xl border bg-white border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 hover:shadow-sm transition-all cursor-pointer">
+                        <span className="font-bold text-slate-800 text-sm block mb-1">{modul.topik || "Modul Tanpa Judul"}</span>
+                        <div className="text-[11px] font-medium text-slate-500 bg-slate-100 w-max px-2 py-0.5 rounded border border-slate-200">{modul.mapel} • Kelas {modul.kelas}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-10 opacity-70">
+                       <FileQuestion size={32} className="mx-auto text-slate-300 mb-3"/>
+                       <p className="text-sm text-slate-500 font-medium">Belum ada Modul Ajar yang tersimpan di database Anda.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {isExportingGoogle && (
           <motion.div initial={{opacity: 0}} animate={{opacity: 1}} exit={{opacity: 0}} className="fixed inset-0 z-[100] flex items-center justify-center bg-white/80 backdrop-blur-sm p-4">
@@ -339,12 +431,20 @@ export default function ModulAsesmenGuru() {
         <button onClick={() => setActiveTab("feedback")} className={`px-4 py-3 text-sm font-bold flex items-center gap-2 border-b-2 ${activeTab === "feedback" ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-700"}`}><MessageSquareHeart size={18} /> 3. Feedback Otomatis</button>
       </nav>
 
+      {/* TAB 1: GENERATOR ASESMEN */}
       {activeTab === "generator" && (
         <div className="flex flex-col gap-8">
           <div className="w-full bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200">
-            <div className="flex items-center gap-3 mb-8 border-b border-slate-100 pb-4">
-              <FileQuestion size={22} className="text-slate-800" />
-              <h2 className={`text-lg font-bold text-slate-800 tracking-wide uppercase ${teachersFont.className}`}>Parameter Asesmen</h2>
+            
+            {/* Header Form Parameter */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <FileQuestion size={22} className="text-slate-800" />
+                <h2 className={`text-lg font-bold text-slate-800 tracking-wide uppercase ${teachersFont.className}`}>Parameter Asesmen</h2>
+              </div>
+              <button type="button" onClick={() => setShowModulModal(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-50 text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 rounded-lg text-xs font-bold border border-slate-200 transition-all shadow-sm">
+                <BookOpen size={16} /> Ambil dari Modul Ajar
+              </button>
             </div>
 
             <form onSubmit={handleGenerateAI} className="space-y-6">
@@ -519,8 +619,77 @@ export default function ModulAsesmenGuru() {
           </div>
         </div>
       )}
-      {activeTab === "analisis" && (<div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-20 text-center text-slate-400"><p className="font-bold">Modul Analisis Butir Soal</p></div>)}
-      {activeTab === "feedback" && (<div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-20 text-center text-slate-400"><p className="font-bold">Generator Feedback Otomatis</p></div>)}
+
+      {/* TAB 2: ANALISIS BUTIR SOAL */}
+      {activeTab === "analisis" && (
+        <div className="w-full bg-white p-6 md:p-10 rounded-2xl shadow-sm border border-slate-200">
+           <div className="flex items-center gap-3 mb-8 border-b border-slate-100 pb-4">
+              <BarChart4 size={22} className="text-blue-600" />
+              <h2 className={`text-lg font-bold text-slate-800 tracking-wide uppercase ${teachersFont.className}`}>Analisis Butir Soal & Daya Pembeda</h2>
+           </div>
+           
+           <form onSubmit={handleAnalisisAI} className="space-y-4 max-w-4xl">
+             <div>
+               <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Data Evaluasi Butir Soal</label>
+               <textarea
+                 required rows={8}
+                 placeholder="Masukkan data soal, persentase jawaban benar, atau distribusi opsi jawaban siswa di sini. AI akan menganalisis tingkat kesukaran dan rekomendasi perbaikan..."
+                 value={analisisInput} onChange={e => setAnalisisInput(e.target.value)}
+                 className="w-full p-4 bg-slate-50 border border-slate-300 rounded-xl text-sm outline-none focus:border-blue-500 resize-none shadow-inner"
+               ></textarea>
+             </div>
+             <button type="submit" disabled={isAnalyzing} className="px-6 py-3 bg-slate-900 hover:bg-blue-600 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-md">
+               {isAnalyzing ? <Loader2 size={18} className="animate-spin"/> : <Sparkles size={18}/>}
+               Mulai Analisis AI
+             </button>
+           </form>
+
+           {analisisHasil && (
+             <div className="mt-8 p-6 bg-blue-50/50 border border-blue-200 rounded-xl prose prose-sm max-w-none shadow-sm">
+               <h3 className="text-blue-800 font-bold mb-4 flex items-center gap-2"><CheckCircle2 size={18} /> Hasil Analisis</h3>
+               <ReactMarkdown>{analisisHasil}</ReactMarkdown>
+             </div>
+           )}
+        </div>
+      )}
+
+      {/* TAB 3: FEEDBACK OTOMATIS */}
+      {activeTab === "feedback" && (
+        <div className="w-full bg-white p-6 md:p-10 rounded-2xl shadow-sm border border-slate-200">
+           <div className="flex items-center gap-3 mb-8 border-b border-slate-100 pb-4">
+              <MessageSquareHeart size={22} className="text-rose-600" />
+              <h2 className={`text-lg font-bold text-slate-800 tracking-wide uppercase ${teachersFont.className}`}>Generator Evaluasi Formatif Siswa</h2>
+           </div>
+           
+           <form onSubmit={handleFeedbackAI} className="space-y-6 max-w-4xl">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div>
+                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Nama Siswa</label>
+                 <input type="text" required placeholder="Cth: Ahmad Albert" value={feedbackData.nama} onChange={e => setFeedbackData({...feedbackData, nama: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg text-sm font-medium outline-none focus:border-blue-500 shadow-sm" />
+               </div>
+               <div>
+                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Nilai / Capaian</label>
+                 <input type="text" required placeholder="Cth: 85 (Berkembang Sesuai Harapan)" value={feedbackData.nilai} onChange={e => setFeedbackData({...feedbackData, nilai: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg text-sm font-medium outline-none focus:border-blue-500 shadow-sm" />
+               </div>
+             </div>
+             <div>
+               <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Catatan Perkembangan (Observasi Guru)</label>
+               <textarea required rows={4} value={feedbackData.catatan} onChange={e => setFeedbackData({...feedbackData, catatan: e.target.value})} placeholder="Contoh: Sangat aktif dalam diskusi kelas, memiliki empati tinggi, tetapi terkadang kurang teliti saat mengerjakan soal numerasi dasar..." className="w-full p-4 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium outline-none focus:border-blue-500 resize-none shadow-inner"></textarea>
+             </div>
+             <button type="submit" disabled={isGeneratingFeedback} className="px-6 py-3 bg-slate-900 hover:bg-rose-600 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-md">
+                {isGeneratingFeedback ? <Loader2 size={18} className="animate-spin"/> : <Bot size={18}/>}
+                Susun Narasi Feedback
+             </button>
+           </form>
+
+           {feedbackHasil && (
+             <div className="mt-8 p-6 bg-rose-50/50 border border-rose-200 rounded-xl prose prose-sm max-w-none shadow-sm">
+               <h3 className="text-rose-800 font-bold mb-4 flex items-center gap-2"><CheckCircle2 size={18} /> Narasi Rapor Evaluasi</h3>
+               <ReactMarkdown>{feedbackHasil}</ReactMarkdown>
+             </div>
+          )}
+        </div>
+      )}
     </motion.main>
   );
 }

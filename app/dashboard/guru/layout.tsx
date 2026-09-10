@@ -33,28 +33,28 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
 
   const menuItems = [
     { name: "Beranda", icon: LayoutDashboard, path: "/dashboard/guru/beranda" },
-    { name: "Kelas Ajar", icon: Users, path: "/dashboard/guru/kelas" },
-    { name: "Asesmen AI", icon: BrainCircuit, path: "/dashboard/guru/asesmen" },
+    { name: "Kelas", icon: Users, path: "/dashboard/guru/kelas" },
+    { name: "Asesmen", icon: BrainCircuit, path: "/dashboard/guru/asesmen" },
     { name: "Generator Modul", icon: BookOpen, path: "/dashboard/guru/generator" },
-    { name: "Validasi Siswa", icon: FileCheck2, path: "/dashboard/guru/validasi" },
+    { name: "Validasi Bahan Ajar", icon: FileCheck2, path: "/dashboard/guru/validasi" },
     { name: "Analisis Hasil", icon: BarChart4, path: "/dashboard/guru/analitik" },
-    { name: "Chat AI", icon: MessageSquare, path: "/dashboard/guru/chat" },
-    { name: "Profil Saya", icon: UserCircle, path: "/dashboard/guru/profil" },
+    { name: "Asisten", icon: MessageSquare, path: "/dashboard/guru/chat" },
+    { name: "Profil", icon: UserCircle, path: "/dashboard/guru/profil" },
     { name: "Pengaturan", icon: Settings, path: "/dashboard/guru/pengaturan" },
   ];
 
   const bottomNavItems = [
     { name: "Beranda", icon: LayoutDashboard, path: "/dashboard/guru/beranda" },
     { name: "Kelas", icon: Users, path: "/dashboard/guru/kelas" },
-    { name: "Asisten Chat", icon: MessageSquare, path: "/dashboard/guru/chat" },
-    { name: "Profil", icon: UserCircle, path: "/dashboard/guru/profil" },
+    { name: "Bahan Ajar", icon: BookOpen, path: "/dashboard/guru/generator" },
+    { name: "Asesmen", icon: BrainCircuit, path: "/dashboard/guru/asesmen" },
   ];
 
   const moreMenuItems = [
-    { name: "Modul Ajar", icon: BookOpen, path: "/dashboard/guru/generator" },
+    { name: "Profil", icon: UserCircle, path: "/dashboard/guru/profil" },
+    { name: "Asisten", icon: MessageSquare, path: "/dashboard/guru/chat" },
     { name: "Validasi", icon: FileCheck2, path: "/dashboard/guru/validasi" },
     { name: "Analitik", icon: BarChart4, path: "/dashboard/guru/analitik" },
-    { name: "Asesmen", icon: BrainCircuit, path: "/dashboard/guru/asesmen" },
     { name: "Pengaturan", icon: Settings, path: "/dashboard/guru/pengaturan" },
   ];
 
