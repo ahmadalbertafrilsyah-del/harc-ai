@@ -1,504 +1,954 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Teachers, Lato } from "next/font/google";
-import { 
-  BookOpen, 
-  Globe, 
-  Shield, 
-  BrainCircuit, 
-  MessageSquareShare, 
-  RefreshCcw, 
-  Menu, 
-  X,
-  GraduationCap,
-  Moon,
-  Sun,
-  CheckCircle2,
-  PenTool,
-  Activity,
-  Target,
-  ChevronRight,
-  Library,
-  Zap,
-  Users,
-  Award,
-  Bot,
-  Send,
-  Loader2
-} from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence, MotionConfig } from "framer-motion";
+import { Spectral, IBM_Plex_Sans } from "next/font/google";
+import { Menu, X, Sun, Moon, Send, Loader2, MessageCircle, ArrowRight } from "lucide-react";
 
-const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], display: "swap" });
-const latoFont = Lato({ subsets: ["latin"], weight: ["400", "700", "900"], display: "swap" });
+/* ------------------------------------------------------------------
+   TIPOGRAFI
+------------------------------------------------------------------- */
+const display = Spectral({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  variable: "--font-display",
+});
+const sans = IBM_Plex_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  variable: "--font-sans",
+});
 
-const featuresData = [
-  { title: "Penguasaan Linguistik", desc: "Evaluasi ketepatan makna, kosakata, dan keterpahaman materi oleh siswa secara real-time." },
-  { title: "Ketepatan Sosiolinguistik", desc: "Menganalisis kesesuaian tingkat tutur dan dialek dengan lawan bicara serta tujuan komunikasi." },
-  { title: "Interpretasi Budaya", desc: "Menghormati dan memvalidasi nilai lokal, sejarah, serta praktik sosial yang hidup di masyarakat." },
-  { title: "Mediasi Adaptif", desc: "Memberikan petunjuk bertahap (scaffolding) untuk memandirikan siswa saat menghadapi kesulitan." },
-  { title: "Refleksi & Umpan Balik", desc: "Mendorong siswa untuk menjelaskan alasan perbaikan dan menentukan strategi belajar selanjutnya." },
-  { title: "Adab & Etika Digital", desc: "Menjamin kejujuran akademik, kesantunan interaksi, dan transparansi perlindungan data pribadi." }
+/* ------------------------------------------------------------------
+   TOKEN DESAIN
+------------------------------------------------------------------- */
+const TOKENS = `
+[data-theme="light"]{
+  --bg:#F7F5F1;
+  --bg-2:#F1EDE6;
+  --surface:#FFFDFA;
+  --surface-2:#F3F0EA;
+  --ink:#1A1F2E;
+  --ink-2:#5B6274;
+  --ink-3:#8E93A1;
+  --line:#E3DED4;
+  --line-soft:#EDE9E1;
+  --brand:#1F3053;
+  --brand-soft:#E8EBF2;
+  --brand-ink:#FFFFFF;
+  --accent:#146A5E;
+  --accent-soft:#E4EFEC;
+  --focus:#1F3053;
+  --shadow-soft:0 1px 2px rgba(26,31,46,.04), 0 8px 24px -12px rgba(26,31,46,.14);
+  --shadow-lift:0 2px 4px rgba(26,31,46,.05), 0 18px 40px -18px rgba(26,31,46,.22);
+  --texture:rgba(26,31,46,.022);
+  --wash-a:rgba(31,48,83,.07);
+  --wash-b:rgba(20,106,94,.06);
+}
+[data-theme="dark"]{
+  --bg:#12151C;
+  --bg-2:#161A23;
+  --surface:#1A1F2A;
+  --surface-2:#222735;
+  --ink:#EDEEF1;
+  --ink-2:#A5AAB8;
+  --ink-3:#757B8B;
+  --line:#2C3340;
+  --line-soft:#242A35;
+  --brand:#B9C7E8;
+  --brand-soft:#232A3A;
+  --brand-ink:#12151C;
+  --accent:#6FC3B4;
+  --accent-soft:#1B2A2A;
+  --focus:#B9C7E8;
+  --shadow-soft:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.6);
+  --shadow-lift:0 2px 4px rgba(0,0,0,.35), 0 18px 40px -18px rgba(0,0,0,.7);
+  --texture:rgba(255,255,255,.018);
+  --wash-a:rgba(120,150,210,.07);
+  --wash-b:rgba(80,180,165,.06);
+}
+
+/* Tekstur anyaman halus — nyaris tak terlihat, memberi "kertas" pada latar. */
+.tekstur{
+  background-image:
+    repeating-linear-gradient(45deg, var(--texture) 0 1px, transparent 1px 7px),
+    repeating-linear-gradient(-45deg, var(--texture) 0 1px, transparent 1px 7px);
+}
+/* Sapuan warna lembut di kepala halaman saja. */
+.wash{
+  background-image:
+    radial-gradient(900px 480px at 8% -20%, var(--wash-a), transparent 62%),
+    radial-gradient(760px 420px at 96% -10%, var(--wash-b), transparent 58%);
+}
+
+html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
+body{ overflow-x:hidden; }
+::selection{ background:var(--brand); color:var(--brand-ink); }
+
+.focusable:focus-visible{
+  outline:2px solid var(--focus);
+  outline-offset:3px;
+  border-radius:8px;
+}
+.kartu{
+  transition: transform .45s cubic-bezier(.22,1,.36,1),
+              box-shadow .45s cubic-bezier(.22,1,.36,1),
+              border-color .45s ease;
+}
+@media (hover:hover){
+  .kartu:hover{
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lift);
+    border-color: var(--line);
+  }
+}
+@media (prefers-reduced-motion: reduce){
+  html{ scroll-behavior:auto; }
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    transition-duration:.01ms !important;
+  }
+  .kartu:hover{ transform:none; }
+}
+`;
+
+/* ------------------------------------------------------------------
+   KONTEN
+------------------------------------------------------------------- */
+const NAV = [
+  { href: "#dimensi", label: "Dimensi penilaian" },
+  { href: "#alur", label: "Cara kerja" },
+  { href: "#otoritas", label: "Peran guru" },
 ];
 
-const panduanData = [
-  { icon: Target, title: "1. Desain Asesmen Responsif", desc: "Guru memasukkan Kompetensi Dasar (KD) dan AI merancang instrumen evaluasi yang mengintegrasikan aspek linguistik dan budaya lokal." },
-  { icon: BrainCircuit, title: "2. Mediasi Ujian Bertahap", desc: "Siswa mengerjakan tes terkomputerisasi. Asisten AI memberikan petunjuk terstruktur tanpa memberikan jawaban langsung untuk melatih kemandirian." },
-  { icon: PenTool, title: "3. Jurnal Refleksi Siswa", desc: "Sebelum mengumpulkan ujian, siswa menuliskan kendala belajarnya guna membangun kesadaran diri (metakognisi) dan adab digital." },
-  { icon: Activity, title: "4. Analitik & Otoritas Guru", desc: "Sistem menyajikan analitik kemandirian. Guru memegang otoritas penuh untuk mengoreksi nilai AI jika jawaban merupakan dialek lokal yang sah." }
+const dimensi = [
+  {
+    nama: "Penguasaan linguistik",
+    isi: "Ketepatan makna, kosakata, dan pemahaman siswa atas materi yang diujikan.",
+  },
+  {
+    nama: "Ketepatan sosiolinguistik",
+    isi: "Kesesuaian tingkat tutur dan dialek dengan lawan bicara serta tujuan komunikasi.",
+  },
+  {
+    nama: "Interpretasi budaya",
+    isi: "Nilai lokal, sejarah, dan praktik sosial yang hidup di masyarakat diperlakukan sebagai jawaban sah.",
+  },
+  {
+    nama: "Mediasi adaptif",
+    isi: "Petunjuk diberikan bertahap ketika siswa tersendat, tanpa membuka jawaban.",
+  },
+  {
+    nama: "Refleksi belajar",
+    isi: "Siswa menjelaskan alasan perbaikannya sendiri dan memilih langkah belajar berikutnya.",
+  },
+  {
+    nama: "Adab dan etika digital",
+    isi: "Kejujuran akademik, kesantunan interaksi, dan transparansi penggunaan data pribadi.",
+  },
 ];
 
-const statsData = [
-  { icon: Users, value: "15,000+", label: "Peserta Didik Aktif" },
-  { icon: Library, value: "1,200+", label: "Modul Tervalidasi" },
-  { icon: Zap, value: "98%", label: "Akurasi Sosiokultural" },
-  { icon: Award, value: "50+", label: "Sekolah Bermitra" }
+const alur = [
+  {
+    judul: "Guru menyusun asesmen",
+    isi: "Guru memasukkan Kompetensi Dasar. Sistem menyusun instrumen yang memuat aspek kebahasaan sekaligus konteks budaya setempat.",
+  },
+  {
+    judul: "Siswa mengerjakan dengan pendampingan",
+    isi: "Selama ujian berlangsung, siswa yang tersendat menerima petunjuk bertahap. Jawaban tidak pernah diberikan langsung.",
+  },
+  {
+    judul: "Siswa menulis jurnal refleksi",
+    isi: "Sebelum mengumpulkan, siswa mencatat kendala yang dialaminya. Catatan ini menjadi bagian dari penilaian.",
+  },
+  {
+    judul: "Guru meninjau dan memutuskan",
+    isi: "Sistem menyajikan analitik kemandirian. Nilai akhir tetap ditetapkan guru, termasuk saat dialek lokal perlu dibenarkan.",
+  },
 ];
+
+/* Ganti dengan angka yang dapat diverifikasi sebelum rilis publik. */
+const angka = [
+  { nilai: "15.000+", label: "peserta didik aktif" },
+  { nilai: "1.200+", label: "modul tervalidasi" },
+  { nilai: "50", label: "sekolah mitra" },
+  { nilai: "6", label: "dimensi penilaian" },
+];
+
+const contohSkor = [
+  { nama: "Linguistik", skor: 88 },
+  { nama: "Sosiolinguistik", skor: 74 },
+  { nama: "Interpretasi budaya", skor: 91 },
+  { nama: "Mediasi adaptif", skor: 69 },
+  { nama: "Refleksi belajar", skor: 80 },
+  { nama: "Adab digital", skor: 95 },
+];
+
+/* ------------------------------------------------------------------
+   POLA GERAK
+   Semua nilai bersifat tetap (tidak bergantung state atau media query),
+   sehingga markup di server dan di klien identik — tidak ada
+   hydration mismatch. Preferensi "reduce motion" ditangani oleh
+   <MotionConfig reducedMotion="user">, yang tidak mengubah HTML.
+------------------------------------------------------------------- */
+const HALUS = [0.22, 1, 0.36, 1] as const;
+const VIEWPORT = { once: true, margin: "-60px" };
+
+/* Masuk saat halaman dimuat (dipakai di hero). */
+const masuk = (i = 0) => ({
+  initial: { opacity: 0, y: 14 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.55, delay: 0.06 + i * 0.07, ease: HALUS },
+});
+
+/* Masuk saat elemen tergulir ke layar. */
+const muncul = (i = 0) => ({
+  initial: { opacity: 0, y: 14 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: VIEWPORT,
+  transition: { duration: 0.55, delay: i * 0.07, ease: HALUS },
+});
 
 export default function LandingPage() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  
-  // STATE UNTUK CHATBOT PUBLIK
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
-  const [isLoadingChat, setIsLoadingChat] = useState(false);
-  const [chatMessages, setChatMessages] = useState([
-    { role: "assistant", content: "Halo! Saya asisten informasi HARC-AI. Ada yang bisa saya bantu terkait fitur, pendaftaran, atau manfaat platform kami?" }
+  const [loadingChat, setLoadingChat] = useState(false);
+  const [messages, setMessages] = useState([
+    {
+      role: "assistant",
+      content:
+        "Selamat datang. Saya asisten informasi HARC-AI. Tanyakan soal fitur, pendaftaran sekolah, atau cara kerja penilaiannya.",
+    },
   ]);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  /* Tema mengikuti preferensi sistem, lalu pilihan pengguna disimpan.
+     Dibaca setelah hidrasi, sehingga render pertama tetap sama
+     dengan yang dikirim server. */
   useEffect(() => {
-    document.documentElement.style.scrollBehavior = "smooth";
+    const tersimpan =
+      typeof window !== "undefined"
+        ? (window.localStorage.getItem("harc-theme") as "light" | "dark" | null)
+        : null;
+    if (tersimpan) return setTheme(tersimpan);
+    if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) setTheme("dark");
   }, []);
 
-  // Auto-scroll chat ke bawah
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages, isLoadingChat]);
-  
-  const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.1 } } };
-  const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5 } } };
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim() || isLoadingChat) return;
-
-    const userMessage = chatInput.trim();
-    setChatMessages((prev) => [...prev, { role: "user", content: userMessage }]);
-    setChatInput("");
-    setIsLoadingChat(true);
-
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
     try {
-      const payload = {
-        messages: [...chatMessages, { role: "user", content: userMessage }]
-      };
-
-      const res = await fetch("/api/chat-public", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Gagal menghubungi AI");
-
-      setChatMessages((prev) => [...prev, { role: "assistant", content: data.choices[0].message.content }]);
-    } catch (error: any) {
-      setChatMessages((prev) => [...prev, { role: "assistant", content: `Maaf, terjadi kesalahan: ${error.message}` }]);
-    } finally {
-      setIsLoadingChat(false);
+      window.localStorage.setItem("harc-theme", next);
+    } catch {
+      /* penyimpanan tidak tersedia */
     }
   };
 
-  const featureStyles = [
-    { icon: BookOpen, color: isDarkMode ? "bg-slate-800 text-blue-400" : "bg-blue-900 text-white" },
-    { icon: MessageSquareShare, color: isDarkMode ? "bg-slate-800 text-amber-400" : "bg-amber-600 text-white" },
-    { icon: Globe, color: isDarkMode ? "bg-slate-800 text-blue-400" : "bg-blue-900 text-white" },
-    { icon: BrainCircuit, color: isDarkMode ? "bg-slate-800 text-amber-400" : "bg-amber-600 text-white" },
-    { icon: RefreshCcw, color: isDarkMode ? "bg-slate-800 text-blue-400" : "bg-blue-900 text-white" },
-    { icon: Shield, color: isDarkMode ? "bg-slate-800 text-amber-400" : "bg-amber-600 text-white" }
-  ];
+  /* Header memperoleh bayangan tipis begitu halaman digulir. */
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  /* Kunci gulir latar saat panel menutupi layar. */
+  useEffect(() => {
+    document.body.style.overflow = menuOpen || chatOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [menuOpen, chatOpen]);
+
+  useEffect(() => {
+    const pelan = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    endRef.current?.scrollIntoView({ behavior: pelan ? "auto" : "smooth" });
+  }, [messages, loadingChat]);
+
+  useEffect(() => {
+    if (chatOpen) inputRef.current?.focus();
+  }, [chatOpen]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setMenuOpen(false);
+      setChatOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  /* Kontrak API tidak berubah: POST /api/chat-public */
+  const kirimPesan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const teks = chatInput.trim();
+    if (!teks || loadingChat) return;
+
+    const riwayat = [...messages, { role: "user", content: teks }];
+    setMessages(riwayat);
+    setChatInput("");
+    setLoadingChat(true);
+
+    try {
+      const res = await fetch("/api/chat-public", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: riwayat }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Permintaan ditolak server.");
+
+      const balasan =
+        data?.choices?.[0]?.message?.content ??
+        "Jawaban tidak terbaca. Coba ulangi pertanyaannya.";
+      setMessages((prev) => [...prev, { role: "assistant", content: balasan }]);
+    } catch (err) {
+      const pesan = err instanceof Error ? err.message : "Koneksi terputus.";
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `Pesan gagal terkirim: ${pesan} Periksa koneksi lalu kirim ulang.`,
+        },
+      ]);
+    } finally {
+      setLoadingChat(false);
+    }
+  };
+
+  const judulSerif = { fontFamily: "var(--font-display), Georgia, serif" };
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 overflow-x-hidden relative ${latoFont.className} ${isDarkMode ? 'bg-[#0a0f1c] text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
-      
-      {/* Background Pattern */}
-      <div className={`absolute inset-0 z-0 pointer-events-none ${isDarkMode ? 'bg-[radial-gradient(#1e293b_1px,transparent_1px)]' : 'bg-[radial-gradient(#cbd5e1_1px,transparent_1px)]'} [background-size:24px_24px] opacity-40 mix-blend-multiply`} aria-hidden="true" />
-      
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[600px] overflow-hidden pointer-events-none z-0">
-        <div className={`absolute top-[-100px] left-[5%] md:left-[10%] w-[250px] md:w-[500px] h-[250px] md:h-[500px] rounded-full blur-[100px] md:blur-[120px] opacity-40 transition-all ${isDarkMode ? 'bg-blue-900' : 'bg-blue-200'}`} />
-        <div className={`absolute top-[100px] right-[5%] md:right-[10%] w-[200px] md:w-[400px] h-[200px] md:h-[400px] rounded-full blur-[80px] md:blur-[100px] opacity-30 transition-all ${isDarkMode ? 'bg-amber-900' : 'bg-amber-100'}`} />
-      </div>
+    <MotionConfig reducedMotion="user">
+      <div
+        data-theme={theme}
+        className={`${sans.variable} ${display.variable} tekstur min-h-screen bg-[color:var(--bg)] text-[color:var(--ink)] antialiased`}
+        style={{ fontFamily: "var(--font-sans), system-ui, sans-serif" }}
+      >
+        <style dangerouslySetInnerHTML={{ __html: TOKENS }} />
 
-      {/* HEADER INSTITUSI */}
-      <header className={`fixed w-full top-0 z-50 transition-all duration-300 border-b ${isDarkMode ? 'bg-[#0a0f1c]/95 border-slate-800 shadow-md' : 'bg-white/95 border-slate-200 shadow-sm'} backdrop-blur-md`} role="banner">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-[72px] md:h-[80px] flex justify-between items-center relative">
-          
-          <Link href="#beranda" className="flex items-center gap-3 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-800 rounded-lg relative z-10">
-            <div className="w-[38px] h-[38px] md:w-[44px] md:h-[44px] flex items-center justify-center group-hover:scale-105 transition-transform shrink-0" aria-hidden="true">
-              <img src="/logo.png" alt="Logo HARC-AI" className="w-full h-full object-contain" />
-            </div>
-            <div className="flex flex-col justify-center">
-              <span className={`text-[17px] sm:text-xl font-[800] tracking-tight leading-none ${isDarkMode ? 'text-white' : 'text-[#0f172a]'} ${teachersFont.className}`}>HARC-AI</span>
-              <span className={`text-[9px] md:text-[10px] font-bold tracking-wide mt-1 uppercase ${isDarkMode ? 'text-[#60a5fa]' : 'text-[#2563eb]'}`}>BY MAHATMA ACADEMY</span>
-            </div>
-          </Link>
-          
-          <div className="flex items-center gap-2 md:gap-3 relative z-10">
-            {/* TOMBOL CHATBOT */}
-            <button 
-              onClick={() => setIsChatOpen(true)}
-              className="px-3 py-2 md:px-4 md:py-2.5 rounded-xl border bg-amber-400 hover:bg-amber-500 border-amber-500 text-blue-950 font-bold transition-all flex items-center gap-2 text-xs md:text-sm shadow-md"
-            >
-              <Bot size={18} />
-              <span className="hidden md:inline">Tanya AI</span>
-            </button>
+        <a
+          href="#konten"
+          className="focusable sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-[color:var(--surface)] focus:px-4 focus:py-2 focus:text-sm focus:shadow-[var(--shadow-soft)]"
+        >
+          Lompat ke konten utama
+        </a>
 
-            <button 
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className={`p-2 md:p-2.5 rounded-xl border transition-all hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-800 ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'}`}
-            >
-              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
+        {/* ================= HEADER ================= */}
+        <header
+          className={`sticky top-0 z-50 border-b bg-[color:var(--bg)]/85 backdrop-blur-md transition-[box-shadow,border-color] duration-500 ${
+            scrolled
+              ? "border-[color:var(--line)] shadow-[var(--shadow-soft)]"
+              : "border-transparent"
+          }`}
+        >
+          <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:h-[72px] sm:px-8">
+            <Link href="#beranda" className="focusable flex shrink-0 items-center gap-3">
+              <img src="/logo.png" alt="" aria-hidden="true" className="h-9 w-9 object-contain" />
+              <span className="leading-tight">
+                <span className="block text-[17px] font-semibold tracking-tight" style={judulSerif}>
+                  HARC&#8209;AI
+                </span>
+                <span className="block text-[11px] text-[color:var(--ink-2)]">Mahatma Academy</span>
+              </span>
+            </Link>
 
-            <button 
-              className={`md:hidden p-2 rounded-xl border transition-colors ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'}`}
-              onClick={() => setIsMobileMenuOpen(true)}
-            >
-              <Menu size={20} />
-            </button>
-          </div>
-        </div>
+            <nav aria-label="Navigasi utama" className="hidden items-center gap-8 lg:flex">
+              {NAV.map((item) => (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className="focusable relative py-1 text-[14px] text-[color:var(--ink-2)] transition-colors duration-300 hover:text-[color:var(--ink)]
+                             after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0
+                             after:bg-[color:var(--accent)] after:transition-transform after:duration-300 hover:after:scale-x-100"
+                >
+                  {item.label}
+                </a>
+              ))}
+            </nav>
 
-        {/* MODAL MENU MOBILE */}
-        <AnimatePresence>
-          {isMobileMenuOpen && (
-            <>
-              <motion.div 
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="fixed inset-0 bg-slate-900/60 z-40 backdrop-blur-sm md:hidden"
-              />
-              <motion.div 
-                initial={{ opacity: 0, y: -20, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                className={`fixed z-50 top-4 left-4 right-4 rounded-3xl shadow-2xl overflow-hidden border md:hidden ${isDarkMode ? 'bg-[#0f172a] border-slate-700' : 'bg-white border-slate-200'}`}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                aria-label={theme === "dark" ? "Gunakan tema terang" : "Gunakan tema gelap"}
+                className="focusable grid h-10 w-10 place-items-center rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] text-[color:var(--ink-2)] transition-colors duration-300 hover:text-[color:var(--ink)]"
               >
-                <div className={`flex justify-between items-center p-5 border-b ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-                  <div className="flex items-center gap-3">
-                     <div className="w-[36px] h-[36px] flex items-center justify-center shrink-0">
-                        <img src="/logo.png" alt="Logo HARC-AI" className="w-full h-full object-contain" />
-                     </div>
-                     <span className={`text-lg font-[800] leading-none block ${isDarkMode ? 'text-white' : 'text-[#0f172a]'} ${teachersFont.className}`}>HARC-AI</span>
-                  </div>
-                  <button onClick={() => setIsMobileMenuOpen(false)} className={`p-2 rounded-lg border ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
-                     <X size={20}/>
+                {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+
+              <Link
+                href="/login"
+                className="focusable hidden rounded-[10px] bg-[color:var(--brand)] px-5 py-2.5 text-[14px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-soft)] transition-all duration-300 hover:-translate-y-px hover:shadow-[var(--shadow-lift)] sm:block"
+              >
+                Masuk portal
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => setMenuOpen(true)}
+                aria-label="Buka menu"
+                aria-expanded={menuOpen}
+                className="focusable grid h-10 w-10 place-items-center rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] text-[color:var(--ink-2)] lg:hidden"
+              >
+                <Menu size={18} />
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* ================= MENU SELULER ================= */}
+        <AnimatePresence>
+          {menuOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                onClick={() => setMenuOpen(false)}
+                className="fixed inset-0 z-[60] bg-[#0D1119]/35 backdrop-blur-[2px] lg:hidden"
+                aria-hidden="true"
+              />
+              <motion.div
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ duration: 0.38, ease: HALUS }}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Menu navigasi"
+                className="fixed inset-y-0 right-0 z-[70] flex w-[86%] max-w-sm flex-col bg-[color:var(--bg)] shadow-[var(--shadow-lift)] lg:hidden"
+              >
+                <div className="flex h-16 items-center justify-between border-b border-[color:var(--line-soft)] px-5">
+                  <span className="text-[17px] font-medium" style={judulSerif}>
+                    Menu
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setMenuOpen(false)}
+                    aria-label="Tutup menu"
+                    className="focusable grid h-10 w-10 place-items-center rounded-full border border-[color:var(--line)] bg-[color:var(--surface)]"
+                  >
+                    <X size={18} />
                   </button>
                 </div>
-                <div className={`flex flex-col p-3 gap-1 text-[13px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-300' : 'text-[#334155]'}`}>
-                   <a href="#beranda" onClick={() => setIsMobileMenuOpen(false)} className={`p-4 rounded-xl transition-colors ${isDarkMode ? 'hover:bg-slate-800 hover:text-white' : 'hover:bg-slate-50 hover:text-[#0f172a]'}`}>Beranda</a>
-                   <a href="#dimensi" onClick={() => setIsMobileMenuOpen(false)} className={`p-4 rounded-xl transition-colors ${isDarkMode ? 'hover:bg-slate-800 hover:text-white' : 'hover:bg-slate-50 hover:text-[#0f172a]'}`}>Dimensi Evaluasi</a>
-                   <a href="#panduan" onClick={() => setIsMobileMenuOpen(false)} className={`p-4 rounded-xl transition-colors ${isDarkMode ? 'hover:bg-slate-800 hover:text-white' : 'hover:bg-slate-50 hover:text-[#0f172a]'}`}>Panduan Sistem</a>
+
+                <nav className="flex flex-col px-5" aria-label="Navigasi seluler">
+                  {[{ href: "#beranda", label: "Beranda" }, ...NAV].map((item, i) => (
+                    <motion.a
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMenuOpen(false)}
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 + i * 0.06, duration: 0.35, ease: HALUS }}
+                      className="focusable flex items-center justify-between border-b border-[color:var(--line-soft)] py-5 text-[18px]"
+                      style={judulSerif}
+                    >
+                      {item.label}
+                      <ArrowRight size={16} className="text-[color:var(--ink-3)]" />
+                    </motion.a>
+                  ))}
+                </nav>
+
+                <div className="mt-auto p-5">
+                  <Link
+                    href="/login"
+                    className="focusable block rounded-[10px] bg-[color:var(--brand)] px-5 py-3.5 text-center text-[15px] font-medium text-[color:var(--brand-ink)]"
+                  >
+                    Masuk portal
+                  </Link>
                 </div>
               </motion.div>
             </>
           )}
         </AnimatePresence>
-      </header>
 
-      {/* POP-UP CHATBOT PUBLIK */}
-      <AnimatePresence>
-        {isChatOpen && (
-          <>
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setIsChatOpen(false)}
-              className="fixed inset-0 bg-slate-900/40 z-[60] backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, y: 50, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 50, scale: 0.95 }}
-              className={`fixed z-[70] bottom-4 right-4 left-4 md:left-auto md:w-[400px] h-[550px] md:h-[600px] max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border ${isDarkMode ? 'bg-[#0f172a] border-slate-700' : 'bg-white border-slate-200'}`}
-            >
-              {/* Header Chat */}
-              <div className={`p-4 border-b flex justify-between items-center ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-[#1e3a8a] border-[#172554] text-white'}`}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-amber-400 flex items-center justify-center text-blue-950">
-                    <Bot size={22} />
-                  </div>
-                  <div>
-                    <h3 className={`font-bold text-sm ${teachersFont.className}`}>Bot HARC-AI</h3>
-                    <p className="text-[10px] text-blue-200">Siap menjawab pertanyaan Anda</p>
-                  </div>
-                </div>
-                <button onClick={() => setIsChatOpen(false)} className="p-2 rounded-lg hover:bg-white/20 transition-colors">
-                  <X size={20} />
-                </button>
-              </div>
-
-              {/* Area Pesan Chat */}
-              <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-                {chatMessages.map((msg, idx) => (
-                  <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] p-3.5 rounded-2xl text-sm leading-relaxed ${
-                      msg.role === 'user' 
-                        ? 'bg-amber-400 text-blue-950 rounded-br-sm' 
-                        : isDarkMode 
-                          ? 'bg-slate-800 text-slate-200 rounded-bl-sm border border-slate-700' 
-                          : 'bg-slate-100 text-slate-700 rounded-bl-sm border border-slate-200'
-                    }`}>
-                      {msg.content}
-                    </div>
-                  </div>
-                ))}
-                {isLoadingChat && (
-                  <div className="flex justify-start">
-                    <div className={`p-3 rounded-2xl rounded-bl-sm flex items-center gap-2 ${isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>
-                      <Loader2 size={16} className="animate-spin" />
-                      <span className="text-xs">Berpikir...</span>
-                    </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Form Input Chat */}
-              <form onSubmit={handleSendMessage} className={`p-3 border-t flex gap-2 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                <input 
-                  type="text" 
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Tanyakan tentang pendaftaran atau fitur..." 
-                  className={`flex-1 px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm transition-all ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'}`}
-                  disabled={isLoadingChat}
-                />
-                <button 
-                  type="submit" 
-                  disabled={isLoadingChat || !chatInput.trim()}
-                  className="p-3 bg-[#1e3a8a] hover:bg-blue-800 disabled:bg-slate-400 text-white rounded-xl transition-colors flex items-center justify-center shrink-0"
+        <main id="konten">
+          {/* ================= HERO ================= */}
+          <section
+            id="beranda"
+            className="wash scroll-mt-16 border-b border-[color:var(--line-soft)]"
+            aria-labelledby="judul-hero"
+          >
+            <div className="mx-auto grid max-w-6xl gap-10 px-4 pb-14 pt-12 sm:px-8 sm:pb-20 sm:pt-16 lg:grid-cols-12 lg:gap-14 lg:pb-24 lg:pt-20">
+              <div className="lg:col-span-7">
+                <motion.p
+                  {...masuk(0)}
+                  className="mb-5 inline-flex items-center gap-2.5 rounded-full border border-[color:var(--line)] bg-[color:var(--accent-soft)] px-3.5 py-1.5 text-[12.5px] text-[color:var(--accent)] sm:text-[13px]"
                 >
-                  <Send size={18} />
-                </button>
-              </form>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+                  <span
+                    aria-hidden="true"
+                    className="h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]"
+                  />
+                  Asesmen sekolah berbasis Artificial Intelligence
+                </motion.p>
 
-      <main role="main">
-        {/* BAGIAN UTAMA (HERO) - UTUH KEMBALI */}
-        <section id="beranda" className="relative z-10 pt-24 sm:pt-28 lg:pt-32 pb-16 lg:pb-20 px-4 sm:px-6 max-w-7xl mx-auto scroll-mt-28" aria-labelledby="hero-title">
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-10 lg:gap-8">
-            
-            {/* Kolom Teks Akademik */}
-            <motion.div 
-              initial={{ opacity: 0, x: -30 }} 
-              animate={{ opacity: 1, x: 0 }} 
-              transition={{ duration: 0.6, ease: "easeOut" }} 
-              className="w-full lg:w-6/12 text-center lg:text-left flex flex-col items-center lg:items-start"
-            >
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-full font-bold text-[11px] sm:text-xs mb-5 sm:mb-6 border shadow-sm backdrop-blur-sm ${isDarkMode ? 'bg-slate-800/80 border-slate-700 text-amber-400' : 'bg-white/80 border-blue-200 text-blue-900'}`} role="status"
-              >
-                <GraduationCap size={16} className="text-amber-500 shrink-0" aria-hidden="true" />
-                <span className="uppercase tracking-wider">Pusat Asesmen Pendidikan AI</span>
-              </motion.div>
-              
-              <h1 id="hero-title" className={`text-[28px] sm:text-4xl lg:text-[44px] font-black mb-4 sm:mb-6 leading-tight ${teachersFont.className} ${isDarkMode ? 'text-white' : 'text-[#0f172a]'}`}>
-                Integrasi <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-amber-500">Kecerdasan Buatan</span> dalam Evaluasi Akademik
-              </h1>
-              
-              <p className={`text-sm lg:text-base mb-8 lg:mb-10 leading-relaxed max-w-2xl text-center lg:text-left ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                Platform <strong>Humanistic, Adaptive, and Responsive-Cultural Assessment (HARC-AI)</strong> berfungsi untuk memediasi pembelajaran bahasa daerah, mereduksi beban administratif tenaga pendidik, dan meningkatkan prestasi akademik peserta didik secara sistematis.
-              </p>
-              
-              <div className="flex flex-col sm:flex-row w-full sm:w-auto items-center justify-center gap-3 sm:gap-4">
-                <Link href="/login" className="w-full sm:w-auto" tabIndex={-1}>
-                  <motion.button 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="w-full sm:w-auto bg-[#1e3a8a] hover:bg-blue-800 text-white px-6 sm:px-8 py-3.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-blue-900/30 flex items-center justify-center gap-3"
+                <motion.h1
+                  {...masuk(1)}
+                  id="judul-hero"
+                  className="max-w-[16ch] text-[clamp(31px,8vw,52px)] font-normal leading-[1.12] tracking-[-0.02em]"
+                  style={judulSerif}
+                >
+                  Menilai bahasa daerah tanpa mengabaikan konteks budayanya.
+                </motion.h1>
+
+                <motion.p
+                  {...masuk(2)}
+                  className="mt-6 max-w-[58ch] text-[15.5px] leading-[1.75] text-[color:var(--ink-2)] sm:text-[16.5px]"
+                >
+                  HARC-AI menyusun instrumen ujian, mendampingi siswa selama mengerjakan, dan
+                  merangkum hasilnya menjadi analitik yang bisa dibaca guru dalam hitungan menit.
+                  Dialek dan kearifan setempat diperlakukan sebagai jawaban yang sah, bukan
+                  kesalahan.
+                </motion.p>
+
+                <motion.div
+                  {...masuk(3)}
+                  className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-7"
+                >
+                  <Link
+                    href="/login"
+                    className="focusable group inline-flex items-center justify-center gap-2.5 rounded-[10px] bg-[color:var(--brand)] px-7 py-4 text-[15px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-soft)] transition-all duration-300 hover:-translate-y-px hover:shadow-[var(--shadow-lift)] sm:py-3.5"
                   >
-                    <span>Mulai Evaluasi</span>
-                    <ChevronRight size={18} />
-                  </motion.button>
-                </Link>
-              </div>
-            </motion.div>
-
-            {/* Kolom Visual Institusi - UTUH KEMBALI */}
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, rotate: -5 }} 
-              animate={{ opacity: 1, scale: 1, rotate: 0 }} 
-              transition={{ duration: 0.8, type: "spring", bounce: 0.4 }} 
-              className="w-full sm:w-3/4 lg:w-5/12 flex justify-center relative mt-6 lg:mt-0"
-              aria-hidden="true"
-            >
-              <motion.div animate={{ y: [0, -15, 0] }} transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }} className="absolute -top-4 -left-4 w-10 h-10 sm:w-12 sm:h-12 bg-amber-400 rounded-full blur-xl opacity-60 z-0"></motion.div>
-              <motion.div animate={{ y: [0, 20, 0] }} transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }} className="absolute -bottom-6 -right-6 w-14 h-14 sm:w-16 sm:h-16 bg-blue-500 rounded-full blur-xl opacity-50 z-0"></motion.div>
-
-              <div className={`w-full max-w-[320px] sm:max-w-sm aspect-square rounded-[2rem] p-6 sm:p-8 flex flex-col items-center justify-center relative overflow-hidden border shadow-2xl backdrop-blur-sm z-10 ${isDarkMode ? 'bg-[#0f172a]/80 border-slate-700 shadow-[0_20px_50px_rgba(0,0,0,0.5)]' : 'bg-white/90 border-slate-200/50 shadow-[0_20px_50px_rgba(30,58,138,0.1)]'}`}>
-                <div className={`absolute w-[200px] h-[200px] sm:w-[240px] sm:h-[240px] rounded-full border-[1.5px] border-dashed animate-[spin_30s_linear_infinite] pointer-events-none ${isDarkMode ? 'border-slate-600/50' : 'border-blue-200'}`} />
-                <div className={`absolute w-[150px] h-[150px] sm:w-[180px] sm:h-[180px] rounded-full border-[1.5px] border-dashed animate-[spin_20s_linear_infinite_reverse] pointer-events-none ${isDarkMode ? 'border-slate-500/50' : 'border-indigo-200'}`} />
-                
-                <motion.div 
-                  animate={{ y: [0, -8, 0] }} 
-                  transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
-                  className={`relative z-10 w-24 h-24 sm:w-28 sm:h-28 bg-gradient-to-tr from-blue-900 to-indigo-800 rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(30,58,138,0.4)] border-4 ${isDarkMode ? 'border-slate-800' : 'border-slate-50'}`}
-                >
-                  <BrainCircuit className="w-10 h-10 sm:w-12 sm:h-12 text-amber-400 animate-pulse" />
+                    Mulai evaluasi
+                    <ArrowRight
+                      size={17}
+                      className="transition-transform duration-300 group-hover:translate-x-1"
+                    />
+                  </Link>
+                  <a
+                    href="#alur"
+                    className="focusable inline-flex items-center justify-center py-2 text-[15px] text-[color:var(--ink-2)] transition-colors duration-300 hover:text-[color:var(--ink)]"
+                  >
+                    Lihat cara kerjanya
+                  </a>
                 </motion.div>
-                
-                <div className={`relative z-10 mt-6 sm:mt-8 text-center px-4 sm:px-6 py-3 sm:py-4 rounded-xl border shadow-lg backdrop-blur-md ${isDarkMode ? 'bg-slate-800/90 border-slate-600' : 'bg-white/90 border-slate-100'}`}>
-                  <p className={`text-[10px] sm:text-xs font-black text-transparent bg-clip-text bg-gradient-to-r uppercase tracking-widest ${isDarkMode ? 'from-blue-400 to-indigo-400' : 'from-blue-600 to-indigo-600'}`}>Status Sistem</p>
-                  <div className="flex items-center justify-center gap-2 mt-1 sm:mt-1.5">
-                    <CheckCircle2 size={16} className="text-emerald-500" />
-                    <p className={`text-[11px] sm:text-xs font-bold ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>Modul AI Aktif & Sinkron</p>
-                  </div>
-                </div>
               </div>
-            </motion.div>
-          </div>
-        </section>
 
-        {/* PITA STATISTIK (SOCIAL PROOF) - UTUH KEMBALI */}
-        <section className={`relative z-20 py-8 border-y ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-blue-900 border-blue-950'} backdrop-blur-md`}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-y-8 gap-x-4">
-              {statsData.map((stat, idx) => (
-                <div key={idx} className="flex flex-col items-center justify-center text-center">
-                  <stat.icon className={`w-6 h-6 mb-2 sm:mb-3 ${isDarkMode ? 'text-blue-400' : 'text-amber-400'}`} />
-                  <h3 className={`text-2xl md:text-3xl font-black text-white mb-1 ${teachersFont.className}`}>{stat.value}</h3>
-                  <p className={`text-[10px] md:text-xs font-bold tracking-widest uppercase ${isDarkMode ? 'text-slate-400' : 'text-blue-200'}`}>{stat.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+              {/* Panel contoh hasil — memperlihatkan produknya, bukan ilustrasi */}
+              <motion.figure
+                initial={{ opacity: 0, y: 22 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.65, delay: 0.24, ease: HALUS }}
+                className="overflow-hidden rounded-2xl border border-[color:var(--line)] bg-[color:var(--surface)] shadow-[var(--shadow-soft)] lg:col-span-5"
+              >
+                <figcaption className="flex items-baseline justify-between border-b border-[color:var(--line-soft)] bg-[color:var(--surface-2)]/60 px-5 py-4 sm:px-6">
+                  <span className="text-[14px] font-medium">Ringkasan penilaian</span>
+                  <span className="text-[12px] text-[color:var(--ink-3)]">Contoh tampilan</span>
+                </figcaption>
 
-        {/* ALUR KERJA SISTEM - UTUH KEMBALI */}
-        <section id="panduan" className={`py-16 sm:py-24 border-t relative overflow-hidden ${isDarkMode ? 'bg-[#0a0f1c] border-slate-800' : 'bg-white border-slate-200'}`} aria-labelledby="panduan-title">
-          <div className={`absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l to-transparent pointer-events-none ${isDarkMode ? 'from-slate-800/30' : 'from-blue-50/50'}`} />
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
-            <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
-              <span className="text-[11px] sm:text-sm font-bold uppercase tracking-widest text-amber-500 mb-2 sm:mb-3 block">Prosedur Operasional</span>
-              <h2 id="panduan-title" className={`text-2xl sm:text-4xl font-black mb-4 sm:mb-5 ${teachersFont.className} ${isDarkMode ? 'text-white' : 'text-[#0f172a]'}`}>
-                Alur Kerja Evaluasi Akademik
-              </h2>
-              <p className={`text-sm sm:text-base leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                Struktur operasional sistem memastikan kolaborasi yang transparan antara tenaga pendidik, peserta didik, dan asisten kecerdasan buatan.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 relative">
-              <div className={`hidden lg:block absolute top-10 left-[12%] right-[12%] h-0.5 border-t-2 border-dashed z-0 ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-200 border-slate-300'}`}></div>
-              
-              {panduanData.map((step, idx) => (
-                <article key={idx} className={`relative z-10 p-6 lg:p-8 rounded-2xl border-2 flex flex-col items-center text-center transition-all duration-300 hover:-translate-y-2 hover:shadow-xl ${isDarkMode ? 'bg-slate-900 border-slate-800 hover:border-blue-800' : 'bg-white border-slate-100 hover:border-blue-200 shadow-sm'}`}>
-                  <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mb-5 sm:mb-6 shadow-lg border-4 ${isDarkMode ? 'bg-slate-800 border-[#0a0f1c] text-amber-400' : 'bg-[#1e3a8a] border-white text-amber-400'}`}>
-                    <step.icon className="w-7 h-7 sm:w-8 sm:h-8" aria-hidden="true" />
+                <div className="px-5 py-5 sm:px-6 sm:py-6">
+                  <div className="mb-5 flex items-baseline justify-between text-[13px] text-[color:var(--ink-2)]">
+                    <span>Tugas 4 — Ragam krama</span>
+                    <span>Kelas VIII&nbsp;B</span>
                   </div>
-                  <h3 className={`text-base sm:text-lg font-bold mb-3 sm:mb-4 ${teachersFont.className} ${isDarkMode ? 'text-slate-100' : 'text-slate-900'}`}>
-                    {step.title}
-                  </h3>
-                  <p className={`text-xs sm:text-sm leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                    {step.desc}
+
+                  <ul className="space-y-4">
+                    {contohSkor.map((d, i) => (
+                      <motion.li key={d.nama} {...muncul(i)}>
+                        <div className="mb-2 flex items-baseline justify-between text-[13.5px]">
+                          <span className="text-[color:var(--ink-2)]">{d.nama}</span>
+                          <span className="tabular-nums text-[15px]" style={judulSerif}>
+                            {d.skor}
+                          </span>
+                        </div>
+                        <div
+                          className="h-[5px] w-full overflow-hidden rounded-full bg-[color:var(--surface-2)]"
+                          role="img"
+                          aria-label={`${d.nama}: ${d.skor} dari 100`}
+                        >
+                          <motion.div
+                            className="h-full rounded-full bg-[color:var(--accent)]"
+                            initial={{ width: "0%" }}
+                            whileInView={{ width: `${d.skor}%` }}
+                            viewport={VIEWPORT}
+                            transition={{ duration: 1.1, ease: HALUS, delay: 0.3 + i * 0.07 }}
+                          />
+                        </div>
+                      </motion.li>
+                    ))}
+                  </ul>
+                </div>
+
+                <p className="border-t border-[color:var(--line-soft)] bg-[color:var(--surface-2)]/50 px-5 py-4 text-[13px] leading-relaxed text-[color:var(--ink-2)] sm:px-6">
+                  Nilai ini usulan sistem. Guru dapat menyesuaikannya sebelum disimpan.
+                </p>
+              </motion.figure>
+            </div>
+          </section>
+
+          {/* ================= ANGKA ================= */}
+          <section
+            aria-label="Cakupan penggunaan"
+            className="border-b border-[color:var(--line-soft)] bg-[color:var(--bg-2)]"
+          >
+            <div className="mx-auto grid max-w-6xl grid-cols-2 px-4 sm:px-8 md:grid-cols-4">
+              {angka.map((a, i) => (
+                <motion.div
+                  key={a.label}
+                  {...muncul(i)}
+                  className={`px-2 py-7 sm:px-6 sm:py-9 ${
+                    i % 2 === 1 ? "border-l border-[color:var(--line-soft)] pl-5 sm:pl-6" : ""
+                  } ${i > 1 ? "border-t border-[color:var(--line-soft)] md:border-t-0" : ""} ${
+                    i === 2 ? "md:border-l md:border-[color:var(--line-soft)] md:pl-6" : ""
+                  }`}
+                >
+                  <p
+                    className="text-[clamp(26px,6vw,34px)] leading-none tracking-tight"
+                    style={judulSerif}
+                  >
+                    {a.nilai}
                   </p>
-                </article>
+                  <p className="mt-2.5 text-[12.5px] leading-snug text-[color:var(--ink-2)] sm:text-[13px]">
+                    {a.label}
+                  </p>
+                </motion.div>
               ))}
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* 6 DIMENSI HARC-AI - UTUH KEMBALI */}
-        <section id="dimensi" className={`py-16 sm:py-24 border-t ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'}`} aria-labelledby="dimensi-title">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6">
-            <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
-              <span className="text-[11px] sm:text-sm font-bold uppercase tracking-widest text-amber-500 mb-2 sm:mb-3 block">Kerangka Teoritis</span>
-              <h2 id="dimensi-title" className={`text-2xl sm:text-4xl font-black mb-4 sm:mb-5 ${teachersFont.className} ${isDarkMode ? 'text-white' : 'text-[#0f172a]'}`}>
-                6 Dimensi Evaluasi Institusional
-              </h2>
-              <p className={`text-sm sm:text-base leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                Indikator penilaian dirancang secara empiris untuk menjaga integritas akademik dan memvalidasi kecerdasan kultural peserta didik.
-              </p>
-            </div>
+          {/* ================= DIMENSI ================= */}
+          <section
+            id="dimensi"
+            className="scroll-mt-16 border-b border-[color:var(--line-soft)]"
+            aria-labelledby="judul-dimensi"
+          >
+            <div className="mx-auto max-w-6xl px-4 py-16 sm:px-8 sm:py-24">
+              <div className="max-w-[56ch]">
+                <motion.h2
+                  {...muncul(0)}
+                  id="judul-dimensi"
+                  className="text-[clamp(26px,5.5vw,36px)] font-normal leading-[1.2] tracking-[-0.015em]"
+                  style={judulSerif}
+                >
+                  Enam dimensi yang dinilai
+                </motion.h2>
+                <motion.p
+                  {...muncul(1)}
+                  className="mt-5 text-[15.5px] leading-[1.75] text-[color:var(--ink-2)] sm:text-[16.5px]"
+                >
+                  Setiap jawaban ditimbang dari enam sudut. Rinciannya terbuka, sehingga guru tahu
+                  persis dari mana sebuah angka berasal dan di mana ia perlu dikoreksi.
+                </motion.p>
+              </div>
 
-            <motion.div 
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6" 
-              variants={containerVariants} 
-              initial="hidden" 
-              whileInView="visible" 
-              viewport={{ once: true, margin: "-50px" }}
-            >
-              {featuresData.map((feature, idx) => {
-                const style = featureStyles[idx];
-                return (
-                  <motion.article 
-                    key={idx} 
-                    variants={itemVariants} 
-                    tabIndex={0}
-                    className={`p-6 lg:p-8 rounded-2xl shadow-sm transition-all duration-300 flex flex-col justify-between group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-800 border-b-4 hover:-translate-y-1 ${isDarkMode ? 'bg-[#0a0f1c] border-slate-700/50 hover:border-blue-500 hover:shadow-blue-900/20' : 'bg-white border-slate-200 hover:border-blue-600 hover:shadow-blue-900/10'}`}
+              <ul className="mt-10 grid gap-4 sm:mt-12 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+                {dimensi.map((d, i) => (
+                  <motion.li
+                    key={d.nama}
+                    {...muncul(i % 3)}
+                    className="kartu rounded-2xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-6 shadow-[var(--shadow-soft)] sm:p-7"
                   >
-                    <div>
-                      <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center mb-5 sm:mb-6 shadow-sm transition-transform duration-300 group-hover:rotate-6 ${style.color}`} aria-hidden="true">
-                        <style.icon className="w-6 h-6 sm:w-7 sm:h-7" />
-                      </div>
-                      <h3 className={`text-lg sm:text-xl font-bold mb-2 sm:mb-3 ${teachersFont.className} ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                        {feature.title}
+                    <span
+                      aria-hidden="true"
+                      className="mb-4 grid h-9 w-9 place-items-center rounded-full bg-[color:var(--brand-soft)] text-[13px] tabular-nums text-[color:var(--brand)]"
+                      style={judulSerif}
+                    >
+                      {i + 1}
+                    </span>
+                    <h3 className="mb-2.5 text-[19px] font-medium leading-snug" style={judulSerif}>
+                      {d.nama}
+                    </h3>
+                    <p className="text-[14.5px] leading-[1.7] text-[color:var(--ink-2)]">{d.isi}</p>
+                  </motion.li>
+                ))}
+              </ul>
+            </div>
+          </section>
+
+          {/* ================= ALUR ================= */}
+          <section
+            id="alur"
+            className="scroll-mt-16 border-b border-[color:var(--line-soft)] bg-[color:var(--bg-2)]"
+            aria-labelledby="judul-alur"
+          >
+            <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-8 sm:py-24 lg:grid-cols-12 lg:gap-14">
+              <div className="lg:col-span-4">
+                <motion.h2
+                  {...muncul(0)}
+                  id="judul-alur"
+                  className="text-[clamp(26px,5.5vw,36px)] font-normal leading-[1.2] tracking-[-0.015em]"
+                  style={judulSerif}
+                >
+                  Dari kompetensi dasar sampai nilai akhir
+                </motion.h2>
+                <motion.p
+                  {...muncul(1)}
+                  className="mt-5 max-w-[44ch] text-[15.5px] leading-[1.75] text-[color:var(--ink-2)] sm:text-[16.5px]"
+                >
+                  Empat tahap, dengan keputusan akhir selalu berada di tangan guru.
+                </motion.p>
+              </div>
+
+              <ol className="relative lg:col-span-8">
+                {/* Garis penghubung tahap */}
+                <span
+                  aria-hidden="true"
+                  className="absolute bottom-8 left-[17px] top-8 w-px bg-[color:var(--line)] sm:left-[19px]"
+                />
+                {alur.map((t, i) => (
+                  <motion.li
+                    key={t.judul}
+                    {...muncul(i)}
+                    className="relative grid grid-cols-[2.4rem_1fr] gap-x-4 pb-8 last:pb-0 sm:grid-cols-[2.8rem_1fr] sm:gap-x-6"
+                  >
+                    <span
+                      className="z-10 grid h-9 w-9 place-items-center rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] text-[14px] tabular-nums text-[color:var(--accent)] shadow-[var(--shadow-soft)] sm:h-10 sm:w-10"
+                      style={judulSerif}
+                    >
+                      {i + 1}
+                    </span>
+                    <div className="pt-1">
+                      <h3 className="mb-2 text-[18.5px] font-medium leading-snug" style={judulSerif}>
+                        {t.judul}
                       </h3>
-                      <p className={`leading-relaxed text-xs sm:text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                        {feature.desc}
+                      <p className="max-w-[58ch] text-[14.5px] leading-[1.75] text-[color:var(--ink-2)] sm:text-[15px]">
+                        {t.isi}
                       </p>
                     </div>
-                  </motion.article>
-                );
-              })}
-            </motion.div>
-          </div>
-        </section>
-
-        {/* CTA SECTION - UTUH KEMBALI */}
-        <section className={`py-12 md:py-16 relative overflow-hidden ${isDarkMode ? 'bg-blue-950 border-y border-blue-900' : 'bg-[#1e3a8a]'}`}>
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10">
-            <h2 className={`text-2xl md:text-3xl lg:text-4xl font-black text-white mb-3 sm:mb-4 ${teachersFont.className}`}>Siap Mentransformasi Ekosistem Evaluasi Sekolah Anda?</h2>
-            <p className="text-blue-200 text-sm md:text-base mb-6 sm:mb-8 max-w-2xl mx-auto">
-              Bergabunglah dengan institusi lainnya yang telah mengoptimalkan kinerja pendidik dan menjunjung tinggi kearifan lokal melalui asisten AI.
-            </p>
-            <Link href="/login">
-              <button className="bg-amber-400 hover:bg-amber-300 text-blue-950 px-6 sm:px-8 py-3.5 rounded-xl font-black text-sm transition-all shadow-lg hover:shadow-amber-500/30 flex items-center justify-center gap-3 mx-auto active:scale-95 w-full sm:w-auto">
-                <Library size={18} /> Masuk ke Portal Sekarang
-              </button>
-            </Link>
-          </div>
-        </section>
-      </main>
-
-      {/* FOOTER - UTUH KEMBALI */}
-      <footer className={`border-t py-6 md:py-8 ${isDarkMode ? 'bg-[#050810] border-slate-800 text-slate-400' : 'bg-[#0a0f1c] border-slate-900 text-slate-400'}`} role="contentinfo">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center shrink-0" aria-hidden="true">
-              <img src="/logo.png" alt="Logo Mahatma Academy" className="w-full h-full object-contain" />
+                  </motion.li>
+                ))}
+              </ol>
             </div>
-            <div className="flex flex-col justify-center">
-              <span className={`text-base sm:text-lg font-black text-white tracking-wide block leading-none ${teachersFont.className}`}>MAHATMA ACADEMY</span>
-              <span className="text-[8px] sm:text-[9px] uppercase tracking-widest text-slate-500 font-bold mt-1">FOR SUSTAINABLE EDUCATION</span>
+          </section>
+
+          {/* ================= PERAN GURU ================= */}
+          <section
+            id="otoritas"
+            className="scroll-mt-16 border-b border-[color:var(--line-soft)]"
+            aria-labelledby="judul-otoritas"
+          >
+            <div className="mx-auto max-w-6xl px-4 py-16 sm:px-8 sm:py-24">
+              <blockquote className="relative max-w-[48ch] pl-6 sm:pl-8">
+                <span
+                  aria-hidden="true"
+                  className="absolute bottom-1 left-0 top-1 w-[3px] rounded-full bg-[color:var(--accent)]"
+                />
+                <h2 id="judul-otoritas" className="sr-only">
+                  Peran guru
+                </h2>
+                <motion.p
+                  {...muncul(0)}
+                  className="text-[clamp(22px,5vw,31px)] font-normal leading-[1.4] tracking-[-0.015em]"
+                  style={judulSerif}
+                >
+                  Sistem ini menyiapkan bahan dan menghitung. Yang menilai tetap guru.
+                </motion.p>
+                <motion.p
+                  {...muncul(1)}
+                  className="mt-6 max-w-[56ch] text-[15.5px] leading-[1.75] text-[color:var(--ink-2)] sm:text-[16px]"
+                >
+                  Setiap skor bisa diubah, setiap perubahan tercatat, dan data siswa tidak dipakai
+                  untuk melatih model. Guru menghemat waktu pemeriksaan tanpa menyerahkan kewenangan
+                  akademiknya.
+                </motion.p>
+              </blockquote>
             </div>
+          </section>
+
+          {/* ================= AJAKAN ================= */}
+          <section className="border-b border-[color:var(--line-soft)] bg-[color:var(--bg-2)]">
+            <div className="mx-auto max-w-6xl px-4 py-14 sm:px-8 sm:py-16">
+              <motion.div
+                {...muncul(0)}
+                className="flex flex-col gap-8 rounded-2xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-7 shadow-[var(--shadow-soft)] sm:p-10 md:flex-row md:items-center md:justify-between"
+              >
+                <div>
+                  <h2
+                    className="max-w-[22ch] text-[clamp(23px,5vw,31px)] font-normal leading-[1.25] tracking-[-0.015em]"
+                    style={judulSerif}
+                  >
+                    Ingin mencobanya di sekolah Anda?
+                  </h2>
+                  <p className="mt-4 max-w-[50ch] text-[15px] leading-[1.7] text-[color:var(--ink-2)]">
+                    Masuk dengan akun sekolah, atau tanyakan dulu apa saja yang perlu disiapkan.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5 md:shrink-0">
+                  <Link
+                    href="/login"
+                    className="focusable group inline-flex items-center justify-center gap-2.5 rounded-[10px] bg-[color:var(--brand)] px-7 py-4 text-[15px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-soft)] transition-all duration-300 hover:-translate-y-px hover:shadow-[var(--shadow-lift)] sm:py-3.5"
+                  >
+                    Masuk portal
+                    <ArrowRight
+                      size={17}
+                      className="transition-transform duration-300 group-hover:translate-x-1"
+                    />
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setChatOpen(true)}
+                    className="focusable inline-flex items-center justify-center rounded-[10px] border border-[color:var(--line)] px-6 py-4 text-[15px] text-[color:var(--ink-2)] transition-colors duration-300 hover:text-[color:var(--ink)] sm:border-0 sm:px-0 sm:py-2"
+                  >
+                    Tanya asisten
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          </section>
+        </main>
+
+        {/* ================= FOOTER ================= */}
+        <footer className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 pb-24 text-[13px] text-[color:var(--ink-2)] sm:px-8 sm:pb-10 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="" aria-hidden="true" className="h-8 w-8 object-contain" />
+            <span>
+              <span className="block text-[color:var(--ink)]">Mahatma Academy</span>
+              <span className="block text-[12px]">for Sustainable Education</span>
+            </span>
           </div>
-          <div className="text-[11px] sm:text-xs font-medium flex flex-col items-center md:items-end">
-            <p className="mb-1">© {new Date().getFullYear()} Mahatma Academy. Hak Cipta Dilindungi.</p>
-            <p>Platform Asesmen <span className="text-amber-500 font-bold">HARC-AI</span> Berlisensi Resmi.</p>
-          </div>
-        </div>
-      </footer>
-    </div>
+          <p>© 2026 Mahatma Academy. Platform asesmen HARC-AI.</p>
+        </footer>
+
+        {/* ================= TOMBOL ASISTEN ================= */}
+        <AnimatePresence>
+          {!chatOpen && (
+            <motion.button
+              type="button"
+              onClick={() => setChatOpen(true)}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.3, ease: HALUS }}
+              aria-label="Tanya asisten"
+              className="focusable fixed bottom-5 right-4 z-[55] flex h-14 w-14 items-center justify-center gap-2.5 rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] text-[14px] shadow-[var(--shadow-lift)] transition-transform duration-300 hover:-translate-y-0.5 sm:right-6 sm:h-auto sm:w-auto sm:px-5 sm:py-3.5"
+              style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+            >
+              <MessageCircle size={20} className="shrink-0 text-[color:var(--accent)] sm:hidden" />
+              <MessageCircle
+                size={17}
+                className="hidden shrink-0 text-[color:var(--accent)] sm:block"
+              />
+              <span className="hidden sm:inline">Tanya asisten</span>
+            </motion.button>
+          )}
+        </AnimatePresence>
+
+        {/* ================= PANEL ASISTEN ================= */}
+        <AnimatePresence>
+          {chatOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                onClick={() => setChatOpen(false)}
+                className="fixed inset-0 z-[60] bg-[#0D1119]/35 backdrop-blur-[2px]"
+                aria-hidden="true"
+              />
+              <motion.section
+                initial={{ opacity: 0, y: 28 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 28 }}
+                transition={{ duration: 0.32, ease: HALUS }}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Asisten informasi HARC-AI"
+                className="fixed inset-x-0 bottom-0 z-[70] flex h-[86dvh] flex-col overflow-hidden rounded-t-2xl border border-[color:var(--line)] bg-[color:var(--surface)] shadow-[var(--shadow-lift)] sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[580px] sm:w-[400px] sm:rounded-2xl"
+              >
+                <header className="flex items-center justify-between border-b border-[color:var(--line-soft)] bg-[color:var(--surface-2)]/60 px-5 py-4">
+                  <div className="flex items-center gap-3">
+                    <span
+                      aria-hidden="true"
+                      className="grid h-10 w-10 place-items-center rounded-full bg-[color:var(--accent-soft)] text-[color:var(--accent)]"
+                    >
+                      <MessageCircle size={18} />
+                    </span>
+                    <span>
+                      <span className="block text-[15px] font-medium">Asisten informasi</span>
+                      <span className="block text-[12px] text-[color:var(--ink-3)]">
+                        Jawaban dihasilkan otomatis
+                      </span>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setChatOpen(false)}
+                    aria-label="Tutup asisten"
+                    className="focusable grid h-10 w-10 place-items-center rounded-full border border-[color:var(--line)] text-[color:var(--ink-2)]"
+                  >
+                    <X size={17} />
+                  </button>
+                </header>
+
+                <div
+                  className="flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-5"
+                  aria-live="polite"
+                >
+                  {messages.map((m, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, ease: HALUS }}
+                      className={m.role === "user" ? "flex justify-end" : "flex"}
+                    >
+                      <p
+                        className={`max-w-[85%] px-4 py-3 text-[14.5px] leading-[1.65] ${
+                          m.role === "user"
+                            ? "rounded-2xl rounded-br-md bg-[color:var(--brand)] text-[color:var(--brand-ink)]"
+                            : "rounded-2xl rounded-bl-md border border-[color:var(--line-soft)] bg-[color:var(--surface-2)] text-[color:var(--ink)]"
+                        }`}
+                      >
+                        {m.content}
+                      </p>
+                    </motion.div>
+                  ))}
+
+                  {loadingChat && (
+                    <p className="flex items-center gap-2 px-1 text-[13px] text-[color:var(--ink-3)]">
+                      <Loader2 size={14} className="animate-spin" />
+                      Menyusun jawaban
+                    </p>
+                  )}
+                  <div ref={endRef} />
+                </div>
+
+                <form
+                  onSubmit={kirimPesan}
+                  className="flex gap-2 border-t border-[color:var(--line-soft)] bg-[color:var(--surface-2)]/50 p-3"
+                  style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
+                >
+                  <label htmlFor="pesan" className="sr-only">
+                    Tulis pertanyaan
+                  </label>
+                  <input
+                    id="pesan"
+                    ref={inputRef}
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Tulis pertanyaan Anda"
+                    disabled={loadingChat}
+                    className="focusable min-w-0 flex-1 rounded-[10px] border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-3.5 text-[16px] text-[color:var(--ink)] placeholder:text-[color:var(--ink-3)] sm:text-[14.5px]"
+                  />
+                  <button
+                    type="submit"
+                    disabled={loadingChat || !chatInput.trim()}
+                    aria-label="Kirim pertanyaan"
+                    className="focusable grid w-12 shrink-0 place-items-center rounded-[10px] bg-[color:var(--brand)] text-[color:var(--brand-ink)] transition-opacity duration-300 hover:opacity-90 disabled:opacity-40"
+                  >
+                    <Send size={17} />
+                  </button>
+                </form>
+              </motion.section>
+            </>
+          )}
+        </AnimatePresence>
+      </div>
+    </MotionConfig>
   );
 }

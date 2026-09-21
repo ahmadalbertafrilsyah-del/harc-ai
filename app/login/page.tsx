@@ -1,69 +1,187 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { 
-  User, BookOpen, ShieldCheck, ArrowLeft, ArrowRight, 
-  Mail, Lock, Eye, EyeOff, Building, Send, Loader2, AlertCircle, 
-  Wrench, Landmark, Hash, BrainCircuit, KeyRound, CheckCircle2, X
-} from "lucide-react";
-import Link from "next/link";
 import { useState, useEffect } from "react";
-import { Teachers, Lato } from "next/font/google";
+import Link from "next/link";
+import { motion, AnimatePresence, MotionConfig } from "framer-motion";
+import { Spectral, IBM_Plex_Sans } from "next/font/google";
+import {
+  User,
+  BookOpen,
+  ShieldCheck,
+  ArrowLeft,
+  ArrowRight,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  Building,
+  Send,
+  Loader2,
+  AlertCircle,
+  Wrench,
+  Landmark,
+  Hash,
+  KeyRound,
+  CheckCircle2,
+  X,
+} from "lucide-react";
 
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from "firebase/auth";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+} from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase"; 
+import { db } from "@/lib/firebase";
 
-const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], display: "swap" });
-const latoFont = Lato({ subsets: ["latin"], weight: ["400", "700", "900"], display: "swap" });
+/* ------------------------------------------------------------------
+   TIPOGRAFI — sama dengan halaman beranda
+------------------------------------------------------------------- */
+const display = Spectral({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  variable: "--font-display",
+});
+const sans = IBM_Plex_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  variable: "--font-sans",
+});
+
+/* ------------------------------------------------------------------
+   TOKEN DESAIN
+   Sama persis dengan halaman beranda. Sebaiknya nanti dipindahkan
+   ke app/globals.css agar tidak ditulis dua kali.
+------------------------------------------------------------------- */
+const TOKENS = `
+[data-theme="light"]{
+  --bg:#F7F5F1;
+  --bg-2:#F1EDE6;
+  --surface:#FFFDFA;
+  --surface-2:#F3F0EA;
+  --ink:#1A1F2E;
+  --ink-2:#5B6274;
+  --ink-3:#8E93A1;
+  --line:#E3DED4;
+  --line-soft:#EDE9E1;
+  --brand:#1F3053;
+  --brand-soft:#E8EBF2;
+  --brand-ink:#FFFFFF;
+  --accent:#146A5E;
+  --accent-soft:#E4EFEC;
+  --focus:#1F3053;
+  --danger:#9B2C2C;
+  --danger-soft:#FBEAEA;
+  --shadow-soft:0 1px 2px rgba(26,31,46,.04), 0 8px 24px -12px rgba(26,31,46,.14);
+  --shadow-lift:0 2px 4px rgba(26,31,46,.05), 0 18px 40px -18px rgba(26,31,46,.22);
+  --texture:rgba(26,31,46,.022);
+}
+
+.tekstur{
+  background-image:
+    repeating-linear-gradient(45deg, var(--texture) 0 1px, transparent 1px 7px),
+    repeating-linear-gradient(-45deg, var(--texture) 0 1px, transparent 1px 7px);
+}
+/* Panel kiri: navy tenang dengan anyaman terang tipis. */
+.panel-merek{
+  background-color:#1B2B4A;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255,255,255,.028) 0 1px, transparent 1px 8px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,.028) 0 1px, transparent 1px 8px),
+    radial-gradient(760px 420px at 18% 8%, rgba(255,255,255,.07), transparent 60%);
+}
+
+html{ -webkit-text-size-adjust:100%; }
+::selection{ background:var(--brand); color:var(--brand-ink); }
+
+.focusable:focus-visible{
+  outline:2px solid var(--focus);
+  outline-offset:3px;
+  border-radius:8px;
+}
+.kolom{
+  width:100%;
+  border-radius:10px;
+  border:1px solid var(--line);
+  background:var(--surface);
+  color:var(--ink);
+  font-size:16px;
+  padding:.875rem 1rem .875rem 2.75rem;
+  transition:border-color .25s ease, box-shadow .25s ease;
+}
+.kolom::placeholder{ color:var(--ink-3); }
+.kolom:focus{
+  outline:none;
+  border-color:var(--brand);
+  box-shadow:0 0 0 3px rgba(31,48,83,.10);
+}
+.kolom:disabled{ background:var(--surface-2); color:var(--ink-3); cursor:not-allowed; }
+@media (min-width:640px){ .kolom{ font-size:14.5px; } }
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    transition-duration:.01ms !important;
+  }
+}
+`;
+
+const HALUS = [0.22, 1, 0.36, 1] as const;
+
+const roles = [
+  { id: "admin", name: "Admin", icon: ShieldCheck, desc: "Manajemen sistem" },
+  { id: "lembaga", name: "Lembaga", icon: Landmark, desc: "Kelola guru dan siswa" },
+  { id: "guru", name: "Guru", icon: BookOpen, desc: "Kelas dan bahan ajar" },
+  { id: "siswa", name: "Siswa", icon: User, desc: "Asesmen dan belajar" },
+];
+
+/* Label dipakai di beberapa tempat, jadi dikumpulkan di satu fungsi. */
+const namaPeran = (id: string | null) =>
+  id === "lembaga" ? "Lembaga" : id === "guru" ? "Pendidik" : "Peserta didik";
 
 export default function LoginPage() {
-  const [step, setStep] = useState(1); 
+  const [step, setStep] = useState(1);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
-  
-  // Konfigurasi Global
-  const [adminPhone, setAdminPhone] = useState("6281234567890"); 
+
+  // Konfigurasi global
+  const [adminPhone, setAdminPhone] = useState("6281234567890");
   const [isRegOpen, setIsRegOpen] = useState(true);
   const [isMaintenance, setIsMaintenance] = useState(false);
-  
-  // Default State Metode Verifikasi (Otomatis/OTP)
   const [metodeVerifikasi, setMetodeVerifikasi] = useState("otp_email");
 
-  // State Login
+  // Login
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  
-  // State Registrasi
-  const [regNama, setRegNama] = useState(""); 
-  const [regNamaLembaga, setRegNamaLembaga] = useState(""); 
-  const [regNPSN, setRegNPSN] = useState(""); 
+
+  // Registrasi
+  const [regNama, setRegNama] = useState("");
+  const [regNamaLembaga, setRegNamaLembaga] = useState("");
+  const [regNPSN, setRegNPSN] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
 
-  // State OTP
+  // OTP
   const [otpSent, setOtpSent] = useState(false);
   const [generatedOtp, setGeneratedOtp] = useState("");
   const [inputOtp, setInputOtp] = useState("");
 
-  // --- STATE UNTUK CUSTOM TOAST NOTIFICATION ---
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  // Notifikasi
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
 
-  // Fungsi pemanggil Toast Notification
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
-    // Hilangkan toast secara otomatis setelah 5 detik
     setTimeout(() => setToast(null), 5000);
   };
-
-  const roles = [
-    { id: "admin", name: "Admin", icon: ShieldCheck, desc: "Manajemen sistem", activeColor: "bg-blue-50 border-blue-900 text-blue-950 ring-2 ring-blue-900/20" },
-    { id: "lembaga", name: "Lembaga", icon: Landmark, desc: "Kelola guru & siswa", activeColor: "bg-slate-100 border-slate-700 text-slate-900 ring-2 ring-slate-700/20" },
-    { id: "guru", name: "Guru", icon: BookOpen, desc: "Kelas & bahan ajar", activeColor: "bg-amber-50 border-amber-600 text-amber-950 ring-2 ring-amber-600/20" },
-    { id: "siswa", name: "Siswa", icon: User, desc: "Asesmen & belajar", activeColor: "bg-blue-50 border-blue-800 text-blue-900 ring-2 ring-blue-800/20" }
-  ];
 
   useEffect(() => {
     const unsubConfig = onSnapshot(doc(db, "sistem_stats", "pengaturan_global"), (docSnap) => {
@@ -92,17 +210,17 @@ export default function LoginPage() {
 
       if (userDocSnap.exists()) {
         const userData = userDocSnap.data();
-        
+
         if (userData.status === "Dibekukan" || userData.status === "dibekukan") {
           await signOut(auth);
-          showToast("Akun Anda sedang dibekukan oleh Administrator.", "error");
+          showToast("Akun Anda sedang dibekukan oleh administrator.", "error");
           setIsLoading(false);
           return;
         }
 
         if (isMaintenance && userData.role !== "admin") {
           await signOut(auth);
-          showToast("Sistem sedang dalam mode pemeliharaan (Maintenance). Akses ditutup sementara.", "info");
+          showToast("Sistem sedang dalam pemeliharaan. Akses ditutup sementara.", "info");
           setIsLoading(false);
           return;
         }
@@ -112,15 +230,18 @@ export default function LoginPage() {
           window.location.href = `/dashboard/${selectedRole}/beranda`;
         } else {
           await signOut(auth);
-          showToast(`Akun Anda terdaftar sebagai ${userData.role || 'Peran Lain'}. Pastikan peran yang dipilih benar.`, "error");
+          showToast(
+            `Akun ini terdaftar sebagai ${userData.role || "peran lain"}. Pilih peran yang sesuai lalu coba lagi.`,
+            "error",
+          );
         }
       } else {
         await signOut(auth);
-        showToast("Akun Anda mungkin sedang dalam antrean ACC Administrator.", "info");
+        showToast("Akun Anda masih menunggu persetujuan administrator.", "info");
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Login Error:", error);
-      showToast("Gagal masuk! Periksa kembali Email dan Kata Sandi Anda.", "error");
+      showToast("Email atau kata sandi tidak cocok. Periksa kembali keduanya.", "error");
     } finally {
       setIsLoading(false);
     }
@@ -128,20 +249,21 @@ export default function LoginPage() {
 
   const handleForgotPassword = async () => {
     if (!email.trim()) {
-      showToast("Silakan ketikkan alamat email Anda di kolom 'Kredensial Email' terlebih dahulu.", "info");
+      showToast("Isi dulu kolom email, lalu tekan Lupa sandi.", "info");
       return;
     }
-    
+
     setIsLoading(true);
     try {
       const auth = getAuth();
       await sendPasswordResetEmail(auth, email);
-      showToast(`Tautan pemulihan kata sandi telah dikirim ke ${email}. Periksa Inbox/Spam Anda.`, "success");
-    } catch (error: any) {
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
-        showToast("Alamat email tidak valid atau belum terdaftar di sistem.", "error");
+      showToast(`Tautan pemulihan dikirim ke ${email}. Periksa kotak masuk dan spam.`, "success");
+    } catch (error) {
+      const kode = (error as { code?: string })?.code;
+      if (kode === "auth/user-not-found" || kode === "auth/invalid-email") {
+        showToast("Email tidak valid atau belum terdaftar.", "error");
       } else {
-        showToast("Gagal mengirim tautan. Pastikan format email benar.", "error");
+        showToast("Tautan gagal dikirim. Periksa format email lalu coba lagi.", "error");
       }
     } finally {
       setIsLoading(false);
@@ -150,7 +272,7 @@ export default function LoginPage() {
 
   const handleSendOTP = async () => {
     if (!regEmail.trim()) {
-      showToast("Silakan masukkan Alamat Email Resmi terlebih dahulu!", "info");
+      showToast("Isi alamat email resmi terlebih dahulu.", "info");
       return;
     }
 
@@ -159,25 +281,25 @@ export default function LoginPage() {
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       setGeneratedOtp(otp);
 
-      const res = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: regEmail,
           nama: regNama || "Pendaftar",
           role: selectedRole,
-          tipeEmail: 'otp',
-          otpCode: otp
-        })
+          tipeEmail: "otp",
+          otpCode: otp,
+        }),
       });
 
       if (!res.ok) throw new Error("Gagal mengirim email verifikasi");
 
       setOtpSent(true);
-      showToast("Kode OTP berhasil dikirim! Silakan periksa email Anda (Inbox/Spam).", "success");
+      showToast("Kode dikirim. Periksa kotak masuk dan folder spam Anda.", "success");
     } catch (error) {
       console.error(error);
-      showToast("Gagal mengirim kode OTP. Pastikan email Anda valid dan aktif.", "error");
+      showToast("Kode gagal dikirim. Pastikan alamat email aktif lalu coba lagi.", "error");
     } finally {
       setIsSendingOtp(false);
     }
@@ -185,20 +307,20 @@ export default function LoginPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (metodeVerifikasi === "otp_email") {
       if (!otpSent) {
-        showToast("Anda belum mengirim dan memverifikasi OTP Email!", "error");
+        showToast("Kirim kode verifikasi terlebih dahulu.", "error");
         return;
       }
       if (inputOtp !== generatedOtp) {
-        showToast("Kode OTP salah atau tidak valid! Periksa kembali email Anda.", "error");
+        showToast("Kode verifikasi tidak cocok. Periksa kembali email Anda.", "error");
         return;
       }
     }
 
     setIsLoading(true);
-    
+
     try {
       const auth = getAuth();
       const userCredential = await createUserWithEmailAndPassword(auth, regEmail, regPassword);
@@ -206,78 +328,78 @@ export default function LoginPage() {
       const roleDiajukan = selectedRole || "guru";
 
       if (metodeVerifikasi === "otp_email") {
-        const dataUser: any = {
+        const dataUser: Record<string, unknown> = {
           nama: regNama,
           email: regEmail,
           npsn: regNPSN,
-          instansi: regNPSN, 
-          role: roleDiajukan, 
-          status: "Aktif", 
+          instansi: regNPSN,
+          role: roleDiajukan,
+          status: "Aktif",
           aiTokens: roleDiajukan === "lembaga" ? 50000 : 10000,
-          timestamp: serverTimestamp()
+          timestamp: serverTimestamp(),
         };
 
         if (roleDiajukan === "lembaga") {
           dataUser.namaLembaga = regNamaLembaga;
-          dataUser.namaInstansi = regNamaLembaga; 
+          dataUser.namaInstansi = regNamaLembaga;
         }
 
         await setDoc(doc(db, "users", newUser.uid), dataUser);
 
-        showToast("Pendaftaran berhasil! Akun Anda telah diverifikasi.", "success");
-        // Tunggu sejenak agar toast terlihat sebelum redirect
+        showToast("Pendaftaran berhasil. Anda akan diarahkan ke dasbor.", "success");
         setTimeout(() => {
           document.cookie = `userRole=${roleDiajukan}; path=/; max-age=86400; SameSite=Strict`;
           window.location.href = `/dashboard/${roleDiajukan}/beranda`;
         }, 1500);
-
       } else {
-        await signOut(auth); 
-        
-        const dataPengajuan: any = {
+        await signOut(auth);
+
+        const dataPengajuan: Record<string, unknown> = {
           uid: newUser.uid,
           nama: regNama,
           email: regEmail,
           npsn: regNPSN,
-          instansi: regNPSN, 
-          role: roleDiajukan, 
+          instansi: regNPSN,
+          role: roleDiajukan,
           status: "pending",
-          timestamp: serverTimestamp()
+          timestamp: serverTimestamp(),
         };
 
         if (roleDiajukan === "lembaga") {
           dataPengajuan.namaLembaga = regNamaLembaga;
-          dataPengajuan.namaInstansi = regNamaLembaga; 
+          dataPengajuan.namaInstansi = regNamaLembaga;
         }
 
         await setDoc(doc(db, "pengajuan_akun", newUser.uid), dataPengajuan);
 
-        const namaPeran = roleDiajukan === "lembaga" ? "Lembaga" : roleDiajukan === "guru" ? "Guru" : "Siswa";
-        let detailPendaftar = `- Nama: *${regNama}*%0A- NPSN: *${regNPSN || 'Mandiri/Kosong'}*%0A- Email: *${regEmail}*`;
+        const peran =
+          roleDiajukan === "lembaga" ? "Lembaga" : roleDiajukan === "guru" ? "Guru" : "Siswa";
+        let detailPendaftar = `- Nama: *${regNama}*%0A- NPSN: *${regNPSN || "Mandiri/Kosong"}*%0A- Email: *${regEmail}*`;
         if (roleDiajukan === "lembaga") {
           detailPendaftar = `- Penanggung Jawab: *${regNama}*%0A- Nama Lembaga: *${regNamaLembaga}*%0A- NPSN: *${regNPSN}*%0A- Email: *${regEmail}*`;
         }
 
-        const message = `Halo Admin Harc-AI,%0A%0ASaya ingin mengajukan pembuatan akun ${namaPeran}. Berikut data saya:%0A${detailPendaftar}%0A%0AStatus pendaftaran saya ada di Dasbor Admin. Mohon persetujuannya (ACC) agar saya dapat mengakses sistem. Terima kasih.`;
+        const message = `Halo Admin Harc-AI,%0A%0ASaya ingin mengajukan pembuatan akun ${peran}. Berikut data saya:%0A${detailPendaftar}%0A%0AStatus pendaftaran saya ada di Dasbor Admin. Mohon persetujuannya (ACC) agar saya dapat mengakses sistem. Terima kasih.`;
         const waUrl = `https://wa.me/${adminPhone}?text=${message}`;
 
-        showToast("Pendaftaran terekam! Mengalihkan Anda ke WhatsApp Admin...", "success");
+        showToast("Pengajuan tersimpan. Anda akan diarahkan ke WhatsApp admin.", "success");
         setTimeout(() => {
-          window.open(waUrl, '_blank');
+          window.open(waUrl, "_blank");
           setStep(1);
           setSelectedRole(null);
-          setRegPassword(""); 
+          setRegPassword("");
           setRegNama("");
           setRegEmail("");
           setRegNPSN("");
           setRegNamaLembaga("");
         }, 2000);
       }
-    } catch (error: any) {
-      if (error.code === 'auth/email-already-in-use') {
-        showToast("Email ini sudah terdaftar! Silakan login atau hubungi Admin.", "error");
+    } catch (error) {
+      const kode = (error as { code?: string })?.code;
+      if (kode === "auth/email-already-in-use") {
+        showToast("Email ini sudah terdaftar. Silakan masuk atau hubungi admin.", "error");
       } else {
-        showToast("Terjadi kesalahan jaringan atau kata sandi terlalu lemah (minimal 6 karakter).", "error");
+        showToast("Pendaftaran gagal. Kata sandi minimal 6 karakter dan koneksi harus stabil.", "error");
       }
     } finally {
       setIsLoading(false);
@@ -285,319 +407,602 @@ export default function LoginPage() {
   };
 
   const handleBack = () => {
-    if (step === 1) window.location.href = '/';
+    if (step === 1) window.location.href = "/";
     if (step === 2) setStep(1);
     if (step === 3) {
       setStep(2);
-      setOtpSent(false); 
+      setOtpSent(false);
       setInputOtp("");
     }
   };
 
+  const judulSerif = { fontFamily: "var(--font-display), Georgia, serif" };
+  const labelKelas =
+    "mb-2 block text-[13px] font-medium text-[color:var(--ink-2)]";
+  const ikonKelas =
+    "pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-[color:var(--ink-3)]";
+
   return (
-    <div className={`h-screen w-full bg-slate-50 flex flex-col md:flex-row ${latoFont.className} overflow-hidden relative`}>
-      
-      {/* CUSTOM TOAST NOTIFICATION COMPONENT */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: -20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            transition={{ duration: 0.3 }}
-            className={`absolute top-6 right-6 z-[100] max-w-sm w-[90%] md:w-auto p-4 rounded-xl shadow-2xl flex items-start gap-3 border ${
-              toast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
-              toast.type === 'error' ? 'bg-rose-50 border-rose-200 text-rose-800' :
-              'bg-blue-50 border-blue-200 text-blue-800'
-            }`}
-          >
-            <div className="shrink-0 mt-0.5">
-              {toast.type === 'success' && <CheckCircle2 size={20} className="text-emerald-600" />}
-              {toast.type === 'error' && <AlertCircle size={20} className="text-rose-600" />}
-              {toast.type === 'info' && <AlertCircle size={20} className="text-blue-600" />}
-            </div>
-            <div className="flex-1">
-              <h4 className="text-sm font-bold mb-1">
-                {toast.type === 'success' ? 'Berhasil' : toast.type === 'error' ? 'Kesalahan' : 'Informasi'}
-              </h4>
-              <p className="text-xs leading-relaxed opacity-90">{toast.message}</p>
-            </div>
-            <button onClick={() => setToast(null)} className="shrink-0 opacity-50 hover:opacity-100 transition-opacity">
-              <X size={16} />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <MotionConfig reducedMotion="user">
+      <div
+        data-theme="light"
+        className={`${sans.variable} ${display.variable} tekstur flex min-h-[100dvh] flex-col bg-[color:var(--bg)] text-[color:var(--ink)] antialiased md:flex-row`}
+        style={{ fontFamily: "var(--font-sans), system-ui, sans-serif" }}
+      >
+        <style dangerouslySetInnerHTML={{ __html: TOKENS }} />
 
-      {/* Kolom Kiri: Visual Institusi Formal */}
-      <div className="hidden md:flex md:w-5/12 lg:w-1/2 bg-gradient-to-br from-[#050810] via-[#0f172a] to-blue-950 p-10 flex-col justify-between relative border-r border-slate-800" aria-hidden="true">
-        <div className="absolute top-0 left-0 w-full h-full bg-[url('/globe.svg')] bg-repeat opacity-5 pointer-events-none"></div>
-        <div className="absolute -top-24 -left-24 w-80 h-80 bg-blue-800/30 rounded-full blur-[100px] pointer-events-none"></div>
-        <div className="absolute -bottom-24 -right-24 w-80 h-80 bg-amber-600/10 rounded-full blur-[80px] pointer-events-none"></div>
-        
-        <div className="relative z-10">
-          <Link href="/" className="flex items-center gap-3 w-fit hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 rounded-lg" tabIndex={-1}>
-            <div className="w-[42px] h-[42px] flex items-center justify-center shrink-0">
-              <img src="/logo.png" alt="Logo HARC-AI" className="w-full h-full object-contain" />
-            </div>
-            <div className="flex flex-col">
-              <span className={`text-[20px] font-[900] text-white tracking-wide block leading-none ${teachersFont.className}`}>MAHATMA ACADEMY</span>
-              <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest block mt-0.5">Portal Akademik</span>
-            </div>
-          </Link>
-        </div>
-        
-        <div className="relative z-10 mb-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md font-bold text-xs mb-5 border bg-slate-800/60 border-slate-700 text-amber-400">
-            <BrainCircuit size={14} className="text-amber-400" />
-            <span className="uppercase tracking-wider">Sistem Terintegrasi HARC-AI</span>
-          </div>
-          <h2 className={`text-3xl lg:text-4xl font-black text-white mb-5 leading-[1.2] ${teachersFont.className}`}>
-            Portal Pembelajaran <br />
-            <span className="text-amber-500">Responsif Budaya.</span>
-          </h2>
-          <p className="text-slate-300 text-sm lg:text-base leading-relaxed max-w-sm text-justify">
-            Sistem evaluasi cerdas yang memadukan keandalan teknologi kecerdasan buatan dengan pelestarian nilai sosiolinguistik dan kearifan lokal.
-          </p>
-        </div>
-        
-        <div className="relative z-10 text-slate-400 text-xs font-medium">
-          © {new Date().getFullYear()} Mahatma Academy. Hak Cipta Dilindungi.
-        </div>
-      </div>
-
-      <main className="w-full md:w-7/12 lg:w-1/2 h-full flex items-center justify-center p-6 bg-slate-50 relative overflow-y-auto" role="main">
-        {step !== 1 && (
-          <button 
-            onClick={handleBack}
-            className="absolute top-6 left-6 md:top-8 md:right-8 md:left-auto text-slate-500 hover:text-blue-950 flex items-center gap-2 transition-colors text-xs font-bold bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200 z-20 focus:outline-none focus:ring-2 focus:ring-blue-900 focus:ring-offset-2"
-          >
-            <ArrowLeft size={16} aria-hidden="true" /> {step === 2 ? 'Ganti Peran' : 'Kembali'}
-          </button>
-        )}
-
-        <div className="w-full max-w-[420px] my-auto pt-16 md:pt-0 pb-10 md:pb-0">
-          
-          <AnimatePresence>
-            {isMaintenance && step === 1 && (
-              <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 shadow-sm" role="alert" aria-live="assertive">
-                <Wrench className="text-amber-600 shrink-0 mt-0.5" size={20} aria-hidden="true" />
-                <div>
-                  <h3 className="text-sm font-bold text-amber-900 mb-1">Pemeliharaan Sistem Terjadwal</h3>
-                  <p className="text-xs text-amber-700 leading-relaxed">Sistem saat ini hanya dapat diakses oleh Administrator. Proses registrasi dan evaluasi ditutup sementara.</p>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence mode="wait">
-            
-            {step === 1 && (
-              <motion.div key="step1" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
-                <div className="text-center md:text-left mb-8">
-                  <h1 className={`text-3xl font-black text-[#0f172a] mb-2 ${teachersFont.className}`} tabIndex={0}>Selamat Datang</h1>
-                  <p className="text-slate-500 font-medium text-sm">Silakan pilih otoritas peran Anda untuk mengakses sistem akademik.</p>
-                </div>
-    
-                <div className="grid grid-cols-2 gap-4" role="group" aria-label="Pilihan Peran Pengguna">
-                  {roles.map((role) => (
-                    <motion.button 
-                      key={role.id} 
-                      whileHover={{ scale: 1.02 }} 
-                      whileTap={{ scale: 0.98 }} 
-                      onClick={() => setSelectedRole(role.id)} 
-                      aria-pressed={selectedRole === role.id}
-                      aria-label={`Masuk sebagai ${role.name}`}
-                      className={`flex flex-col items-center justify-center p-5 rounded-2xl border-2 transition-all duration-200 text-center focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:ring-offset-2 ${selectedRole === role.id ? role.activeColor : 'bg-white border-slate-200 hover:border-blue-200 shadow-sm'}`}
-                    >
-                      <div className={`p-3 rounded-xl mb-3 transition-colors ${selectedRole === role.id ? 'bg-white shadow-sm' : 'bg-slate-100 text-slate-500'}`} aria-hidden="true">
-                        <role.icon className="w-7 h-7" />
-                      </div>
-                      <div className={`text-sm font-bold ${teachersFont.className} ${selectedRole === role.id ? 'text-inherit' : 'text-slate-800'}`}>
-                        {role.name}
-                      </div>
-                      <div className={`text-[11px] mt-1.5 leading-tight ${selectedRole === role.id ? 'opacity-90 font-medium' : 'text-slate-500'}`}>
-                        {role.desc}
-                      </div>
-                    </motion.button>
-                  ))}
-                </div>
-                
-                <button 
-                  onClick={() => setStep(2)} 
-                  disabled={!selectedRole} 
-                  className={`w-full mt-8 py-4 rounded-xl font-bold text-sm transition-all flex justify-center items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:ring-offset-2 ${selectedRole ? 'bg-[#1e3a8a] hover:bg-blue-800 text-white shadow-lg shadow-blue-900/20' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
-                >
-                  Lanjutkan Autentikasi <ArrowRight size={18} aria-hidden="true" />
-                </button>
-              </motion.div>
-            )}
-
-            {step === 2 && (
-              <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200">
-                <div className="text-center md:text-left mb-8">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-[#1e3a8a] rounded-md text-[10px] font-bold mb-3 border border-slate-200 uppercase tracking-widest" aria-hidden="true">
-                    Otoritas: {roles.find(r => r.id === selectedRole)?.name}
-                  </div>
-                  <h1 className={`text-2xl lg:text-3xl font-black text-[#0f172a] mb-2 ${teachersFont.className}`} tabIndex={0}>Masuk Sistem</h1>
-                </div>
-
-                <form onSubmit={handleLogin} className="space-y-5" noValidate>
-                  <div>
-                    <label htmlFor="login-email" className="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider ml-1">Kredensial Email</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none" aria-hidden="true"><Mail className="h-5 w-5 text-slate-400" /></div>
-                      <input id="login-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-4 focus:ring-blue-900/10 focus:border-[#1e3a8a] outline-none text-slate-700 text-sm transition-all" placeholder="admin@mahatma.ac.id" />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between items-center mb-2 px-1">
-                      <label htmlFor="login-password" className="block text-xs font-bold text-slate-600 uppercase tracking-wider">Kata Sandi</label>
-                      <button type="button" onClick={handleForgotPassword} className="text-xs font-bold text-blue-800 hover:text-blue-950 hover:underline focus:outline-none">Lupa Sandi?</button>
-                    </div>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none" aria-hidden="true"><Lock className="h-5 w-5 text-slate-400" /></div>
-                      <input id="login-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full pl-11 pr-11 py-3.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-4 focus:ring-blue-900/10 focus:border-[#1e3a8a] outline-none text-slate-700 text-sm transition-all" placeholder="••••••••" />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-[#1e3a8a] focus:outline-none">
-                        {showPassword ? <EyeOff className="h-5 w-5" aria-hidden="true" /> : <Eye className="h-5 w-5" aria-hidden="true" />}
-                      </button>
-                    </div>
-                  </div>
-                  <button type="submit" disabled={isLoading} className="w-full mt-4 py-3.5 rounded-xl font-bold text-sm text-white bg-[#1e3a8a] hover:bg-blue-800 shadow-lg hover:shadow-blue-900/20 transition-all flex justify-center items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:ring-offset-2 active:scale-95">
-                    {isLoading ? <><Loader2 size={18} className="animate-spin" aria-hidden="true" /> Memverifikasi...</> : "Masuk ke Dasbor"}
-                  </button>
-                </form>
-
-                {(selectedRole !== "admin") && isRegOpen && (
-                  <div className="mt-8 pt-6 border-t border-slate-200 text-center">
-                    <button onClick={() => setStep(3)} className="w-full py-3 rounded-xl font-bold text-xs text-blue-800 bg-white hover:bg-slate-50 border-2 border-slate-200 transition-all focus:outline-none focus:ring-2 focus:ring-blue-900 focus:ring-offset-2">
-                      Ajukan Akun {selectedRole === "lembaga" ? "Lembaga" : selectedRole === "guru" ? "Pendidik" : "Peserta Didik"} Baru
-                    </button>
-                  </div>
-                )}
-                {(selectedRole !== "admin") && !isRegOpen && (
-                  <div className="mt-8 pt-6 border-t border-slate-200 text-center flex items-center justify-center gap-2 text-rose-600" role="alert">
-                    <AlertCircle size={16} aria-hidden="true" />
-                    <span className="text-sm font-bold">Pendaftaran Institusi Ditutup</span>
-                  </div>
-                )}
-              </motion.div>
-            )}
-
-            {step === 3 && (
-              <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200">
-                <div className="text-center md:text-left mb-6">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-md text-[10px] font-bold mb-3 border border-amber-200 uppercase tracking-widest" aria-hidden="true">
-                    Pengajuan Akses Baru
-                  </div>
-                  <h1 className={`text-2xl font-black text-[#0f172a] mb-1 ${teachersFont.className}`} tabIndex={0}>
-                    Registrasi {selectedRole === "lembaga" ? "Lembaga" : selectedRole === "guru" ? "Pendidik" : "Peserta Didik"}
-                  </h1>
-                </div>
-                
-                <form onSubmit={handleRegister} className="space-y-4" noValidate>
-                  <div>
-                    <label htmlFor="reg-nama" className="block text-[11px] font-bold text-slate-600 mb-1.5 uppercase tracking-wider ml-1">
-                      {selectedRole === "lembaga" ? "Nama Penanggung Jawab" : "Nama Lengkap"}
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none"><User className="h-4 w-4 text-slate-400" /></div>
-                      <input id="reg-nama" type="text" value={regNama} onChange={(e) => setRegNama(e.target.value)} required disabled={otpSent} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-600 text-sm transition-all disabled:opacity-60" />
-                    </div>
-                  </div>
-
-                  {selectedRole === "lembaga" && (
-                    <div>
-                      <label htmlFor="reg-lembaga" className="block text-[11px] font-bold text-slate-600 mb-1.5 uppercase tracking-wider ml-1">Nama Lembaga/Instansi</label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none"><Building className="h-4 w-4 text-slate-400" /></div>
-                        <input id="reg-lembaga" type="text" value={regNamaLembaga} onChange={(e) => setRegNamaLembaga(e.target.value)} required disabled={otpSent} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-600 text-sm transition-all disabled:opacity-60" />
-                      </div>
-                    </div>
+        {/* ================= NOTIFIKASI ================= */}
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              initial={{ opacity: 0, y: -14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -14 }}
+              transition={{ duration: 0.3, ease: HALUS }}
+              role="status"
+              aria-live="polite"
+              className="fixed left-1/2 top-4 z-[100] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 shadow-[var(--shadow-lift)] sm:left-auto sm:right-6 sm:translate-x-0"
+            >
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 shrink-0" aria-hidden="true">
+                  {toast.type === "success" ? (
+                    <CheckCircle2 size={18} className="text-[color:var(--accent)]" />
+                  ) : toast.type === "error" ? (
+                    <AlertCircle size={18} className="text-[color:var(--danger)]" />
+                  ) : (
+                    <AlertCircle size={18} className="text-[color:var(--brand)]" />
                   )}
+                </span>
+                <p className="flex-1 text-[14px] leading-[1.6] text-[color:var(--ink)]">
+                  {toast.message}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setToast(null)}
+                  aria-label="Tutup notifikasi"
+                  className="focusable -mr-1 -mt-1 shrink-0 rounded-full p-1.5 text-[color:var(--ink-3)] transition-colors hover:text-[color:var(--ink)]"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-                  <div>
-                    <label htmlFor="reg-npsn" className="block text-[11px] font-bold text-slate-600 mb-1.5 uppercase tracking-wider flex items-center justify-between ml-1">
-                      <span>NPSN Sekolah {selectedRole !== "lembaga" && <span className="text-slate-400 font-medium normal-case">(Opsional)</span>}</span>
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none"><Hash className="h-4 w-4 text-slate-400" /></div>
-                      <input 
-                        id="reg-npsn"
-                        type="text" 
-                        value={regNPSN} 
-                        onChange={(e) => setRegNPSN(e.target.value)} 
-                        required={selectedRole === "lembaga"}
-                        disabled={otpSent} 
-                        placeholder={selectedRole === "lembaga" ? "Contoh: 69725804" : "Kosongkan jika akun mandiri"}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-600 text-sm transition-all disabled:opacity-60" 
+        {/* ================= PANEL MEREK (DESKTOP) ================= */}
+        <aside className="panel-merek relative hidden flex-col justify-between p-10 text-white md:flex md:w-[42%] lg:w-1/2 lg:p-14">
+          <Link
+            href="/"
+            className="focusable flex w-fit items-center gap-3 transition-opacity duration-300 hover:opacity-85"
+          >
+            <img src="/logo.png" alt="" aria-hidden="true" className="h-11 w-11 object-contain" />
+            <span className="leading-tight">
+              <span className="block text-[19px] font-medium tracking-tight" style={judulSerif}>
+                Mahatma Academy
+              </span>
+              <span className="block text-[12px] text-white/60">Portal akademik HARC-AI</span>
+            </span>
+          </Link>
+
+          <div className="max-w-[26rem]">
+            <h2
+              className="text-[clamp(28px,3.2vw,40px)] font-normal leading-[1.2] tracking-[-0.02em]"
+              style={judulSerif}
+            >
+              Portal pembelajaran yang responsif budaya.
+            </h2>
+            <p className="mt-6 text-[15.5px] leading-[1.8] text-white/70">
+              Sistem evaluasi yang memadukan bantuan kecerdasan buatan dengan pelestarian nilai
+              sosiolinguistik dan kearifan lokal. Keputusan penilaian tetap berada di tangan guru.
+            </p>
+
+            <ul className="mt-9 space-y-3 border-t border-white/12 pt-7 text-[14px] text-white/65">
+              {[
+                "Satu akun untuk asesmen, analitik, dan bahan ajar",
+                "Data siswa tidak dipakai untuk melatih model",
+                "Akses dipisahkan menurut peran pengguna",
+              ].map((butir) => (
+                <li key={butir} className="flex items-start gap-3">
+                  <CheckCircle2
+                    size={16}
+                    className="mt-0.5 shrink-0 text-[#6FC3B4]"
+                    aria-hidden="true"
+                  />
+                  {butir}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="text-[13px] text-white/45">
+            © 2026 Mahatma Academy. Hak cipta dilindungi.
+          </p>
+        </aside>
+
+        {/* ================= AREA FORMULIR ================= */}
+        <main className="relative flex flex-1 flex-col md:w-[58%] lg:w-1/2">
+          {/* Kepala khusus layar kecil */}
+          <div className="flex items-center justify-between border-b border-[color:var(--line-soft)] px-5 py-4 md:hidden">
+            <Link href="/" className="focusable flex items-center gap-2.5">
+              <img src="/logo.png" alt="" aria-hidden="true" className="h-8 w-8 object-contain" />
+              <span className="text-[15px] font-medium" style={judulSerif}>
+                Mahatma Academy
+              </span>
+            </Link>
+            {step !== 1 && (
+              <button
+                type="button"
+                onClick={handleBack}
+                className="focusable inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] text-[color:var(--ink-2)]"
+              >
+                <ArrowLeft size={15} aria-hidden="true" />
+                {step === 2 ? "Ganti peran" : "Kembali"}
+              </button>
+            )}
+          </div>
+
+          {step !== 1 && (
+            <button
+              type="button"
+              onClick={handleBack}
+              className="focusable absolute right-8 top-8 z-20 hidden items-center gap-2 rounded-lg border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-2 text-[13px] text-[color:var(--ink-2)] shadow-[var(--shadow-soft)] transition-colors duration-300 hover:text-[color:var(--ink)] md:inline-flex"
+            >
+              <ArrowLeft size={15} aria-hidden="true" />
+              {step === 2 ? "Ganti peran" : "Kembali"}
+            </button>
+          )}
+
+          <div className="flex flex-1 items-center justify-center overflow-y-auto px-5 py-10 sm:px-8 sm:py-14">
+            <div className="w-full max-w-[430px]">
+              {/* Pemberitahuan pemeliharaan */}
+              <AnimatePresence>
+                {isMaintenance && step === 1 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -12 }}
+                    transition={{ duration: 0.3, ease: HALUS }}
+                    role="alert"
+                    className="mb-8 flex items-start gap-3 rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 shadow-[var(--shadow-soft)]"
+                  >
+                    <Wrench size={18} className="mt-0.5 shrink-0 text-[color:var(--accent)]" />
+                    <div>
+                      <h2 className="mb-1 text-[14.5px] font-medium">Sistem sedang dipelihara</h2>
+                      <p className="text-[13.5px] leading-[1.65] text-[color:var(--ink-2)]">
+                        Untuk sementara hanya administrator yang dapat masuk. Pendaftaran dan
+                        evaluasi ditutup hingga pemeliharaan selesai.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence mode="wait">
+                {/* ---------- LANGKAH 1: PILIH PERAN ---------- */}
+                {step === 1 && (
+                  <motion.div
+                    key="step1"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -12 }}
+                    transition={{ duration: 0.32, ease: HALUS }}
+                  >
+                    <p className="mb-3 text-[13px] text-[color:var(--ink-3)]">Langkah 1 dari 2</p>
+                    <h1
+                      className="text-[clamp(26px,6vw,33px)] font-normal leading-[1.2] tracking-[-0.015em]"
+                      style={judulSerif}
+                    >
+                      Selamat datang
+                    </h1>
+                    <p className="mt-3 text-[15px] leading-[1.7] text-[color:var(--ink-2)]">
+                      Pilih peran Anda untuk melanjutkan ke halaman masuk.
+                    </p>
+
+                    <div
+                      className="mt-8 grid grid-cols-2 gap-3 sm:gap-4"
+                      role="radiogroup"
+                      aria-label="Pilihan peran pengguna"
+                    >
+                      {roles.map((role) => {
+                        const aktif = selectedRole === role.id;
+                        return (
+                          <button
+                            key={role.id}
+                            type="button"
+                            role="radio"
+                            aria-checked={aktif}
+                            onClick={() => setSelectedRole(role.id)}
+                            className={`focusable flex flex-col items-start rounded-2xl border p-5 text-left transition-all duration-300 ${
+                              aktif
+                                ? "border-[color:var(--brand)] bg-[color:var(--brand-soft)] shadow-[var(--shadow-soft)]"
+                                : "border-[color:var(--line-soft)] bg-[color:var(--surface)] shadow-[var(--shadow-soft)] hover:border-[color:var(--line)]"
+                            }`}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={`mb-4 grid h-10 w-10 place-items-center rounded-full transition-colors duration-300 ${
+                                aktif
+                                  ? "bg-[color:var(--brand)] text-[color:var(--brand-ink)]"
+                                  : "bg-[color:var(--surface-2)] text-[color:var(--ink-2)]"
+                              }`}
+                            >
+                              <role.icon size={19} />
+                            </span>
+                            <span className="text-[16px] font-medium" style={judulSerif}>
+                              {role.name}
+                            </span>
+                            <span className="mt-1 text-[12.5px] leading-snug text-[color:var(--ink-2)]">
+                              {role.desc}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setStep(2)}
+                      disabled={!selectedRole}
+                      className="focusable group mt-8 inline-flex w-full items-center justify-center gap-2.5 rounded-[10px] bg-[color:var(--brand)] px-6 py-4 text-[15px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-soft)] transition-all duration-300 hover:shadow-[var(--shadow-lift)] disabled:cursor-not-allowed disabled:bg-[color:var(--surface-2)] disabled:text-[color:var(--ink-3)] disabled:shadow-none"
+                    >
+                      Lanjutkan
+                      <ArrowRight
+                        size={17}
+                        className="transition-transform duration-300 group-enabled:group-hover:translate-x-1"
                       />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="reg-email" className="block text-[11px] font-bold text-slate-600 mb-1.5 uppercase tracking-wider ml-1">Alamat Email Resmi</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none"><Mail className="h-4 w-4 text-slate-400" /></div>
-                      <input id="reg-email" type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} required disabled={otpSent} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-600 text-sm transition-all disabled:opacity-60" />
-                    </div>
-                  </div>
+                    </button>
 
-                  {/* LOGIKA OTP */}
-                  {metodeVerifikasi === "otp_email" && (
-                    <div className="bg-emerald-50/50 border border-emerald-100 p-3.5 rounded-xl space-y-2">
-                      <label className="block text-[10px] font-bold text-emerald-800 uppercase tracking-wider ml-1">Verifikasi Email (Wajib)</label>
-                      <div className="flex gap-2">
-                        <div className="relative flex-1">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><KeyRound className="h-4 w-4 text-slate-400" /></div>
-                          <input 
-                            type="text" 
-                            maxLength={6} 
-                            disabled={!otpSent} 
-                            value={inputOtp} 
-                            onChange={(e) => setInputOtp(e.target.value.replace(/\D/g, ''))}
-                            placeholder={otpSent ? "Masukkan 6 Digit OTP" : "Klik tombol di samping"} 
-                            className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-bold tracking-widest transition-all disabled:bg-slate-100 disabled:cursor-not-allowed" 
+                    {!selectedRole && (
+                      <p className="mt-3 text-center text-[13px] text-[color:var(--ink-3)]">
+                        Pilih salah satu peran di atas untuk melanjutkan.
+                      </p>
+                    )}
+                  </motion.div>
+                )}
+
+                {/* ---------- LANGKAH 2: MASUK ---------- */}
+                {step === 2 && (
+                  <motion.div
+                    key="step2"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -12 }}
+                    transition={{ duration: 0.32, ease: HALUS }}
+                    className="rounded-2xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-6 shadow-[var(--shadow-soft)] sm:p-8"
+                  >
+                    <p className="mb-3 text-[13px] text-[color:var(--ink-3)]">
+                      Masuk sebagai {roles.find((r) => r.id === selectedRole)?.name}
+                    </p>
+                    <h1
+                      className="text-[clamp(23px,5.5vw,29px)] font-normal leading-[1.2] tracking-[-0.015em]"
+                      style={judulSerif}
+                    >
+                      Masuk ke sistem
+                    </h1>
+
+                    <form onSubmit={handleLogin} className="mt-7 space-y-5" noValidate>
+                      <div>
+                        <label htmlFor="login-email" className={labelKelas}>
+                          Alamat email
+                        </label>
+                        <div className="relative">
+                          <span className={ikonKelas} aria-hidden="true">
+                            <Mail size={17} />
+                          </span>
+                          <input
+                            id="login-email"
+                            type="email"
+                            inputMode="email"
+                            autoComplete="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            placeholder="nama@sekolah.sch.id"
+                            className="kolom focusable"
                           />
                         </div>
-                        <button 
-                          type="button" 
-                          onClick={handleSendOTP} 
-                          disabled={isSendingOtp || !regEmail || otpSent}
-                          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all disabled:bg-slate-300 whitespace-nowrap shadow-sm"
-                        >
-                          {isSendingOtp ? <Loader2 size={16} className="animate-spin mx-auto"/> : otpSent ? "OTP Terkirim" : "Kirim OTP"}
-                        </button>
                       </div>
-                    </div>
-                  )}
 
-                  <div>
-                    <label htmlFor="reg-password" className="block text-[11px] font-bold text-slate-600 mb-1.5 uppercase tracking-wider ml-1">Buat Kata Sandi</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none"><Lock className="h-4 w-4 text-slate-400" /></div>
-                      <input id="reg-password" type={showPassword ? "text" : "password"} value={regPassword} onChange={(e) => setRegPassword(e.target.value)} minLength={6} placeholder="Minimal 6 karakter" required className="w-full pl-10 pr-11 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-600 text-sm transition-all" />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-amber-600 focus:outline-none">
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      <div>
+                        <div className="mb-2 flex items-baseline justify-between gap-3">
+                          <label htmlFor="login-password" className="text-[13px] font-medium text-[color:var(--ink-2)]">
+                            Kata sandi
+                          </label>
+                          <button
+                            type="button"
+                            onClick={handleForgotPassword}
+                            className="focusable rounded text-[13px] text-[color:var(--accent)] transition-opacity duration-300 hover:opacity-75"
+                          >
+                            Lupa sandi
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <span className={ikonKelas} aria-hidden="true">
+                            <Lock size={17} />
+                          </span>
+                          <input
+                            id="login-password"
+                            type={showPassword ? "text" : "password"}
+                            autoComplete="current-password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            placeholder="Masukkan kata sandi"
+                            className="kolom focusable pr-12"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+                            className="focusable absolute inset-y-0 right-0 flex items-center px-4 text-[color:var(--ink-3)] transition-colors duration-300 hover:text-[color:var(--ink)]"
+                          >
+                            {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="focusable inline-flex w-full items-center justify-center gap-2.5 rounded-[10px] bg-[color:var(--brand)] px-6 py-4 text-[15px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-soft)] transition-all duration-300 hover:shadow-[var(--shadow-lift)] disabled:opacity-60"
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 size={17} className="animate-spin" aria-hidden="true" />
+                            Memverifikasi
+                          </>
+                        ) : (
+                          "Masuk"
+                        )}
                       </button>
-                    </div>
-                  </div>
-                  
-                  {/* TOMBOL SUBMIT */}
-                  <button 
-                    type="submit" 
-                    disabled={isLoading || (metodeVerifikasi === "otp_email" && !otpSent)} 
-                    className="w-full mt-6 py-3.5 rounded-xl font-bold text-sm text-white bg-amber-600 hover:bg-amber-700 shadow-lg hover:shadow-amber-600/20 transition-all flex justify-center items-center gap-2 focus:outline-none focus:ring-2 focus:ring-amber-600 focus:ring-offset-2 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {isLoading ? <Loader2 size={18} className="animate-spin" /> : <>Kirim Dokumen Pengajuan <Send size={16} /></>}
-                  </button>
-                </form>
-              </motion.div>
-            )}
+                    </form>
 
-          </AnimatePresence>
-        </div>
-      </main>
-    </div>
+                    {selectedRole !== "admin" && isRegOpen && (
+                      <div className="mt-7 border-t border-[color:var(--line-soft)] pt-6 text-center">
+                        <p className="text-[13.5px] text-[color:var(--ink-2)]">
+                          Belum punya akun?{" "}
+                          <button
+                            type="button"
+                            onClick={() => setStep(3)}
+                            className="focusable rounded font-medium text-[color:var(--accent)] underline underline-offset-4 transition-opacity duration-300 hover:opacity-75"
+                          >
+                            Ajukan akun {namaPeran(selectedRole).toLowerCase()}
+                          </button>
+                        </p>
+                      </div>
+                    )}
+
+                    {selectedRole !== "admin" && !isRegOpen && (
+                      <p
+                        role="status"
+                        className="mt-7 border-t border-[color:var(--line-soft)] pt-6 text-center text-[13.5px] text-[color:var(--ink-2)]"
+                      >
+                        Pendaftaran akun baru sedang ditutup. Hubungi administrator sekolah Anda.
+                      </p>
+                    )}
+                  </motion.div>
+                )}
+
+                {/* ---------- LANGKAH 3: REGISTRASI ---------- */}
+                {step === 3 && (
+                  <motion.div
+                    key="step3"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -12 }}
+                    transition={{ duration: 0.32, ease: HALUS }}
+                    className="rounded-2xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-6 shadow-[var(--shadow-soft)] sm:p-8"
+                  >
+                    <p className="mb-3 text-[13px] text-[color:var(--ink-3)]">Pengajuan akun baru</p>
+                    <h1
+                      className="text-[clamp(23px,5.5vw,29px)] font-normal leading-[1.2] tracking-[-0.015em]"
+                      style={judulSerif}
+                    >
+                      Daftar sebagai {namaPeran(selectedRole).toLowerCase()}
+                    </h1>
+
+                    <form onSubmit={handleRegister} className="mt-7 space-y-5" noValidate>
+                      <div>
+                        <label htmlFor="reg-nama" className={labelKelas}>
+                          {selectedRole === "lembaga" ? "Nama penanggung jawab" : "Nama lengkap"}
+                        </label>
+                        <div className="relative">
+                          <span className={ikonKelas} aria-hidden="true">
+                            <User size={17} />
+                          </span>
+                          <input
+                            id="reg-nama"
+                            type="text"
+                            autoComplete="name"
+                            value={regNama}
+                            onChange={(e) => setRegNama(e.target.value)}
+                            required
+                            disabled={otpSent}
+                            className="kolom focusable"
+                          />
+                        </div>
+                      </div>
+
+                      {selectedRole === "lembaga" && (
+                        <div>
+                          <label htmlFor="reg-lembaga" className={labelKelas}>
+                            Nama lembaga
+                          </label>
+                          <div className="relative">
+                            <span className={ikonKelas} aria-hidden="true">
+                              <Building size={17} />
+                            </span>
+                            <input
+                              id="reg-lembaga"
+                              type="text"
+                              autoComplete="organization"
+                              value={regNamaLembaga}
+                              onChange={(e) => setRegNamaLembaga(e.target.value)}
+                              required
+                              disabled={otpSent}
+                              className="kolom focusable"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        <label htmlFor="reg-npsn" className={labelKelas}>
+                          NPSN sekolah
+                          {selectedRole !== "lembaga" && (
+                            <span className="text-[color:var(--ink-3)]"> — opsional</span>
+                          )}
+                        </label>
+                        <div className="relative">
+                          <span className={ikonKelas} aria-hidden="true">
+                            <Hash size={17} />
+                          </span>
+                          <input
+                            id="reg-npsn"
+                            type="text"
+                            inputMode="numeric"
+                            value={regNPSN}
+                            onChange={(e) => setRegNPSN(e.target.value)}
+                            required={selectedRole === "lembaga"}
+                            disabled={otpSent}
+                            placeholder={
+                              selectedRole === "lembaga"
+                                ? "Contoh: 69725804"
+                                : "Kosongkan jika akun mandiri"
+                            }
+                            className="kolom focusable"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label htmlFor="reg-email" className={labelKelas}>
+                          Alamat email resmi
+                        </label>
+                        <div className="relative">
+                          <span className={ikonKelas} aria-hidden="true">
+                            <Mail size={17} />
+                          </span>
+                          <input
+                            id="reg-email"
+                            type="email"
+                            inputMode="email"
+                            autoComplete="email"
+                            value={regEmail}
+                            onChange={(e) => setRegEmail(e.target.value)}
+                            required
+                            disabled={otpSent}
+                            className="kolom focusable"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Verifikasi kode */}
+                      {metodeVerifikasi === "otp_email" && (
+                        <div className="rounded-xl border border-[color:var(--line)] bg-[color:var(--accent-soft)]/60 p-4">
+                          <label htmlFor="reg-otp" className="mb-2 block text-[13px] font-medium">
+                            Kode verifikasi email
+                          </label>
+                          <div className="flex gap-2">
+                            <div className="relative flex-1">
+                              <span className={ikonKelas} aria-hidden="true">
+                                <KeyRound size={16} />
+                              </span>
+                              <input
+                                id="reg-otp"
+                                type="text"
+                                inputMode="numeric"
+                                autoComplete="one-time-code"
+                                maxLength={6}
+                                disabled={!otpSent}
+                                value={inputOtp}
+                                onChange={(e) => setInputOtp(e.target.value.replace(/\D/g, ""))}
+                                placeholder={otpSent ? "6 digit kode" : "Kirim kode dulu"}
+                                className="kolom focusable tracking-[0.3em]"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleSendOTP}
+                              disabled={isSendingOtp || !regEmail || otpSent}
+                              className="focusable shrink-0 whitespace-nowrap rounded-[10px] bg-[color:var(--accent)] px-4 text-[13.5px] font-medium text-white transition-opacity duration-300 hover:opacity-90 disabled:opacity-45"
+                            >
+                              {isSendingOtp ? (
+                                <Loader2 size={16} className="mx-auto animate-spin" />
+                              ) : otpSent ? (
+                                "Terkirim"
+                              ) : (
+                                "Kirim kode"
+                              )}
+                            </button>
+                          </div>
+                          <p className="mt-2.5 text-[12.5px] leading-relaxed text-[color:var(--ink-2)]">
+                            {otpSent
+                              ? "Kode dikirim ke email Anda. Periksa juga folder spam."
+                              : "Kode akan dikirim ke alamat email di atas."}
+                          </p>
+                        </div>
+                      )}
+
+                      <div>
+                        <label htmlFor="reg-password" className={labelKelas}>
+                          Buat kata sandi
+                        </label>
+                        <div className="relative">
+                          <span className={ikonKelas} aria-hidden="true">
+                            <Lock size={17} />
+                          </span>
+                          <input
+                            id="reg-password"
+                            type={showPassword ? "text" : "password"}
+                            autoComplete="new-password"
+                            value={regPassword}
+                            onChange={(e) => setRegPassword(e.target.value)}
+                            minLength={6}
+                            required
+                            placeholder="Minimal 6 karakter"
+                            className="kolom focusable pr-12"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+                            className="focusable absolute inset-y-0 right-0 flex items-center px-4 text-[color:var(--ink-3)] transition-colors duration-300 hover:text-[color:var(--ink)]"
+                          >
+                            {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isLoading || (metodeVerifikasi === "otp_email" && !otpSent)}
+                        className="focusable inline-flex w-full items-center justify-center gap-2.5 rounded-[10px] bg-[color:var(--brand)] px-6 py-4 text-[15px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-soft)] transition-all duration-300 hover:shadow-[var(--shadow-lift)] disabled:opacity-55"
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 size={17} className="animate-spin" aria-hidden="true" />
+                            Mengirim
+                          </>
+                        ) : (
+                          <>
+                            Kirim pengajuan
+                            <Send size={16} aria-hidden="true" />
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <p className="mt-8 text-center text-[12.5px] text-[color:var(--ink-3)] md:hidden">
+                © 2026 Mahatma Academy
+              </p>
+            </div>
+          </div>
+        </main>
+      </div>
+    </MotionConfig>
   );
 }
