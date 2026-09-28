@@ -4,7 +4,27 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { Spectral, IBM_Plex_Sans } from "next/font/google";
-import { Menu, X, Sun, Moon, Send, Loader2, MessageCircle, ArrowRight } from "lucide-react";
+import {
+  Menu,
+  X,
+  Sun,
+  Moon,
+  Send,
+  Loader2,
+  MessageCircle,
+  ArrowRight,
+  Languages,
+  Users,
+  Landmark,
+  LifeBuoy,
+  NotebookPen,
+  ShieldCheck,
+  Sparkles,
+  CircleCheck,
+  FilePenLine,
+  ClipboardList,
+  UserCheck,
+} from "lucide-react";
 
 /* ------------------------------------------------------------------
    TIPOGRAFI
@@ -45,8 +65,13 @@ const TOKENS = `
   --shadow-soft:0 1px 2px rgba(26,31,46,.04), 0 8px 24px -12px rgba(26,31,46,.14);
   --shadow-lift:0 2px 4px rgba(26,31,46,.05), 0 18px 40px -18px rgba(26,31,46,.22);
   --texture:rgba(26,31,46,.022);
-  --wash-a:rgba(31,48,83,.07);
-  --wash-b:rgba(20,106,94,.06);
+  --glow-a:rgba(31,48,83,.16);
+  --glow-b:rgba(20,106,94,.15);
+  --band:#14203A;
+  --band-2:#0F3B39;
+  --band-ink:#F4F2ED;
+  --band-ink-2:#B3BBCB;
+  --band-line:rgba(255,255,255,.12);
 }
 [data-theme="dark"]{
   --bg:#12151C;
@@ -67,8 +92,13 @@ const TOKENS = `
   --shadow-soft:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.6);
   --shadow-lift:0 2px 4px rgba(0,0,0,.35), 0 18px 40px -18px rgba(0,0,0,.7);
   --texture:rgba(255,255,255,.018);
-  --wash-a:rgba(120,150,210,.07);
-  --wash-b:rgba(80,180,165,.06);
+  --glow-a:rgba(120,150,210,.16);
+  --glow-b:rgba(80,180,165,.14);
+  --band:#1B2438;
+  --band-2:#123532;
+  --band-ink:#F4F2ED;
+  --band-ink-2:#A9B2C4;
+  --band-line:rgba(255,255,255,.1);
 }
 
 /* Tekstur anyaman halus — nyaris tak terlihat, memberi "kertas" pada latar. */
@@ -77,12 +107,48 @@ const TOKENS = `
     repeating-linear-gradient(45deg, var(--texture) 0 1px, transparent 1px 7px),
     repeating-linear-gradient(-45deg, var(--texture) 0 1px, transparent 1px 7px);
 }
-/* Sapuan warna lembut di kepala halaman saja. */
-.wash{
+/* Kisi tipis di hero, memudar ke bawah. */
+.kisi{
   background-image:
-    radial-gradient(900px 480px at 8% -20%, var(--wash-a), transparent 62%),
-    radial-gradient(760px 420px at 96% -10%, var(--wash-b), transparent 58%);
+    linear-gradient(var(--line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size:44px 44px;
+  -webkit-mask-image:radial-gradient(ellipse 85% 70% at 50% 0%, #000 25%, transparent 75%);
+          mask-image:radial-gradient(ellipse 85% 70% at 50% 0%, #000 25%, transparent 75%);
 }
+/* Cahaya latar yang melayang pelan. Tanpa filter blur agar ringan di ponsel. */
+.cahaya{
+  position:absolute; border-radius:9999px; pointer-events:none;
+  animation:melayang 16s ease-in-out infinite alternate;
+}
+.cahaya-a{ background:radial-gradient(circle, var(--glow-a), transparent 66%); }
+.cahaya-b{ background:radial-gradient(circle, var(--glow-b), transparent 66%); animation-delay:-8s; }
+@keyframes melayang{
+  0%{ transform:translate3d(0,0,0) scale(1); }
+  100%{ transform:translate3d(36px,28px,0) scale(1.1); }
+}
+.teks-gradasi{
+  background:linear-gradient(100deg, var(--brand) 5%, var(--accent) 95%);
+  -webkit-background-clip:text; background-clip:text;
+  color:transparent;
+}
+.titik-denyut{ position:relative; }
+.titik-denyut::after{
+  content:""; position:absolute; inset:0; border-radius:9999px;
+  background:var(--accent); animation:denyut 2.2s ease-out infinite;
+}
+@keyframes denyut{
+  0%{ transform:scale(1); opacity:.6; }
+  100%{ transform:scale(3.2); opacity:0; }
+}
+.pita{
+  background:
+    radial-gradient(700px 360px at 100% 0%, rgba(111,195,180,.18), transparent 60%),
+    radial-gradient(600px 320px at 0% 100%, rgba(185,199,232,.14), transparent 60%),
+    linear-gradient(135deg, var(--band), var(--band-2));
+}
+.geser-x{ scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+.geser-x::-webkit-scrollbar{ display:none; }
 
 html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
 body{ overflow-x:hidden; }
@@ -100,15 +166,20 @@ body{ overflow-x:hidden; }
 }
 @media (hover:hover){
   .kartu:hover{
-    transform: translateY(-3px);
+    transform: translateY(-4px);
     box-shadow: var(--shadow-lift);
     border-color: var(--line);
   }
+  .kartu:hover .ikon-kartu{
+    background:var(--brand); color:var(--brand-ink);
+  }
 }
+.ikon-kartu{ transition: background-color .35s ease, color .35s ease; }
 @media (prefers-reduced-motion: reduce){
   html{ scroll-behavior:auto; }
   *,*::before,*::after{
     animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
     transition-duration:.01ms !important;
   }
   .kartu:hover{ transform:none; }
@@ -128,26 +199,32 @@ const dimensi = [
   {
     nama: "Penguasaan linguistik",
     isi: "Ketepatan makna, kosakata, dan pemahaman siswa atas materi yang diujikan.",
+    ikon: Languages,
   },
   {
     nama: "Ketepatan sosiolinguistik",
     isi: "Kesesuaian tingkat tutur dan dialek dengan lawan bicara serta tujuan komunikasi.",
+    ikon: Users,
   },
   {
     nama: "Interpretasi budaya",
     isi: "Nilai lokal, sejarah, dan praktik sosial yang hidup di masyarakat diperlakukan sebagai jawaban sah.",
+    ikon: Landmark,
   },
   {
     nama: "Mediasi adaptif",
     isi: "Petunjuk diberikan bertahap ketika siswa tersendat, tanpa membuka jawaban.",
+    ikon: LifeBuoy,
   },
   {
     nama: "Refleksi belajar",
     isi: "Siswa menjelaskan alasan perbaikannya sendiri dan memilih langkah belajar berikutnya.",
+    ikon: NotebookPen,
   },
   {
     nama: "Adab dan etika digital",
     isi: "Kejujuran akademik, kesantunan interaksi, dan transparansi penggunaan data pribadi.",
+    ikon: ShieldCheck,
   },
 ];
 
@@ -155,18 +232,22 @@ const alur = [
   {
     judul: "Guru menyusun asesmen",
     isi: "Guru memasukkan Kompetensi Dasar. Sistem menyusun instrumen yang memuat aspek kebahasaan sekaligus konteks budaya setempat.",
+    ikon: ClipboardList,
   },
   {
     judul: "Siswa mengerjakan dengan pendampingan",
     isi: "Selama ujian berlangsung, siswa yang tersendat menerima petunjuk bertahap. Jawaban tidak pernah diberikan langsung.",
+    ikon: LifeBuoy,
   },
   {
     judul: "Siswa menulis jurnal refleksi",
     isi: "Sebelum mengumpulkan, siswa mencatat kendala yang dialaminya. Catatan ini menjadi bagian dari penilaian.",
+    ikon: NotebookPen,
   },
   {
     judul: "Guru meninjau dan memutuskan",
     isi: "Sistem menyajikan analitik kemandirian. Nilai akhir tetap ditetapkan guru, termasuk saat dialek lokal perlu dibenarkan.",
+    ikon: UserCheck,
   },
 ];
 
@@ -185,6 +266,25 @@ const contohSkor = [
   { nama: "Mediasi adaptif", skor: 69 },
   { nama: "Refleksi belajar", skor: 80 },
   { nama: "Adab digital", skor: 95 },
+];
+const rataRata = Math.round(contohSkor.reduce((t, d) => t + d.skor, 0) / contohSkor.length);
+
+const jaminan = [
+  "Dialek lokal diakui sah",
+  "Guru pemegang nilai akhir",
+  "Data siswa tidak melatih model",
+];
+
+const komitmen = [
+  { ikon: FilePenLine, judul: "Setiap skor bisa diubah", isi: "Guru menyesuaikan nilai usulan sebelum disimpan." },
+  { ikon: ClipboardList, judul: "Setiap perubahan tercatat", isi: "Riwayat koreksi tersimpan dan dapat ditelusuri." },
+  { ikon: ShieldCheck, judul: "Data siswa terlindungi", isi: "Jawaban siswa tidak dipakai untuk melatih model." },
+];
+
+const saranPertanyaan = [
+  "Apa saja fitur HARC-AI?",
+  "Bagaimana sekolah mendaftar?",
+  "Bagaimana cara penilaiannya?",
 ];
 
 /* ------------------------------------------------------------------
@@ -212,10 +312,15 @@ const muncul = (i = 0) => ({
   transition: { duration: 0.55, delay: i * 0.07, ease: HALUS },
 });
 
+/* Keliling lingkaran skor (r = 34). */
+const KELILING = 2 * Math.PI * 34;
+
 export default function LandingPage() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [lewatHero, setLewatHero] = useState(false);
+  const [dimAktif, setDimAktif] = useState(0);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [loadingChat, setLoadingChat] = useState(false);
@@ -229,15 +334,18 @@ export default function LandingPage() {
 
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dimRef = useRef<HTMLUListElement>(null);
 
   /* Tema mengikuti preferensi sistem, lalu pilihan pengguna disimpan.
      Dibaca setelah hidrasi, sehingga render pertama tetap sama
      dengan yang dikirim server. */
   useEffect(() => {
-    const tersimpan =
-      typeof window !== "undefined"
-        ? (window.localStorage.getItem("harc-theme") as "light" | "dark" | null)
-        : null;
+    let tersimpan: "light" | "dark" | null = null;
+    try {
+      tersimpan = window.localStorage.getItem("harc-theme") as "light" | "dark" | null;
+    } catch {
+      /* penyimpanan tidak tersedia */
+    }
     if (tersimpan) return setTheme(tersimpan);
     if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) setTheme("dark");
   }, []);
@@ -252,9 +360,13 @@ export default function LandingPage() {
     }
   };
 
-  /* Header memperoleh bayangan tipis begitu halaman digulir. */
+  /* Header memperoleh bayangan tipis begitu halaman digulir;
+     dock seluler muncul setelah hero terlewati. */
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
+    const onScroll = () => {
+      setScrolled(window.scrollY > 8);
+      setLewatHero(window.scrollY > 560);
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -287,10 +399,25 @@ export default function LandingPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  /* Indikator kartu dimensi pada tampilan geser (seluler). */
+  const onGeserDimensi = () => {
+    const el = dimRef.current;
+    const kartu = el?.firstElementChild as HTMLElement | null;
+    if (!el || !kartu) return;
+    const langkah = kartu.offsetWidth + 16;
+    setDimAktif(Math.min(dimensi.length - 1, Math.round(el.scrollLeft / langkah)));
+  };
+
+  const keDimensi = (i: number) => {
+    const el = dimRef.current;
+    const kartu = el?.children[i] as HTMLElement | undefined;
+    if (!el || !kartu) return;
+    el.scrollTo({ left: kartu.offsetLeft - el.offsetLeft - 16, behavior: "smooth" });
+  };
+
   /* Kontrak API tidak berubah: POST /api/chat-public */
-  const kirimPesan = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const teks = chatInput.trim();
+  const kirim = async (teksMentah: string) => {
+    const teks = teksMentah.trim();
     if (!teks || loadingChat) return;
 
     const riwayat = [...messages, { role: "user", content: teks }];
@@ -325,7 +452,13 @@ export default function LandingPage() {
     }
   };
 
+  const kirimPesan = (e: React.FormEvent) => {
+    e.preventDefault();
+    kirim(chatInput);
+  };
+
   const judulSerif = { fontFamily: "var(--font-display), Georgia, serif" };
+  const tampilDock = lewatHero && !chatOpen && !menuOpen;
 
   return (
     <MotionConfig reducedMotion="user">
@@ -345,10 +478,10 @@ export default function LandingPage() {
 
         {/* ================= HEADER ================= */}
         <header
-          className={`sticky top-0 z-50 border-b bg-[color:var(--bg)]/85 backdrop-blur-md transition-[box-shadow,border-color] duration-500 ${
+          className={`sticky top-0 z-50 border-b backdrop-blur-xl transition-[box-shadow,border-color,background-color] duration-500 ${
             scrolled
-              ? "border-[color:var(--line)] shadow-[var(--shadow-soft)]"
-              : "border-transparent"
+              ? "border-[color:var(--line)] bg-[color:var(--bg)]/80 shadow-[var(--shadow-soft)]"
+              : "border-transparent bg-transparent"
           }`}
         >
           <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:h-[72px] sm:px-8">
@@ -362,14 +495,15 @@ export default function LandingPage() {
               </span>
             </Link>
 
-            <nav aria-label="Navigasi utama" className="hidden items-center gap-8 lg:flex">
+            <nav
+              aria-label="Navigasi utama"
+              className="hidden items-center gap-1 rounded-full border border-[color:var(--line-soft)] bg-[color:var(--surface)]/70 p-1 lg:flex"
+            >
               {NAV.map((item) => (
                 <a
                   key={item.href}
                   href={item.href}
-                  className="focusable relative py-1 text-[14px] text-[color:var(--ink-2)] transition-colors duration-300 hover:text-[color:var(--ink)]
-                             after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0
-                             after:bg-[color:var(--accent)] after:transition-transform after:duration-300 hover:after:scale-x-100"
+                  className="focusable rounded-full px-4 py-2 text-[14px] text-[color:var(--ink-2)] transition-colors duration-300 hover:bg-[color:var(--surface-2)] hover:text-[color:var(--ink)]"
                 >
                   {item.label}
                 </a>
@@ -383,14 +517,26 @@ export default function LandingPage() {
                 aria-label={theme === "dark" ? "Gunakan tema terang" : "Gunakan tema gelap"}
                 className="focusable grid h-10 w-10 place-items-center rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] text-[color:var(--ink-2)] transition-colors duration-300 hover:text-[color:var(--ink)]"
               >
-                {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span
+                    key={theme}
+                    initial={{ rotate: -90, opacity: 0 }}
+                    animate={{ rotate: 0, opacity: 1 }}
+                    exit={{ rotate: 90, opacity: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="grid place-items-center"
+                  >
+                    {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+                  </motion.span>
+                </AnimatePresence>
               </button>
 
               <Link
                 href="/login"
-                className="focusable hidden rounded-[10px] bg-[color:var(--brand)] px-5 py-2.5 text-[14px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-soft)] transition-all duration-300 hover:-translate-y-px hover:shadow-[var(--shadow-lift)] sm:block"
+                className="focusable hidden items-center gap-2 rounded-full bg-[color:var(--brand)] px-5 py-2.5 text-[14px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-soft)] transition-all duration-300 hover:-translate-y-px hover:shadow-[var(--shadow-lift)] sm:inline-flex"
               >
                 Masuk portal
+                <ArrowRight size={15} />
               </Link>
 
               <button
@@ -416,7 +562,7 @@ export default function LandingPage() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
                 onClick={() => setMenuOpen(false)}
-                className="fixed inset-0 z-[60] bg-[#0D1119]/35 backdrop-blur-[2px] lg:hidden"
+                className="fixed inset-0 z-[60] bg-[#0D1119]/40 backdrop-blur-[3px] lg:hidden"
                 aria-hidden="true"
               />
               <motion.div
@@ -427,11 +573,14 @@ export default function LandingPage() {
                 role="dialog"
                 aria-modal="true"
                 aria-label="Menu navigasi"
-                className="fixed inset-y-0 right-0 z-[70] flex w-[86%] max-w-sm flex-col bg-[color:var(--bg)] shadow-[var(--shadow-lift)] lg:hidden"
+                className="fixed inset-y-0 right-0 z-[70] flex w-[88%] max-w-sm flex-col bg-[color:var(--bg)] shadow-[var(--shadow-lift)] lg:hidden"
               >
                 <div className="flex h-16 items-center justify-between border-b border-[color:var(--line-soft)] px-5">
-                  <span className="text-[17px] font-medium" style={judulSerif}>
-                    Menu
+                  <span className="flex items-center gap-2.5">
+                    <img src="/logo.png" alt="" aria-hidden="true" className="h-8 w-8 object-contain" />
+                    <span className="text-[17px] font-medium" style={judulSerif}>
+                      HARC&#8209;AI
+                    </span>
                   </span>
                   <button
                     type="button"
@@ -443,7 +592,7 @@ export default function LandingPage() {
                   </button>
                 </div>
 
-                <nav className="flex flex-col px-5" aria-label="Navigasi seluler">
+                <nav className="flex flex-col px-5 pt-2" aria-label="Navigasi seluler">
                   {[{ href: "#beranda", label: "Beranda" }, ...NAV].map((item, i) => (
                     <motion.a
                       key={item.href}
@@ -452,21 +601,51 @@ export default function LandingPage() {
                       initial={{ opacity: 0, x: 16 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.1 + i * 0.06, duration: 0.35, ease: HALUS }}
-                      className="focusable flex items-center justify-between border-b border-[color:var(--line-soft)] py-5 text-[18px]"
+                      className="focusable group flex items-center justify-between border-b border-[color:var(--line-soft)] py-5 text-[20px]"
                       style={judulSerif}
                     >
-                      {item.label}
-                      <ArrowRight size={16} className="text-[color:var(--ink-3)]" />
+                      <span className="flex items-baseline gap-3">
+                        <span className="text-[12px] tabular-nums text-[color:var(--ink-3)]">
+                          0{i + 1}
+                        </span>
+                        {item.label}
+                      </span>
+                      <ArrowRight
+                        size={16}
+                        className="text-[color:var(--ink-3)] transition-transform group-active:translate-x-1"
+                      />
                     </motion.a>
                   ))}
                 </nav>
 
-                <div className="mt-auto p-5">
+                <div className="mt-auto space-y-3 p-5" style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom, 0px))" }}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={toggleTheme}
+                      className="focusable flex items-center justify-center gap-2 rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] py-3.5 text-[14px] text-[color:var(--ink-2)]"
+                    >
+                      {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+                      {theme === "dark" ? "Terang" : "Gelap"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setChatOpen(true);
+                      }}
+                      className="focusable flex items-center justify-center gap-2 rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] py-3.5 text-[14px] text-[color:var(--ink-2)]"
+                    >
+                      <MessageCircle size={16} className="text-[color:var(--accent)]" />
+                      Asisten
+                    </button>
+                  </div>
                   <Link
                     href="/login"
-                    className="focusable block rounded-[10px] bg-[color:var(--brand)] px-5 py-3.5 text-center text-[15px] font-medium text-[color:var(--brand-ink)]"
+                    className="focusable flex items-center justify-center gap-2 rounded-xl bg-[color:var(--brand)] px-5 py-4 text-center text-[15px] font-medium text-[color:var(--brand-ink)]"
                   >
                     Masuk portal
+                    <ArrowRight size={16} />
                   </Link>
                 </div>
               </motion.div>
@@ -478,34 +657,42 @@ export default function LandingPage() {
           {/* ================= HERO ================= */}
           <section
             id="beranda"
-            className="wash scroll-mt-16 border-b border-[color:var(--line-soft)]"
+            className="relative -mt-16 overflow-hidden border-b border-[color:var(--line-soft)] pt-16 sm:-mt-[72px] sm:pt-[72px]"
             aria-labelledby="judul-hero"
           >
-            <div className="mx-auto grid max-w-6xl gap-10 px-4 pb-14 pt-12 sm:px-8 sm:pb-20 sm:pt-16 lg:grid-cols-12 lg:gap-14 lg:pb-24 lg:pt-20">
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+              <div className="kisi absolute inset-0" />
+              <div className="cahaya cahaya-a -left-40 -top-40 h-[520px] w-[520px] sm:h-[680px] sm:w-[680px]" />
+              <div className="cahaya cahaya-b -right-48 top-10 h-[460px] w-[460px] sm:h-[620px] sm:w-[620px]" />
+            </div>
+
+            <div className="relative mx-auto grid max-w-6xl gap-12 px-4 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-16 lg:grid-cols-12 lg:items-center lg:gap-14 lg:pb-28 lg:pt-20">
               <div className="lg:col-span-7">
                 <motion.p
                   {...masuk(0)}
-                  className="mb-5 inline-flex items-center gap-2.5 rounded-full border border-[color:var(--line)] bg-[color:var(--accent-soft)] px-3.5 py-1.5 text-[12.5px] text-[color:var(--accent)] sm:text-[13px]"
+                  className="mb-6 inline-flex items-center gap-2.5 rounded-full border border-[color:var(--line)] bg-[color:var(--surface)]/80 px-3.5 py-1.5 text-[12.5px] text-[color:var(--ink-2)] shadow-[var(--shadow-soft)] backdrop-blur sm:text-[13px]"
                 >
                   <span
                     aria-hidden="true"
-                    className="h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]"
+                    className="titik-denyut h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]"
                   />
-                  Asesmen sekolah berbasis Artificial Intelligence
+                  <Sparkles size={13} className="text-[color:var(--accent)]" aria-hidden="true" />
+                  Asesmen sekolah berbasis AI
                 </motion.p>
 
                 <motion.h1
                   {...masuk(1)}
                   id="judul-hero"
-                  className="max-w-[16ch] text-[clamp(31px,8vw,52px)] font-normal leading-[1.12] tracking-[-0.02em]"
+                  className="max-w-[15ch] text-[clamp(34px,9vw,60px)] font-normal leading-[1.08] tracking-[-0.025em]"
                   style={judulSerif}
                 >
-                  Menilai bahasa daerah tanpa mengabaikan konteks budayanya.
+                  Menilai bahasa daerah tanpa mengabaikan{" "}
+                  <span className="teks-gradasi italic">konteks budayanya.</span>
                 </motion.h1>
 
                 <motion.p
                   {...masuk(2)}
-                  className="mt-6 max-w-[58ch] text-[15.5px] leading-[1.75] text-[color:var(--ink-2)] sm:text-[16.5px]"
+                  className="mt-6 max-w-[56ch] text-[15.5px] leading-[1.75] text-[color:var(--ink-2)] sm:text-[17px]"
                 >
                   HARC-AI menyusun instrumen ujian, mendampingi siswa selama mengerjakan, dan
                   merangkum hasilnya menjadi analitik yang bisa dibaca guru dalam hitungan menit.
@@ -515,11 +702,11 @@ export default function LandingPage() {
 
                 <motion.div
                   {...masuk(3)}
-                  className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-7"
+                  className="mt-9 grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 sm:flex sm:items-center sm:gap-4"
                 >
                   <Link
                     href="/login"
-                    className="focusable group inline-flex items-center justify-center gap-2.5 rounded-[10px] bg-[color:var(--brand)] px-7 py-4 text-[15px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-soft)] transition-all duration-300 hover:-translate-y-px hover:shadow-[var(--shadow-lift)] sm:py-3.5"
+                    className="focusable group inline-flex items-center justify-center gap-2.5 rounded-xl bg-[color:var(--brand)] px-7 py-4 text-[15px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-lift)] transition-all duration-300 hover:-translate-y-0.5 active:scale-[.98] sm:py-3.5"
                   >
                     Mulai evaluasi
                     <ArrowRight
@@ -529,62 +716,157 @@ export default function LandingPage() {
                   </Link>
                   <a
                     href="#alur"
-                    className="focusable inline-flex items-center justify-center py-2 text-[15px] text-[color:var(--ink-2)] transition-colors duration-300 hover:text-[color:var(--ink)]"
+                    className="focusable inline-flex items-center justify-center gap-2 rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)]/80 px-6 py-4 text-[15px] text-[color:var(--ink)] backdrop-blur transition-colors duration-300 hover:bg-[color:var(--surface)] active:scale-[.98] sm:py-3.5"
                   >
-                    Lihat cara kerjanya
+                    Lihat cara kerja
                   </a>
                 </motion.div>
+
+                <motion.ul
+                  {...masuk(4)}
+                  className="mt-8 flex flex-col gap-2.5 text-[13.5px] text-[color:var(--ink-2)] sm:flex-row sm:flex-wrap sm:gap-x-6"
+                >
+                  {jaminan.map((j) => (
+                    <li key={j} className="flex items-center gap-2">
+                      <CircleCheck size={16} className="shrink-0 text-[color:var(--accent)]" aria-hidden="true" />
+                      {j}
+                    </li>
+                  ))}
+                </motion.ul>
               </div>
 
               {/* Panel contoh hasil — memperlihatkan produknya, bukan ilustrasi */}
-              <motion.figure
-                initial={{ opacity: 0, y: 22 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.65, delay: 0.24, ease: HALUS }}
-                className="overflow-hidden rounded-2xl border border-[color:var(--line)] bg-[color:var(--surface)] shadow-[var(--shadow-soft)] lg:col-span-5"
-              >
-                <figcaption className="flex items-baseline justify-between border-b border-[color:var(--line-soft)] bg-[color:var(--surface-2)]/60 px-5 py-4 sm:px-6">
-                  <span className="text-[14px] font-medium">Ringkasan penilaian</span>
-                  <span className="text-[12px] text-[color:var(--ink-3)]">Contoh tampilan</span>
-                </figcaption>
+              <div className="relative lg:col-span-5">
+                <motion.figure
+                  initial={{ opacity: 0, y: 22 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.65, delay: 0.24, ease: HALUS }}
+                  className="relative overflow-hidden rounded-3xl border border-[color:var(--line)] bg-[color:var(--surface)] shadow-[var(--shadow-lift)]"
+                >
+                  <figcaption className="flex items-center justify-between border-b border-[color:var(--line-soft)] bg-[color:var(--surface-2)]/60 px-5 py-3.5 sm:px-6">
+                    <span className="flex items-center gap-2">
+                      <span aria-hidden="true" className="flex gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-[color:var(--line)]" />
+                        <span className="h-2.5 w-2.5 rounded-full bg-[color:var(--line)]" />
+                        <span className="h-2.5 w-2.5 rounded-full bg-[color:var(--line)]" />
+                      </span>
+                      <span className="ml-2 text-[13.5px] font-medium">Ringkasan penilaian</span>
+                    </span>
+                    <span className="rounded-full bg-[color:var(--accent-soft)] px-2.5 py-1 text-[11px] text-[color:var(--accent)]">
+                      Contoh
+                    </span>
+                  </figcaption>
 
-                <div className="px-5 py-5 sm:px-6 sm:py-6">
-                  <div className="mb-5 flex items-baseline justify-between text-[13px] text-[color:var(--ink-2)]">
-                    <span>Tugas 4 — Ragam krama</span>
-                    <span>Kelas VIII&nbsp;B</span>
+                  <div className="px-5 py-5 sm:px-6 sm:py-6">
+                    {/* Skor rata-rata */}
+                    <div className="mb-6 flex items-center gap-5 rounded-2xl border border-[color:var(--line-soft)] bg-[color:var(--surface-2)]/50 p-4">
+                      <div className="relative h-[84px] w-[84px] shrink-0">
+                        <svg viewBox="0 0 80 80" className="h-full w-full -rotate-90" aria-hidden="true">
+                          <defs>
+                            <linearGradient id="gradasi-cincin" x1="0" y1="0" x2="1" y2="1">
+                              <stop offset="0%" style={{ stopColor: "var(--brand)" }} />
+                              <stop offset="100%" style={{ stopColor: "var(--accent)" }} />
+                            </linearGradient>
+                          </defs>
+                          <circle cx="40" cy="40" r="34" fill="none" strokeWidth="7" style={{ stroke: "var(--surface-2)" }} />
+                          <motion.circle
+                            cx="40"
+                            cy="40"
+                            r="34"
+                            fill="none"
+                            strokeWidth="7"
+                            strokeLinecap="round"
+                            stroke="url(#gradasi-cincin)"
+                            strokeDasharray={KELILING}
+                            initial={{ strokeDashoffset: KELILING }}
+                            animate={{ strokeDashoffset: KELILING * (1 - rataRata / 100) }}
+                            transition={{ duration: 1.4, delay: 0.5, ease: HALUS }}
+                          />
+                        </svg>
+                        <span
+                          className="absolute inset-0 grid place-items-center text-[24px] tabular-nums"
+                          style={judulSerif}
+                        >
+                          {rataRata}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[12px] uppercase tracking-[0.08em] text-[color:var(--ink-3)]">
+                          Skor rata-rata
+                        </p>
+                        <p className="mt-1 text-[15px] font-medium leading-snug">Tugas 4 — Ragam krama</p>
+                        <p className="mt-0.5 text-[13px] text-[color:var(--ink-2)]">Kelas VIII&nbsp;B</p>
+                      </div>
+                    </div>
+
+                    <ul className="space-y-3.5">
+                      {contohSkor.map((d, i) => (
+                        <motion.li key={d.nama} {...muncul(i)}>
+                          <div className="mb-1.5 flex items-baseline justify-between text-[13.5px]">
+                            <span className="text-[color:var(--ink-2)]">{d.nama}</span>
+                            <span className="tabular-nums text-[15px]" style={judulSerif}>
+                              {d.skor}
+                            </span>
+                          </div>
+                          <div
+                            className="h-[6px] w-full overflow-hidden rounded-full bg-[color:var(--surface-2)]"
+                            role="img"
+                            aria-label={`${d.nama}: ${d.skor} dari 100`}
+                          >
+                            <motion.div
+                              className="h-full rounded-full"
+                              style={{
+                                background: "linear-gradient(90deg, var(--brand), var(--accent))",
+                              }}
+                              initial={{ width: "0%" }}
+                              whileInView={{ width: `${d.skor}%` }}
+                              viewport={VIEWPORT}
+                              transition={{ duration: 1.1, ease: HALUS, delay: 0.3 + i * 0.07 }}
+                            />
+                          </div>
+                        </motion.li>
+                      ))}
+                    </ul>
                   </div>
 
-                  <ul className="space-y-4">
-                    {contohSkor.map((d, i) => (
-                      <motion.li key={d.nama} {...muncul(i)}>
-                        <div className="mb-2 flex items-baseline justify-between text-[13.5px]">
-                          <span className="text-[color:var(--ink-2)]">{d.nama}</span>
-                          <span className="tabular-nums text-[15px]" style={judulSerif}>
-                            {d.skor}
-                          </span>
-                        </div>
-                        <div
-                          className="h-[5px] w-full overflow-hidden rounded-full bg-[color:var(--surface-2)]"
-                          role="img"
-                          aria-label={`${d.nama}: ${d.skor} dari 100`}
-                        >
-                          <motion.div
-                            className="h-full rounded-full bg-[color:var(--accent)]"
-                            initial={{ width: "0%" }}
-                            whileInView={{ width: `${d.skor}%` }}
-                            viewport={VIEWPORT}
-                            transition={{ duration: 1.1, ease: HALUS, delay: 0.3 + i * 0.07 }}
-                          />
-                        </div>
-                      </motion.li>
-                    ))}
-                  </ul>
-                </div>
+                  <p className="flex items-start gap-2.5 border-t border-[color:var(--line-soft)] bg-[color:var(--surface-2)]/50 px-5 py-4 text-[13px] leading-relaxed text-[color:var(--ink-2)] sm:px-6">
+                    <UserCheck size={16} className="mt-0.5 shrink-0 text-[color:var(--accent)]" aria-hidden="true" />
+                    Nilai ini usulan sistem. Guru dapat menyesuaikannya sebelum disimpan.
+                  </p>
+                </motion.figure>
 
-                <p className="border-t border-[color:var(--line-soft)] bg-[color:var(--surface-2)]/50 px-5 py-4 text-[13px] leading-relaxed text-[color:var(--ink-2)] sm:px-6">
-                  Nilai ini usulan sistem. Guru dapat menyesuaikannya sebelum disimpan.
-                </p>
-              </motion.figure>
+                {/* Kartu melayang — hanya di layar lebar */}
+                <motion.div
+                  aria-hidden="true"
+                  initial={{ opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, delay: 0.9, ease: HALUS }}
+                  className="absolute -left-10 top-24 hidden items-center gap-3 rounded-2xl border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-3 shadow-[var(--shadow-lift)] xl:flex"
+                >
+                  <span className="grid h-9 w-9 place-items-center rounded-full bg-[color:var(--accent-soft)] text-[color:var(--accent)]">
+                    <LifeBuoy size={16} />
+                  </span>
+                  <span className="text-[12.5px] leading-tight">
+                    <span className="block font-medium">Petunjuk ke-2</span>
+                    <span className="text-[color:var(--ink-3)]">diberikan bertahap</span>
+                  </span>
+                </motion.div>
+                <motion.div
+                  aria-hidden="true"
+                  initial={{ opacity: 0, x: 16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, delay: 1.1, ease: HALUS }}
+                  className="absolute -bottom-6 -right-6 hidden items-center gap-3 rounded-2xl border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-3 shadow-[var(--shadow-lift)] xl:flex"
+                >
+                  <span className="grid h-9 w-9 place-items-center rounded-full bg-[color:var(--brand-soft)] text-[color:var(--brand)]">
+                    <CircleCheck size={16} />
+                  </span>
+                  <span className="text-[12.5px] leading-tight">
+                    <span className="block font-medium">Disetujui guru</span>
+                    <span className="text-[color:var(--ink-3)]">2 skor disesuaikan</span>
+                  </span>
+                </motion.div>
+              </div>
             </div>
           </section>
 
@@ -593,24 +875,20 @@ export default function LandingPage() {
             aria-label="Cakupan penggunaan"
             className="border-b border-[color:var(--line-soft)] bg-[color:var(--bg-2)]"
           >
-            <div className="mx-auto grid max-w-6xl grid-cols-2 px-4 sm:px-8 md:grid-cols-4">
+            <div className="mx-auto grid max-w-6xl grid-cols-2 gap-3 px-4 py-8 sm:gap-4 sm:px-8 sm:py-10 md:grid-cols-4">
               {angka.map((a, i) => (
                 <motion.div
                   key={a.label}
                   {...muncul(i)}
-                  className={`px-2 py-7 sm:px-6 sm:py-9 ${
-                    i % 2 === 1 ? "border-l border-[color:var(--line-soft)] pl-5 sm:pl-6" : ""
-                  } ${i > 1 ? "border-t border-[color:var(--line-soft)] md:border-t-0" : ""} ${
-                    i === 2 ? "md:border-l md:border-[color:var(--line-soft)] md:pl-6" : ""
-                  }`}
+                  className="rounded-2xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] px-4 py-5 shadow-[var(--shadow-soft)] sm:px-6 sm:py-7"
                 >
                   <p
-                    className="text-[clamp(26px,6vw,34px)] leading-none tracking-tight"
+                    className="teks-gradasi text-[clamp(28px,7vw,40px)] leading-none tracking-tight"
                     style={judulSerif}
                   >
                     {a.nilai}
                   </p>
-                  <p className="mt-2.5 text-[12.5px] leading-snug text-[color:var(--ink-2)] sm:text-[13px]">
+                  <p className="mt-2.5 text-[12.5px] leading-snug text-[color:var(--ink-2)] sm:text-[13.5px]">
                     {a.label}
                   </p>
                 </motion.div>
@@ -626,13 +904,19 @@ export default function LandingPage() {
           >
             <div className="mx-auto max-w-6xl px-4 py-16 sm:px-8 sm:py-24">
               <div className="max-w-[56ch]">
+                <motion.p
+                  {...muncul(0)}
+                  className="mb-3 text-[12.5px] font-medium uppercase tracking-[0.12em] text-[color:var(--accent)]"
+                >
+                  Dimensi penilaian
+                </motion.p>
                 <motion.h2
                   {...muncul(0)}
                   id="judul-dimensi"
-                  className="text-[clamp(26px,5.5vw,36px)] font-normal leading-[1.2] tracking-[-0.015em]"
+                  className="text-[clamp(28px,6vw,42px)] font-normal leading-[1.15] tracking-[-0.02em]"
                   style={judulSerif}
                 >
-                  Enam dimensi yang dinilai
+                  Enam sudut untuk <span className="teks-gradasi italic">satu jawaban</span>
                 </motion.h2>
                 <motion.p
                   {...muncul(1)}
@@ -643,27 +927,56 @@ export default function LandingPage() {
                 </motion.p>
               </div>
 
-              <ul className="mt-10 grid gap-4 sm:mt-12 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
-                {dimensi.map((d, i) => (
-                  <motion.li
-                    key={d.nama}
-                    {...muncul(i % 3)}
-                    className="kartu rounded-2xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-6 shadow-[var(--shadow-soft)] sm:p-7"
-                  >
-                    <span
-                      aria-hidden="true"
-                      className="mb-4 grid h-9 w-9 place-items-center rounded-full bg-[color:var(--brand-soft)] text-[13px] tabular-nums text-[color:var(--brand)]"
-                      style={judulSerif}
+              {/* Seluler: kartu digeser horizontal. Tablet ke atas: kisi. */}
+              <motion.ul
+                {...muncul(2)}
+                ref={dimRef}
+                onScroll={onGeserDimensi}
+                className="geser-x -mx-4 mt-10 flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 pb-4 sm:mx-0 sm:mt-12 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3"
+              >
+                {dimensi.map((d, i) => {
+                  const Ikon = d.ikon;
+                  return (
+                    <li
+                      key={d.nama}
+                      className="kartu relative w-[80%] shrink-0 snap-start overflow-hidden rounded-3xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-6 shadow-[var(--shadow-soft)] min-[480px]:w-[62%] sm:w-auto sm:p-7"
                     >
-                      {i + 1}
-                    </span>
-                    <h3 className="mb-2.5 text-[19px] font-medium leading-snug" style={judulSerif}>
-                      {d.nama}
-                    </h3>
-                    <p className="text-[14.5px] leading-[1.7] text-[color:var(--ink-2)]">{d.isi}</p>
-                  </motion.li>
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute -right-3 -top-6 select-none text-[96px] leading-none text-[color:var(--line-soft)]"
+                        style={judulSerif}
+                      >
+                        {i + 1}
+                      </span>
+                      <span
+                        aria-hidden="true"
+                        className="ikon-kartu relative mb-5 grid h-11 w-11 place-items-center rounded-xl bg-[color:var(--brand-soft)] text-[color:var(--brand)]"
+                      >
+                        <Ikon size={20} />
+                      </span>
+                      <h3 className="relative mb-2.5 text-[19px] font-medium leading-snug" style={judulSerif}>
+                        {d.nama}
+                      </h3>
+                      <p className="relative text-[14.5px] leading-[1.7] text-[color:var(--ink-2)]">{d.isi}</p>
+                    </li>
+                  );
+                })}
+              </motion.ul>
+
+              <div className="mt-4 flex items-center justify-center gap-2 sm:hidden">
+                {dimensi.map((d, i) => (
+                  <button
+                    key={d.nama}
+                    type="button"
+                    onClick={() => keDimensi(i)}
+                    aria-label={`Tampilkan ${d.nama}`}
+                    aria-current={dimAktif === i}
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      dimAktif === i ? "w-6 bg-[color:var(--accent)]" : "w-2 bg-[color:var(--line)]"
+                    }`}
+                  />
                 ))}
-              </ul>
+              </div>
             </div>
           </section>
 
@@ -675,50 +988,65 @@ export default function LandingPage() {
           >
             <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-8 sm:py-24 lg:grid-cols-12 lg:gap-14">
               <div className="lg:col-span-4">
-                <motion.h2
-                  {...muncul(0)}
-                  id="judul-alur"
-                  className="text-[clamp(26px,5.5vw,36px)] font-normal leading-[1.2] tracking-[-0.015em]"
-                  style={judulSerif}
-                >
-                  Dari kompetensi dasar sampai nilai akhir
-                </motion.h2>
-                <motion.p
-                  {...muncul(1)}
-                  className="mt-5 max-w-[44ch] text-[15.5px] leading-[1.75] text-[color:var(--ink-2)] sm:text-[16.5px]"
-                >
-                  Empat tahap, dengan keputusan akhir selalu berada di tangan guru.
-                </motion.p>
+                <div className="lg:sticky lg:top-28">
+                  <motion.p
+                    {...muncul(0)}
+                    className="mb-3 text-[12.5px] font-medium uppercase tracking-[0.12em] text-[color:var(--accent)]"
+                  >
+                    Cara kerja
+                  </motion.p>
+                  <motion.h2
+                    {...muncul(0)}
+                    id="judul-alur"
+                    className="text-[clamp(28px,6vw,42px)] font-normal leading-[1.15] tracking-[-0.02em]"
+                    style={judulSerif}
+                  >
+                    Dari kompetensi dasar sampai nilai akhir
+                  </motion.h2>
+                  <motion.p
+                    {...muncul(1)}
+                    className="mt-5 max-w-[44ch] text-[15.5px] leading-[1.75] text-[color:var(--ink-2)] sm:text-[16.5px]"
+                  >
+                    Empat tahap, dengan keputusan akhir selalu berada di tangan guru.
+                  </motion.p>
+                </div>
               </div>
 
-              <ol className="relative lg:col-span-8">
+              <ol className="relative space-y-4 sm:space-y-5 lg:col-span-8">
                 {/* Garis penghubung tahap */}
                 <span
                   aria-hidden="true"
-                  className="absolute bottom-8 left-[17px] top-8 w-px bg-[color:var(--line)] sm:left-[19px]"
+                  className="absolute bottom-10 left-[21px] top-10 w-px sm:left-[27px]"
+                  style={{ background: "linear-gradient(var(--brand), var(--accent))", opacity: 0.35 }}
                 />
-                {alur.map((t, i) => (
-                  <motion.li
-                    key={t.judul}
-                    {...muncul(i)}
-                    className="relative grid grid-cols-[2.4rem_1fr] gap-x-4 pb-8 last:pb-0 sm:grid-cols-[2.8rem_1fr] sm:gap-x-6"
-                  >
-                    <span
-                      className="z-10 grid h-9 w-9 place-items-center rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] text-[14px] tabular-nums text-[color:var(--accent)] shadow-[var(--shadow-soft)] sm:h-10 sm:w-10"
-                      style={judulSerif}
+                {alur.map((t, i) => {
+                  const Ikon = t.ikon;
+                  return (
+                    <motion.li
+                      key={t.judul}
+                      {...muncul(i)}
+                      className="relative grid grid-cols-[2.75rem_1fr] gap-x-3 sm:grid-cols-[3.5rem_1fr] sm:gap-x-5"
                     >
-                      {i + 1}
-                    </span>
-                    <div className="pt-1">
-                      <h3 className="mb-2 text-[18.5px] font-medium leading-snug" style={judulSerif}>
-                        {t.judul}
-                      </h3>
-                      <p className="max-w-[58ch] text-[14.5px] leading-[1.75] text-[color:var(--ink-2)] sm:text-[15px]">
-                        {t.isi}
-                      </p>
-                    </div>
-                  </motion.li>
-                ))}
+                      <span
+                        aria-hidden="true"
+                        className="z-10 mt-4 grid h-11 w-11 place-items-center rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] text-[color:var(--accent)] shadow-[var(--shadow-soft)] sm:h-14 sm:w-14"
+                      >
+                        <Ikon size={19} />
+                      </span>
+                      <div className="kartu rounded-2xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-5 shadow-[var(--shadow-soft)] sm:p-6">
+                        <p className="mb-1.5 text-[12px] font-medium uppercase tracking-[0.1em] text-[color:var(--ink-3)]">
+                          Tahap {i + 1}
+                        </p>
+                        <h3 className="mb-2 text-[18.5px] font-medium leading-snug sm:text-[20px]" style={judulSerif}>
+                          {t.judul}
+                        </h3>
+                        <p className="max-w-[58ch] text-[14.5px] leading-[1.75] text-[color:var(--ink-2)] sm:text-[15px]">
+                          {t.isi}
+                        </p>
+                      </div>
+                    </motion.li>
+                  );
+                })}
               </ol>
             </div>
           </section>
@@ -726,74 +1054,111 @@ export default function LandingPage() {
           {/* ================= PERAN GURU ================= */}
           <section
             id="otoritas"
-            className="scroll-mt-16 border-b border-[color:var(--line-soft)]"
+            className="pita scroll-mt-16 text-[color:var(--band-ink)]"
             aria-labelledby="judul-otoritas"
           >
             <div className="mx-auto max-w-6xl px-4 py-16 sm:px-8 sm:py-24">
-              <blockquote className="relative max-w-[48ch] pl-6 sm:pl-8">
+              <h2 id="judul-otoritas" className="sr-only">
+                Peran guru
+              </h2>
+              <blockquote className="relative max-w-[30ch]">
                 <span
                   aria-hidden="true"
-                  className="absolute bottom-1 left-0 top-1 w-[3px] rounded-full bg-[color:var(--accent)]"
-                />
-                <h2 id="judul-otoritas" className="sr-only">
-                  Peran guru
-                </h2>
-                <motion.p
-                  {...muncul(0)}
-                  className="text-[clamp(22px,5vw,31px)] font-normal leading-[1.4] tracking-[-0.015em]"
+                  className="absolute -left-1 -top-10 select-none text-[110px] leading-none text-white/10 sm:-top-14 sm:text-[150px]"
                   style={judulSerif}
                 >
-                  Sistem ini menyiapkan bahan dan menghitung. Yang menilai tetap guru.
-                </motion.p>
+                  &ldquo;
+                </span>
                 <motion.p
-                  {...muncul(1)}
-                  className="mt-6 max-w-[56ch] text-[15.5px] leading-[1.75] text-[color:var(--ink-2)] sm:text-[16px]"
+                  {...muncul(0)}
+                  className="relative text-[clamp(26px,6vw,44px)] font-normal leading-[1.25] tracking-[-0.02em]"
+                  style={judulSerif}
                 >
-                  Setiap skor bisa diubah, setiap perubahan tercatat, dan data siswa tidak dipakai
-                  untuk melatih model. Guru menghemat waktu pemeriksaan tanpa menyerahkan kewenangan
-                  akademiknya.
+                  Sistem ini menyiapkan bahan dan menghitung.{" "}
+                  <em className="text-[#8FD6C8]">Yang menilai tetap guru.</em>
                 </motion.p>
               </blockquote>
+              <motion.p
+                {...muncul(1)}
+                className="mt-6 max-w-[56ch] text-[15.5px] leading-[1.75] text-[color:var(--band-ink-2)] sm:text-[16.5px]"
+              >
+                Guru menghemat waktu pemeriksaan tanpa menyerahkan kewenangan akademiknya.
+              </motion.p>
+
+              <ul className="mt-10 grid gap-3 sm:mt-14 sm:grid-cols-3 sm:gap-5">
+                {komitmen.map((k, i) => {
+                  const Ikon = k.ikon;
+                  return (
+                    <motion.li
+                      key={k.judul}
+                      {...muncul(i)}
+                      className="flex gap-4 rounded-2xl border border-[color:var(--band-line)] bg-white/[0.04] p-5 backdrop-blur-sm sm:flex-col sm:gap-0 sm:p-6"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/10 text-[#8FD6C8] sm:mb-4"
+                      >
+                        <Ikon size={18} />
+                      </span>
+                      <span>
+                        <span className="block text-[16px] font-medium" style={judulSerif}>
+                          {k.judul}
+                        </span>
+                        <span className="mt-1 block text-[14px] leading-[1.6] text-[color:var(--band-ink-2)]">
+                          {k.isi}
+                        </span>
+                      </span>
+                    </motion.li>
+                  );
+                })}
+              </ul>
             </div>
           </section>
 
           {/* ================= AJAKAN ================= */}
-          <section className="border-b border-[color:var(--line-soft)] bg-[color:var(--bg-2)]">
-            <div className="mx-auto max-w-6xl px-4 py-14 sm:px-8 sm:py-16">
+          <section className="border-b border-[color:var(--line-soft)]">
+            <div className="mx-auto max-w-6xl px-4 py-14 sm:px-8 sm:py-20">
               <motion.div
                 {...muncul(0)}
-                className="flex flex-col gap-8 rounded-2xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-7 shadow-[var(--shadow-soft)] sm:p-10 md:flex-row md:items-center md:justify-between"
+                className="relative overflow-hidden rounded-3xl border border-[color:var(--line)] bg-[color:var(--surface)] p-7 shadow-[var(--shadow-lift)] sm:p-12"
               >
-                <div>
-                  <h2
-                    className="max-w-[22ch] text-[clamp(23px,5vw,31px)] font-normal leading-[1.25] tracking-[-0.015em]"
-                    style={judulSerif}
-                  >
-                    Ingin mencobanya di sekolah Anda?
-                  </h2>
-                  <p className="mt-4 max-w-[50ch] text-[15px] leading-[1.7] text-[color:var(--ink-2)]">
-                    Masuk dengan akun sekolah, atau tanyakan dulu apa saja yang perlu disiapkan.
-                  </p>
+                <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+                  <div className="cahaya cahaya-b -right-24 -top-32 h-[380px] w-[380px]" />
+                  <div className="cahaya cahaya-a -bottom-40 -left-20 h-[340px] w-[340px]" />
                 </div>
+                <div className="relative flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h2
+                      className="max-w-[20ch] text-[clamp(26px,5.5vw,38px)] font-normal leading-[1.2] tracking-[-0.02em]"
+                      style={judulSerif}
+                    >
+                      Ingin mencobanya di <span className="teks-gradasi italic">sekolah Anda?</span>
+                    </h2>
+                    <p className="mt-4 max-w-[50ch] text-[15px] leading-[1.7] text-[color:var(--ink-2)] sm:text-[16px]">
+                      Masuk dengan akun sekolah, atau tanyakan dulu apa saja yang perlu disiapkan.
+                    </p>
+                  </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5 md:shrink-0">
-                  <Link
-                    href="/login"
-                    className="focusable group inline-flex items-center justify-center gap-2.5 rounded-[10px] bg-[color:var(--brand)] px-7 py-4 text-[15px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-soft)] transition-all duration-300 hover:-translate-y-px hover:shadow-[var(--shadow-lift)] sm:py-3.5"
-                  >
-                    Masuk portal
-                    <ArrowRight
-                      size={17}
-                      className="transition-transform duration-300 group-hover:translate-x-1"
-                    />
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => setChatOpen(true)}
-                    className="focusable inline-flex items-center justify-center rounded-[10px] border border-[color:var(--line)] px-6 py-4 text-[15px] text-[color:var(--ink-2)] transition-colors duration-300 hover:text-[color:var(--ink)] sm:border-0 sm:px-0 sm:py-2"
-                  >
-                    Tanya asisten
-                  </button>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center md:shrink-0">
+                    <Link
+                      href="/login"
+                      className="focusable group inline-flex items-center justify-center gap-2.5 rounded-xl bg-[color:var(--brand)] px-7 py-4 text-[15px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-lift)] transition-all duration-300 hover:-translate-y-0.5 active:scale-[.98] sm:py-3.5"
+                    >
+                      Masuk portal
+                      <ArrowRight
+                        size={17}
+                        className="transition-transform duration-300 group-hover:translate-x-1"
+                      />
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setChatOpen(true)}
+                      className="focusable inline-flex items-center justify-center gap-2 rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] px-6 py-4 text-[15px] text-[color:var(--ink)] transition-colors duration-300 hover:bg-[color:var(--surface-2)] active:scale-[.98] sm:py-3.5"
+                    >
+                      <MessageCircle size={17} className="text-[color:var(--accent)]" />
+                      Tanya asisten
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             </div>
@@ -801,16 +1166,66 @@ export default function LandingPage() {
         </main>
 
         {/* ================= FOOTER ================= */}
-        <footer className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 pb-24 text-[13px] text-[color:var(--ink-2)] sm:px-8 sm:pb-10 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="" aria-hidden="true" className="h-8 w-8 object-contain" />
-            <span>
-              <span className="block text-[color:var(--ink)]">Mahatma Academy</span>
-              <span className="block text-[12px]">for Sustainable Education</span>
-            </span>
+        <footer className="mx-auto max-w-6xl px-4 pb-28 pt-10 text-[13px] text-[color:var(--ink-2)] sm:px-8 sm:pb-10">
+          <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3">
+              <img src="/logo.png" alt="" aria-hidden="true" className="h-9 w-9 object-contain" />
+              <span>
+                <span className="block text-[15px] text-[color:var(--ink)]" style={judulSerif}>
+                  Mahatma Academy
+                </span>
+                <span className="block text-[12px]">for Sustainable Education</span>
+              </span>
+            </div>
+            <nav aria-label="Navigasi kaki" className="flex flex-wrap gap-x-6 gap-y-3">
+              {NAV.map((item) => (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className="focusable transition-colors hover:text-[color:var(--ink)]"
+                >
+                  {item.label}
+                </a>
+              ))}
+              <Link href="/login" className="focusable transition-colors hover:text-[color:var(--ink)]">
+                Masuk portal
+              </Link>
+            </nav>
           </div>
-          <p>© 2026 Mahatma Academy. Platform asesmen HARC-AI.</p>
+          <p className="mt-8 border-t border-[color:var(--line-soft)] pt-6 text-[12.5px]">
+            © 2026 Mahatma Academy. Platform asesmen HARC-AI.
+          </p>
         </footer>
+
+        {/* ================= DOCK SELULER ================= */}
+        <AnimatePresence>
+          {tampilDock && (
+            <motion.div
+              initial={{ y: 90, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 90, opacity: 0 }}
+              transition={{ duration: 0.35, ease: HALUS }}
+              className="fixed inset-x-3 bottom-3 z-[55] flex items-center gap-2 rounded-2xl border border-[color:var(--line)] bg-[color:var(--surface)]/90 p-2 shadow-[var(--shadow-lift)] backdrop-blur-xl sm:hidden"
+              style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+            >
+              <Link
+                href="/login"
+                className="focusable flex flex-1 items-center justify-center gap-2 rounded-xl bg-[color:var(--brand)] py-3.5 text-[15px] font-medium text-[color:var(--brand-ink)] active:scale-[.98]"
+              >
+                Masuk portal
+                <ArrowRight size={16} />
+              </Link>
+              <button
+                type="button"
+                onClick={() => setChatOpen(true)}
+                aria-label="Tanya asisten"
+                className="focusable grid h-[50px] w-[50px] shrink-0 place-items-center rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] text-[color:var(--accent)] active:scale-95"
+              >
+                <MessageCircle size={20} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ================= TOMBOL ASISTEN ================= */}
         <AnimatePresence>
@@ -823,14 +1238,13 @@ export default function LandingPage() {
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ duration: 0.3, ease: HALUS }}
               aria-label="Tanya asisten"
-              className="focusable fixed bottom-5 right-4 z-[55] flex h-14 w-14 items-center justify-center gap-2.5 rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] text-[14px] shadow-[var(--shadow-lift)] transition-transform duration-300 hover:-translate-y-0.5 sm:right-6 sm:h-auto sm:w-auto sm:px-5 sm:py-3.5"
+              className={`focusable fixed bottom-5 right-4 z-[55] flex h-14 w-14 items-center justify-center gap-2.5 rounded-full bg-[color:var(--brand)] text-[14px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-lift)] transition-transform duration-300 hover:-translate-y-0.5 sm:right-6 sm:h-auto sm:w-auto sm:px-5 sm:py-3.5 ${
+                lewatHero ? "max-sm:hidden" : ""
+              }`}
               style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
             >
-              <MessageCircle size={20} className="shrink-0 text-[color:var(--accent)] sm:hidden" />
-              <MessageCircle
-                size={17}
-                className="hidden shrink-0 text-[color:var(--accent)] sm:block"
-              />
+              <MessageCircle size={20} className="shrink-0 sm:hidden" />
+              <MessageCircle size={17} className="hidden shrink-0 sm:block" />
               <span className="hidden sm:inline">Tanya asisten</span>
             </motion.button>
           )}
@@ -846,7 +1260,7 @@ export default function LandingPage() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
                 onClick={() => setChatOpen(false)}
-                className="fixed inset-0 z-[60] bg-[#0D1119]/35 backdrop-blur-[2px]"
+                className="fixed inset-0 z-[60] bg-[#0D1119]/40 backdrop-blur-[3px]"
                 aria-hidden="true"
               />
               <motion.section
@@ -857,15 +1271,21 @@ export default function LandingPage() {
                 role="dialog"
                 aria-modal="true"
                 aria-label="Asisten informasi HARC-AI"
-                className="fixed inset-x-0 bottom-0 z-[70] flex h-[86dvh] flex-col overflow-hidden rounded-t-2xl border border-[color:var(--line)] bg-[color:var(--surface)] shadow-[var(--shadow-lift)] sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[580px] sm:w-[400px] sm:rounded-2xl"
+                className="fixed inset-x-0 bottom-0 z-[70] flex h-[88dvh] flex-col overflow-hidden rounded-t-3xl border border-[color:var(--line)] bg-[color:var(--surface)] shadow-[var(--shadow-lift)] sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[600px] sm:max-h-[calc(100dvh-3rem)] sm:w-[400px] sm:rounded-3xl"
               >
-                <header className="flex items-center justify-between border-b border-[color:var(--line-soft)] bg-[color:var(--surface-2)]/60 px-5 py-4">
+                {/* Pegangan geser — penanda lembar bawah di seluler */}
+                <span
+                  aria-hidden="true"
+                  className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-[color:var(--line)] sm:hidden"
+                />
+                <header className="flex items-center justify-between border-b border-[color:var(--line-soft)] px-5 py-3.5">
                   <div className="flex items-center gap-3">
                     <span
                       aria-hidden="true"
-                      className="grid h-10 w-10 place-items-center rounded-full bg-[color:var(--accent-soft)] text-[color:var(--accent)]"
+                      className="relative grid h-10 w-10 place-items-center rounded-full bg-[color:var(--accent-soft)] text-[color:var(--accent)]"
                     >
-                      <MessageCircle size={18} />
+                      <Sparkles size={18} />
+                      <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-[color:var(--surface)] bg-[color:var(--accent)]" />
                     </span>
                     <span>
                       <span className="block text-[15px] font-medium">Asisten informasi</span>
@@ -885,7 +1305,7 @@ export default function LandingPage() {
                 </header>
 
                 <div
-                  className="flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-5"
+                  className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-5 sm:px-5"
                   aria-live="polite"
                 >
                   {messages.map((m, i) => (
@@ -897,7 +1317,7 @@ export default function LandingPage() {
                       className={m.role === "user" ? "flex justify-end" : "flex"}
                     >
                       <p
-                        className={`max-w-[85%] px-4 py-3 text-[14.5px] leading-[1.65] ${
+                        className={`max-w-[85%] whitespace-pre-wrap px-4 py-3 text-[14.5px] leading-[1.65] ${
                           m.role === "user"
                             ? "rounded-2xl rounded-br-md bg-[color:var(--brand)] text-[color:var(--brand-ink)]"
                             : "rounded-2xl rounded-bl-md border border-[color:var(--line-soft)] bg-[color:var(--surface-2)] text-[color:var(--ink)]"
@@ -907,6 +1327,21 @@ export default function LandingPage() {
                       </p>
                     </motion.div>
                   ))}
+
+                  {messages.length === 1 && !loadingChat && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {saranPertanyaan.map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => kirim(s)}
+                          className="focusable rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] px-3.5 py-2 text-[13px] text-[color:var(--ink-2)] transition-colors hover:border-[color:var(--accent)] hover:text-[color:var(--accent)] active:scale-[.97]"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
                   {loadingChat && (
                     <p className="flex items-center gap-2 px-1 text-[13px] text-[color:var(--ink-3)]">
@@ -933,13 +1368,14 @@ export default function LandingPage() {
                     onChange={(e) => setChatInput(e.target.value)}
                     placeholder="Tulis pertanyaan Anda"
                     disabled={loadingChat}
-                    className="focusable min-w-0 flex-1 rounded-[10px] border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-3.5 text-[16px] text-[color:var(--ink)] placeholder:text-[color:var(--ink-3)] sm:text-[14.5px]"
+                    enterKeyHint="send"
+                    className="focusable min-w-0 flex-1 rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-3.5 text-[16px] text-[color:var(--ink)] placeholder:text-[color:var(--ink-3)] sm:text-[14.5px]"
                   />
                   <button
                     type="submit"
                     disabled={loadingChat || !chatInput.trim()}
                     aria-label="Kirim pertanyaan"
-                    className="focusable grid w-12 shrink-0 place-items-center rounded-[10px] bg-[color:var(--brand)] text-[color:var(--brand-ink)] transition-opacity duration-300 hover:opacity-90 disabled:opacity-40"
+                    className="focusable grid w-12 shrink-0 place-items-center rounded-xl bg-[color:var(--brand)] text-[color:var(--brand-ink)] transition-opacity duration-300 hover:opacity-90 active:scale-95 disabled:opacity-40"
                   >
                     <Send size={17} />
                   </button>
