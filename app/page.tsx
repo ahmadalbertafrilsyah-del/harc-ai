@@ -4,31 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { Spectral, IBM_Plex_Sans } from "next/font/google";
-import {
-  Menu,
-  X,
-  Sun,
-  Moon,
-  Send,
-  Loader2,
-  MessageCircle,
-  ArrowRight,
-  Languages,
-  Users,
-  Landmark,
-  LifeBuoy,
-  NotebookPen,
-  ShieldCheck,
-  Sparkles,
-  CircleCheck,
-  FilePenLine,
-  ClipboardList,
-  UserCheck,
-} from "lucide-react";
+import { Menu, X, Sun, Moon, Send, Loader2, MessageCircle, ArrowRight, Languages, Users, Landmark, LifeBuoy, NotebookPen, ShieldCheck, Sparkles, CircleCheck, FilePenLine, ClipboardList, UserCheck, } from "lucide-react";
+import { useTema } from "@/lib/useTema";
 
-/* ------------------------------------------------------------------
-   TIPOGRAFI
-------------------------------------------------------------------- */
 const display = Spectral({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
@@ -42,9 +20,6 @@ const sans = IBM_Plex_Sans({
   variable: "--font-sans",
 });
 
-/* ------------------------------------------------------------------
-   TOKEN DESAIN
-------------------------------------------------------------------- */
 const TOKENS = `
 [data-theme="light"]{
   --bg:#F7F5F1;
@@ -186,9 +161,6 @@ body{ overflow-x:hidden; }
 }
 `;
 
-/* ------------------------------------------------------------------
-   KONTEN
-------------------------------------------------------------------- */
 const NAV = [
   { href: "#dimensi", label: "Dimensi penilaian" },
   { href: "#alur", label: "Cara kerja" },
@@ -251,7 +223,6 @@ const alur = [
   },
 ];
 
-/* Ganti dengan angka yang dapat diverifikasi sebelum rilis publik. */
 const angka = [
   { nilai: "15.000+", label: "peserta didik aktif" },
   { nilai: "1.200+", label: "modul tervalidasi" },
@@ -287,24 +258,15 @@ const saranPertanyaan = [
   "Bagaimana cara penilaiannya?",
 ];
 
-/* ------------------------------------------------------------------
-   POLA GERAK
-   Semua nilai bersifat tetap (tidak bergantung state atau media query),
-   sehingga markup di server dan di klien identik — tidak ada
-   hydration mismatch. Preferensi "reduce motion" ditangani oleh
-   <MotionConfig reducedMotion="user">, yang tidak mengubah HTML.
-------------------------------------------------------------------- */
 const HALUS = [0.22, 1, 0.36, 1] as const;
 const VIEWPORT = { once: true, margin: "-60px" };
 
-/* Masuk saat halaman dimuat (dipakai di hero). */
 const masuk = (i = 0) => ({
   initial: { opacity: 0, y: 14 },
   animate: { opacity: 1, y: 0 },
   transition: { duration: 0.55, delay: 0.06 + i * 0.07, ease: HALUS },
 });
 
-/* Masuk saat elemen tergulir ke layar. */
 const muncul = (i = 0) => ({
   initial: { opacity: 0, y: 14 },
   whileInView: { opacity: 1, y: 0 },
@@ -312,11 +274,12 @@ const muncul = (i = 0) => ({
   transition: { duration: 0.55, delay: i * 0.07, ease: HALUS },
 });
 
-/* Keliling lingkaran skor (r = 34). */
 const KELILING = 2 * Math.PI * 34;
 
 export default function LandingPage() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  /* Tema dipakai bersama halaman login lewat satu hook, sehingga pilihan
+     pengguna terbawa antar halaman dan <html> ikut berubah. */
+  const { tema: theme, gantiTema: toggleTheme } = useTema();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [lewatHero, setLewatHero] = useState(false);
@@ -336,32 +299,6 @@ export default function LandingPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const dimRef = useRef<HTMLUListElement>(null);
 
-  /* Tema mengikuti preferensi sistem, lalu pilihan pengguna disimpan.
-     Dibaca setelah hidrasi, sehingga render pertama tetap sama
-     dengan yang dikirim server. */
-  useEffect(() => {
-    let tersimpan: "light" | "dark" | null = null;
-    try {
-      tersimpan = window.localStorage.getItem("harc-theme") as "light" | "dark" | null;
-    } catch {
-      /* penyimpanan tidak tersedia */
-    }
-    if (tersimpan) return setTheme(tersimpan);
-    if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) setTheme("dark");
-  }, []);
-
-  const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    try {
-      window.localStorage.setItem("harc-theme", next);
-    } catch {
-      /* penyimpanan tidak tersedia */
-    }
-  };
-
-  /* Header memperoleh bayangan tipis begitu halaman digulir;
-     dock seluler muncul setelah hero terlewati. */
   useEffect(() => {
     const onScroll = () => {
       setScrolled(window.scrollY > 8);
@@ -399,7 +336,6 @@ export default function LandingPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  /* Indikator kartu dimensi pada tampilan geser (seluler). */
   const onGeserDimensi = () => {
     const el = dimRef.current;
     const kartu = el?.firstElementChild as HTMLElement | null;
@@ -415,7 +351,6 @@ export default function LandingPage() {
     el.scrollTo({ left: kartu.offsetLeft - el.offsetLeft - 16, behavior: "smooth" });
   };
 
-  /* Kontrak API tidak berubah: POST /api/chat-public */
   const kirim = async (teksMentah: string) => {
     const teks = teksMentah.trim();
     if (!teks || loadingChat) return;
@@ -464,6 +399,7 @@ export default function LandingPage() {
     <MotionConfig reducedMotion="user">
       <div
         data-theme={theme}
+        suppressHydrationWarning
         className={`${sans.variable} ${display.variable} tekstur min-h-screen bg-[color:var(--bg)] text-[color:var(--ink)] antialiased`}
         style={{ fontFamily: "var(--font-sans), system-ui, sans-serif" }}
       >
@@ -476,7 +412,6 @@ export default function LandingPage() {
           Lompat ke konten utama
         </a>
 
-        {/* ================= HEADER ================= */}
         <header
           className={`sticky top-0 z-50 border-b backdrop-blur-xl transition-[box-shadow,border-color,background-color] duration-500 ${
             scrolled
@@ -552,7 +487,6 @@ export default function LandingPage() {
           </div>
         </header>
 
-        {/* ================= MENU SELULER ================= */}
         <AnimatePresence>
           {menuOpen && (
             <>
@@ -654,7 +588,6 @@ export default function LandingPage() {
         </AnimatePresence>
 
         <main id="konten">
-          {/* ================= HERO ================= */}
           <section
             id="beranda"
             className="relative -mt-16 overflow-hidden border-b border-[color:var(--line-soft)] pt-16 sm:-mt-[72px] sm:pt-[72px]"
@@ -870,7 +803,6 @@ export default function LandingPage() {
             </div>
           </section>
 
-          {/* ================= ANGKA ================= */}
           <section
             aria-label="Cakupan penggunaan"
             className="border-b border-[color:var(--line-soft)] bg-[color:var(--bg-2)]"
@@ -896,7 +828,6 @@ export default function LandingPage() {
             </div>
           </section>
 
-          {/* ================= DIMENSI ================= */}
           <section
             id="dimensi"
             className="scroll-mt-16 border-b border-[color:var(--line-soft)]"
@@ -927,7 +858,6 @@ export default function LandingPage() {
                 </motion.p>
               </div>
 
-              {/* Seluler: kartu digeser horizontal. Tablet ke atas: kisi. */}
               <motion.ul
                 {...muncul(2)}
                 ref={dimRef}
@@ -980,7 +910,6 @@ export default function LandingPage() {
             </div>
           </section>
 
-          {/* ================= ALUR ================= */}
           <section
             id="alur"
             className="scroll-mt-16 border-b border-[color:var(--line-soft)] bg-[color:var(--bg-2)]"
@@ -1051,7 +980,6 @@ export default function LandingPage() {
             </div>
           </section>
 
-          {/* ================= PERAN GURU ================= */}
           <section
             id="otoritas"
             className="pita scroll-mt-16 text-[color:var(--band-ink)]"
@@ -1115,7 +1043,6 @@ export default function LandingPage() {
             </div>
           </section>
 
-          {/* ================= AJAKAN ================= */}
           <section className="border-b border-[color:var(--line-soft)]">
             <div className="mx-auto max-w-6xl px-4 py-14 sm:px-8 sm:py-20">
               <motion.div
@@ -1132,7 +1059,7 @@ export default function LandingPage() {
                       className="max-w-[20ch] text-[clamp(26px,5.5vw,38px)] font-normal leading-[1.2] tracking-[-0.02em]"
                       style={judulSerif}
                     >
-                      Ingin mencobanya di <span className="teks-gradasi italic">sekolah Anda?</span>
+                      Ingin mencobanya di <span className="teks-gradasi">sekolah Anda?</span>
                     </h2>
                     <p className="mt-4 max-w-[50ch] text-[15px] leading-[1.7] text-[color:var(--ink-2)] sm:text-[16px]">
                       Masuk dengan akun sekolah, atau tanyakan dulu apa saja yang perlu disiapkan.
@@ -1165,7 +1092,6 @@ export default function LandingPage() {
           </section>
         </main>
 
-        {/* ================= FOOTER ================= */}
         <footer className="mx-auto max-w-6xl px-4 pb-28 pt-10 text-[13px] text-[color:var(--ink-2)] sm:px-8 sm:pb-10">
           <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
@@ -1197,7 +1123,6 @@ export default function LandingPage() {
           </p>
         </footer>
 
-        {/* ================= DOCK SELULER ================= */}
         <AnimatePresence>
           {tampilDock && (
             <motion.div
@@ -1227,7 +1152,6 @@ export default function LandingPage() {
           )}
         </AnimatePresence>
 
-        {/* ================= TOMBOL ASISTEN ================= */}
         <AnimatePresence>
           {!chatOpen && (
             <motion.button
@@ -1250,7 +1174,6 @@ export default function LandingPage() {
           )}
         </AnimatePresence>
 
-        {/* ================= PANEL ASISTEN ================= */}
         <AnimatePresence>
           {chatOpen && (
             <>
@@ -1273,7 +1196,6 @@ export default function LandingPage() {
                 aria-label="Asisten informasi HARC-AI"
                 className="fixed inset-x-0 bottom-0 z-[70] flex h-[88dvh] flex-col overflow-hidden rounded-t-3xl border border-[color:var(--line)] bg-[color:var(--surface)] shadow-[var(--shadow-lift)] sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[600px] sm:max-h-[calc(100dvh-3rem)] sm:w-[400px] sm:rounded-3xl"
               >
-                {/* Pegangan geser — penanda lembar bawah di seluler */}
                 <span
                   aria-hidden="true"
                   className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-[color:var(--line)] sm:hidden"

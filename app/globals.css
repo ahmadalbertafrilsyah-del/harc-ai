@@ -24,3 +24,67 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ==================================================================
+   TOKEN DESAIN HARC-AI
+   Sumber tunggal untuk warna terang/gelap. Dipakai oleh <html>
+   (disetel skrip bootstrap di layout) maupun oleh pembungkus
+   halaman yang menyetel data-theme sendiri.
+================================================================== */
+[data-theme="light"] {
+  --bg: #f7f5f1;
+  --bg-2: #f1ede6;
+  --surface: #fffdfa;
+  --surface-2: #f3f0ea;
+  --ink: #1a1f2e;
+  --ink-2: #5b6274;
+  --ink-3: #8e93a1;
+  --line: #e3ded4;
+  --line-soft: #ede9e1;
+  --brand: #1f3053;
+  --brand-soft: #e8ebf2;
+  --brand-ink: #ffffff;
+  --accent: #146a5e;
+  --accent-soft: #e4efec;
+  --focus: #1f3053;
+  --danger: #9b2c2c;
+  --danger-soft: #fbeaea;
+  --shadow-soft: 0 1px 2px rgba(26, 31, 46, 0.04), 0 8px 24px -12px rgba(26, 31, 46, 0.14);
+  --shadow-lift: 0 2px 4px rgba(26, 31, 46, 0.05), 0 18px 40px -18px rgba(26, 31, 46, 0.22);
+  --texture: rgba(26, 31, 46, 0.022);
+  --glow-a: rgba(31, 48, 83, 0.16);
+  --glow-b: rgba(20, 106, 94, 0.15);
+  --ring: rgba(31, 48, 83, 0.12);
+}
+
+[data-theme="dark"] {
+  --bg: #12151c;
+  --bg-2: #161a23;
+  --surface: #1a1f2a;
+  --surface-2: #222735;
+  --ink: #edeef1;
+  --ink-2: #a5aab8;
+  --ink-3: #757b8b;
+  --line: #2c3340;
+  --line-soft: #242a35;
+  --brand: #b9c7e8;
+  --brand-soft: #232a3a;
+  --brand-ink: #12151c;
+  --accent: #6fc3b4;
+  --accent-soft: #1b2a2a;
+  --focus: #b9c7e8;
+  --danger: #f2a0a0;
+  --danger-soft: #2e1d1d;
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.35), 0 18px 40px -18px rgba(0, 0, 0, 0.7);
+  --texture: rgba(255, 255, 255, 0.018);
+  --glow-a: rgba(120, 150, 210, 0.16);
+  --glow-b: rgba(80, 180, 165, 0.14);
+  --ring: rgba(185, 199, 232, 0.16);
+}
+
+/* Latar dokumen ikut tema, termasuk saat layar dipantulkan (overscroll). */
+html[data-theme] body {
+  background: var(--bg);
+  color: var(--ink);
+}

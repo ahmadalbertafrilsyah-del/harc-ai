@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import { Spectral, IBM_Plex_Sans } from "next/font/google";
@@ -24,6 +24,11 @@ import {
   KeyRound,
   CheckCircle2,
   X,
+  Sun,
+  Moon,
+  PencilLine,
+  RefreshCw,
+  Sparkles,
 } from "lucide-react";
 
 import {
@@ -35,6 +40,7 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useTema } from "@/lib/useTema";
 
 /* ------------------------------------------------------------------
    TIPOGRAFI — sama dengan halaman beranda
@@ -53,46 +59,48 @@ const sans = IBM_Plex_Sans({
 });
 
 /* ------------------------------------------------------------------
-   TOKEN DESAIN
-   Sama persis dengan halaman beranda. Sebaiknya nanti dipindahkan
-   ke app/globals.css agar tidak ditulis dua kali.
+   GAYA KHUSUS HALAMAN INI
+   Token warna terang/gelap kini tinggal di app/globals.css, jadi
+   tidak lagi ditulis ulang di sini.
 ------------------------------------------------------------------- */
-const TOKENS = `
-[data-theme="light"]{
-  --bg:#F7F5F1;
-  --bg-2:#F1EDE6;
-  --surface:#FFFDFA;
-  --surface-2:#F3F0EA;
-  --ink:#1A1F2E;
-  --ink-2:#5B6274;
-  --ink-3:#8E93A1;
-  --line:#E3DED4;
-  --line-soft:#EDE9E1;
-  --brand:#1F3053;
-  --brand-soft:#E8EBF2;
-  --brand-ink:#FFFFFF;
-  --accent:#146A5E;
-  --accent-soft:#E4EFEC;
-  --focus:#1F3053;
-  --danger:#9B2C2C;
-  --danger-soft:#FBEAEA;
-  --shadow-soft:0 1px 2px rgba(26,31,46,.04), 0 8px 24px -12px rgba(26,31,46,.14);
-  --shadow-lift:0 2px 4px rgba(26,31,46,.05), 0 18px 40px -18px rgba(26,31,46,.22);
-  --texture:rgba(26,31,46,.022);
-}
-
+const GAYA = `
 .tekstur{
   background-image:
     repeating-linear-gradient(45deg, var(--texture) 0 1px, transparent 1px 7px),
     repeating-linear-gradient(-45deg, var(--texture) 0 1px, transparent 1px 7px);
 }
-/* Panel kiri: navy tenang dengan anyaman terang tipis. */
+/* Panel kiri: navy tenang, sama di kedua tema. */
 .panel-merek{
-  background-color:#1B2B4A;
+  background-color:#16233D;
   background-image:
     repeating-linear-gradient(45deg, rgba(255,255,255,.028) 0 1px, transparent 1px 8px),
     repeating-linear-gradient(-45deg, rgba(255,255,255,.028) 0 1px, transparent 1px 8px),
-    radial-gradient(760px 420px at 18% 8%, rgba(255,255,255,.07), transparent 60%);
+    radial-gradient(820px 460px at 14% 4%, rgba(111,195,180,.16), transparent 62%),
+    radial-gradient(680px 420px at 96% 92%, rgba(185,199,232,.14), transparent 60%);
+}
+/* Kisi tipis di belakang formulir, memudar ke bawah. */
+.kisi{
+  background-image:
+    linear-gradient(var(--line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size:46px 46px;
+  -webkit-mask-image:radial-gradient(ellipse 80% 55% at 50% 0%, #000 10%, transparent 72%);
+          mask-image:radial-gradient(ellipse 80% 55% at 50% 0%, #000 10%, transparent 72%);
+}
+.cahaya{
+  position:absolute; border-radius:9999px; pointer-events:none;
+  animation:melayang 18s ease-in-out infinite alternate;
+}
+.cahaya-a{ background:radial-gradient(circle, var(--glow-a), transparent 66%); }
+.cahaya-b{ background:radial-gradient(circle, var(--glow-b), transparent 66%); animation-delay:-9s; }
+@keyframes melayang{
+  0%{ transform:translate3d(0,0,0) scale(1); }
+  100%{ transform:translate3d(30px,24px,0) scale(1.12); }
+}
+.teks-gradasi{
+  background:linear-gradient(100deg, #B9C7E8 5%, #6FC3B4 95%);
+  -webkit-background-clip:text; background-clip:text;
+  color:transparent;
 }
 
 html{ -webkit-text-size-adjust:100%; }
@@ -101,36 +109,56 @@ html{ -webkit-text-size-adjust:100%; }
 .focusable:focus-visible{
   outline:2px solid var(--focus);
   outline-offset:3px;
-  border-radius:8px;
+  border-radius:10px;
 }
+
+/* Kolom isian. 16px di ponsel supaya iOS tidak ikut memperbesar layar. */
 .kolom{
   width:100%;
-  border-radius:10px;
+  border-radius:12px;
   border:1px solid var(--line);
   background:var(--surface);
   color:var(--ink);
   font-size:16px;
-  padding:.875rem 1rem .875rem 2.75rem;
-  transition:border-color .25s ease, box-shadow .25s ease;
+  padding:.9rem 1rem .9rem 2.85rem;
+  transition:border-color .25s ease, box-shadow .25s ease, background-color .25s ease;
 }
 .kolom::placeholder{ color:var(--ink-3); }
 .kolom:focus{
   outline:none;
   border-color:var(--brand);
-  box-shadow:0 0 0 3px rgba(31,48,83,.10);
+  box-shadow:0 0 0 4px var(--ring);
 }
 .kolom:disabled{ background:var(--surface-2); color:var(--ink-3); cursor:not-allowed; }
 @media (min-width:640px){ .kolom{ font-size:14.5px; } }
 
+/* Ruang untuk tombol di dalam kolom (mis. mata sandi). Ditulis di sini,
+   bukan lewat utility pr-*, karena .kolom tidak berada di dalam @layer
+   sehingga selalu menang atas utility Tailwind. */
+.kolom-aksi{ padding-right:3.25rem; }
+
+/* Isian otomatis peramban memaksa latar putih — dikembalikan ke token. */
+.kolom:-webkit-autofill,
+.kolom:-webkit-autofill:hover,
+.kolom:-webkit-autofill:focus{
+  -webkit-text-fill-color:var(--ink);
+  -webkit-box-shadow:0 0 0 1000px var(--surface) inset;
+  caret-color:var(--ink);
+}
+
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{
     animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
     transition-duration:.01ms !important;
   }
 }
 `;
 
 const HALUS = [0.22, 1, 0.36, 1] as const;
+
+/* Jeda sebelum kode verifikasi boleh dikirim ulang. */
+const JEDA_KIRIM_ULANG = 60;
 
 const roles = [
   { id: "admin", name: "Admin", icon: ShieldCheck, desc: "Manajemen sistem" },
@@ -141,13 +169,31 @@ const roles = [
 
 /* Label dipakai di beberapa tempat, jadi dikumpulkan di satu fungsi. */
 const namaPeran = (id: string | null) =>
-  id === "lembaga" ? "Lembaga" : id === "guru" ? "Pendidik" : "Peserta didik";
+  id === "lembaga"
+    ? "Lembaga"
+    : id === "guru"
+      ? "Pendidik"
+      : id === "siswa"
+        ? "Peserta didik"
+        : id === "admin"
+          ? "Administrator"
+          : "Pengguna";
+
+const keunggulan = [
+  "Satu akun untuk asesmen, analitik, dan bahan ajar",
+  "Data siswa tidak dipakai untuk melatih model",
+  "Akses dipisahkan menurut peran pengguna",
+];
 
 export default function LoginPage() {
+  const { tema, gantiTema } = useTema();
+
   const [step, setStep] = useState(1);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
+  /* Ditahan selama pengalihan halaman agar tombol tidak bisa ditekan dua kali. */
+  const [mengalihkan, setMengalihkan] = useState(false);
 
   // Konfigurasi global
   const [adminPhone, setAdminPhone] = useState("6281234567890");
@@ -171,6 +217,7 @@ export default function LoginPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [generatedOtp, setGeneratedOtp] = useState("");
   const [inputOtp, setInputOtp] = useState("");
+  const [jedaKirimUlang, setJedaKirimUlang] = useState(0);
 
   // Notifikasi
   const [toast, setToast] = useState<{
@@ -178,31 +225,71 @@ export default function LoginPage() {
     type: "success" | "error" | "info";
   } | null>(null);
 
+  /* Satu penunjuk waktu untuk notifikasi: pesan baru membatalkan hitungan
+     pesan sebelumnya, sehingga keduanya tidak saling memotong. */
+  const timerToast = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timerAlih = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tombolPeran = useRef<(HTMLButtonElement | null)[]>([]);
+
   const showToast = (message: string, type: "success" | "error" | "info") => {
+    if (timerToast.current) clearTimeout(timerToast.current);
     setToast({ message, type });
-    setTimeout(() => setToast(null), 5000);
+    timerToast.current = setTimeout(() => setToast(null), 5000);
   };
 
+  useEffect(
+    () => () => {
+      if (timerToast.current) clearTimeout(timerToast.current);
+      if (timerAlih.current) clearTimeout(timerAlih.current);
+    },
+    [],
+  );
+
+  /* Hitung mundur tombol kirim ulang kode. */
   useEffect(() => {
-    const unsubConfig = onSnapshot(doc(db, "sistem_stats", "pengaturan_global"), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.adminWhatsApp) setAdminPhone(data.adminWhatsApp);
-        if (data.bukaPendaftaran !== undefined) setIsRegOpen(data.bukaPendaftaran);
-        if (data.maintenanceMode !== undefined) setIsMaintenance(data.maintenanceMode);
-        if (data.metodeVerifikasi) setMetodeVerifikasi(data.metodeVerifikasi);
-      }
-    });
+    if (jedaKirimUlang <= 0) return;
+    const id = setInterval(() => setJedaKirimUlang((n) => (n <= 1 ? 0 : n - 1)), 1000);
+    return () => clearInterval(id);
+  }, [jedaKirimUlang]);
+
+  useEffect(() => {
+    const unsubConfig = onSnapshot(
+      doc(db, "sistem_stats", "pengaturan_global"),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.adminWhatsApp) setAdminPhone(data.adminWhatsApp);
+          if (data.bukaPendaftaran !== undefined) setIsRegOpen(data.bukaPendaftaran);
+          if (data.maintenanceMode !== undefined) setIsMaintenance(data.maintenanceMode);
+          if (data.metodeVerifikasi) setMetodeVerifikasi(data.metodeVerifikasi);
+        }
+      },
+      /* Tanpa penangan ini, galat izin atau koneksi terputus tidak tertangkap. */
+      (error) => {
+        console.error("Gagal membaca pengaturan global:", error);
+      },
+    );
     return () => unsubConfig();
   }, []);
+
+  /* Buka kembali kolom pendaftaran untuk diperbaiki, sekaligus batalkan kode lama. */
+  const bukaUlangIsian = () => {
+    setOtpSent(false);
+    setInputOtp("");
+    setGeneratedOtp("");
+    setJedaKirimUlang(0);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
+    /* Spasi ikut tersalin saat email ditempel, dan itu membuat proses masuk gagal. */
+    const emailBersih = email.trim().toLowerCase();
+
     try {
       const auth = getAuth();
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, emailBersih, password);
       const user = userCredential.user;
 
       const userDocRef = doc(db, "users", user.uid);
@@ -226,6 +313,7 @@ export default function LoginPage() {
         }
 
         if (userData.role === selectedRole) {
+          setMengalihkan(true);
           document.cookie = `userRole=${userData.role}; path=/; max-age=86400; SameSite=Strict`;
           window.location.href = `/dashboard/${selectedRole}/beranda`;
         } else {
@@ -248,7 +336,8 @@ export default function LoginPage() {
   };
 
   const handleForgotPassword = async () => {
-    if (!email.trim()) {
+    const emailBersih = email.trim().toLowerCase();
+    if (!emailBersih) {
       showToast("Isi dulu kolom email, lalu tekan Lupa sandi.", "info");
       return;
     }
@@ -256,8 +345,11 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const auth = getAuth();
-      await sendPasswordResetEmail(auth, email);
-      showToast(`Tautan pemulihan dikirim ke ${email}. Periksa kotak masuk dan spam.`, "success");
+      await sendPasswordResetEmail(auth, emailBersih);
+      showToast(
+        `Tautan pemulihan dikirim ke ${emailBersih}. Periksa kotak masuk dan spam.`,
+        "success",
+      );
     } catch (error) {
       const kode = (error as { code?: string })?.code;
       if (kode === "auth/user-not-found" || kode === "auth/invalid-email") {
@@ -271,10 +363,12 @@ export default function LoginPage() {
   };
 
   const handleSendOTP = async () => {
-    if (!regEmail.trim()) {
+    const emailBersih = regEmail.trim().toLowerCase();
+    if (!emailBersih) {
       showToast("Isi alamat email resmi terlebih dahulu.", "info");
       return;
     }
+    if (jedaKirimUlang > 0) return;
 
     setIsSendingOtp(true);
     try {
@@ -285,7 +379,7 @@ export default function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: regEmail,
+          email: emailBersih,
           nama: regNama || "Pendaftar",
           role: selectedRole,
           tipeEmail: "otp",
@@ -296,9 +390,12 @@ export default function LoginPage() {
       if (!res.ok) throw new Error("Gagal mengirim email verifikasi");
 
       setOtpSent(true);
+      setJedaKirimUlang(JEDA_KIRIM_ULANG);
       showToast("Kode dikirim. Periksa kotak masuk dan folder spam Anda.", "success");
     } catch (error) {
       console.error(error);
+      /* Kode batal dipakai kalau emailnya sendiri gagal terkirim. */
+      setGeneratedOtp("");
       showToast("Kode gagal dikirim. Pastikan alamat email aktif lalu coba lagi.", "error");
     } finally {
       setIsSendingOtp(false);
@@ -308,8 +405,25 @@ export default function LoginPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!selectedRole) {
+      showToast("Peran belum dipilih. Kembali ke langkah pertama.", "error");
+      setStep(1);
+      return;
+    }
+
+    /* Pemberitahuan pemeliharaan menyebut pendaftaran ditutup, jadi ditegakkan juga di sini. */
+    if (isMaintenance) {
+      showToast("Sistem sedang dipelihara. Pendaftaran ditutup sementara.", "info");
+      return;
+    }
+
+    if (!isRegOpen) {
+      showToast("Pendaftaran akun baru sedang ditutup.", "info");
+      return;
+    }
+
     if (metodeVerifikasi === "otp_email") {
-      if (!otpSent) {
+      if (!otpSent || !generatedOtp) {
         showToast("Kirim kode verifikasi terlebih dahulu.", "error");
         return;
       }
@@ -320,17 +434,22 @@ export default function LoginPage() {
     }
 
     setIsLoading(true);
+    const regEmailBersih = regEmail.trim().toLowerCase();
 
     try {
       const auth = getAuth();
-      const userCredential = await createUserWithEmailAndPassword(auth, regEmail, regPassword);
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        regEmailBersih,
+        regPassword,
+      );
       const newUser = userCredential.user;
-      const roleDiajukan = selectedRole || "guru";
+      const roleDiajukan = selectedRole;
 
       if (metodeVerifikasi === "otp_email") {
         const dataUser: Record<string, unknown> = {
           nama: regNama,
-          email: regEmail,
+          email: regEmailBersih,
           npsn: regNPSN,
           instansi: regNPSN,
           role: roleDiajukan,
@@ -346,8 +465,9 @@ export default function LoginPage() {
 
         await setDoc(doc(db, "users", newUser.uid), dataUser);
 
+        setMengalihkan(true);
         showToast("Pendaftaran berhasil. Anda akan diarahkan ke dasbor.", "success");
-        setTimeout(() => {
+        timerAlih.current = setTimeout(() => {
           document.cookie = `userRole=${roleDiajukan}; path=/; max-age=86400; SameSite=Strict`;
           window.location.href = `/dashboard/${roleDiajukan}/beranda`;
         }, 1500);
@@ -357,7 +477,7 @@ export default function LoginPage() {
         const dataPengajuan: Record<string, unknown> = {
           uid: newUser.uid,
           nama: regNama,
-          email: regEmail,
+          email: regEmailBersih,
           npsn: regNPSN,
           instansi: regNPSN,
           role: roleDiajukan,
@@ -374,16 +494,17 @@ export default function LoginPage() {
 
         const peran =
           roleDiajukan === "lembaga" ? "Lembaga" : roleDiajukan === "guru" ? "Guru" : "Siswa";
-        let detailPendaftar = `- Nama: *${regNama}*%0A- NPSN: *${regNPSN || "Mandiri/Kosong"}*%0A- Email: *${regEmail}*`;
+        let detailPendaftar = `- Nama: *${regNama}*%0A- NPSN: *${regNPSN || "Mandiri/Kosong"}*%0A- Email: *${regEmailBersih}*`;
         if (roleDiajukan === "lembaga") {
-          detailPendaftar = `- Penanggung Jawab: *${regNama}*%0A- Nama Lembaga: *${regNamaLembaga}*%0A- NPSN: *${regNPSN}*%0A- Email: *${regEmail}*`;
+          detailPendaftar = `- Penanggung Jawab: *${regNama}*%0A- Nama Lembaga: *${regNamaLembaga}*%0A- NPSN: *${regNPSN}*%0A- Email: *${regEmailBersih}*`;
         }
 
         const message = `Halo Admin Harc-AI,%0A%0ASaya ingin mengajukan pembuatan akun ${peran}. Berikut data saya:%0A${detailPendaftar}%0A%0AStatus pendaftaran saya ada di Dasbor Admin. Mohon persetujuannya (ACC) agar saya dapat mengakses sistem. Terima kasih.`;
         const waUrl = `https://wa.me/${adminPhone}?text=${message}`;
 
+        setMengalihkan(true);
         showToast("Pengajuan tersimpan. Anda akan diarahkan ke WhatsApp admin.", "success");
-        setTimeout(() => {
+        timerAlih.current = setTimeout(() => {
           window.open(waUrl, "_blank");
           setStep(1);
           setSelectedRole(null);
@@ -392,6 +513,8 @@ export default function LoginPage() {
           setRegEmail("");
           setRegNPSN("");
           setRegNamaLembaga("");
+          bukaUlangIsian();
+          setMengalihkan(false);
         }, 2000);
       }
     } catch (error) {
@@ -399,7 +522,10 @@ export default function LoginPage() {
       if (kode === "auth/email-already-in-use") {
         showToast("Email ini sudah terdaftar. Silakan masuk atau hubungi admin.", "error");
       } else {
-        showToast("Pendaftaran gagal. Kata sandi minimal 6 karakter dan koneksi harus stabil.", "error");
+        showToast(
+          "Pendaftaran gagal. Kata sandi minimal 6 karakter dan koneksi harus stabil.",
+          "error",
+        );
       }
     } finally {
       setIsLoading(false);
@@ -407,29 +533,80 @@ export default function LoginPage() {
   };
 
   const handleBack = () => {
-    if (step === 1) window.location.href = "/";
-    if (step === 2) setStep(1);
+    if (mengalihkan) return;
+    if (step === 1) {
+      window.location.href = "/";
+      return;
+    }
+    if (step === 2) {
+      setStep(1);
+      return;
+    }
     if (step === 3) {
       setStep(2);
-      setOtpSent(false);
-      setInputOtp("");
+      bukaUlangIsian();
     }
   };
 
+  /* role="radio" menjanjikan navigasi panah — tanpa ini janji itu tidak ditepati. */
+  const onKeyPeran = (e: React.KeyboardEvent, i: number) => {
+    const arah =
+      e.key === "ArrowRight" || e.key === "ArrowDown"
+        ? 1
+        : e.key === "ArrowLeft" || e.key === "ArrowUp"
+          ? -1
+          : 0;
+    if (!arah) return;
+    e.preventDefault();
+    const berikut = (i + arah + roles.length) % roles.length;
+    setSelectedRole(roles[berikut].id);
+    tombolPeran.current[berikut]?.focus();
+  };
+
   const judulSerif = { fontFamily: "var(--font-display), Georgia, serif" };
-  const labelKelas =
-    "mb-2 block text-[13px] font-medium text-[color:var(--ink-2)]";
+  const labelKelas = "mb-2 block text-[13px] font-medium text-[color:var(--ink-2)]";
   const ikonKelas =
     "pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-[color:var(--ink-3)]";
+  const tombolUtama =
+    "focusable inline-flex w-full items-center justify-center gap-2.5 rounded-xl bg-[color:var(--brand)] px-6 py-4 text-[15px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-soft)] transition-all duration-300 hover:shadow-[var(--shadow-lift)] active:scale-[.985] disabled:pointer-events-none disabled:opacity-55";
+  const tombolBulat =
+    "focusable grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] text-[color:var(--ink-2)] transition-colors duration-300 hover:text-[color:var(--ink)] active:scale-95";
+
+  const sibuk = isLoading || mengalihkan;
+  const totalLangkah = step === 3 ? 3 : 2;
+  const bolehDaftar = isRegOpen && !isMaintenance;
+
+  const tombolTema = (
+    <button
+      type="button"
+      onClick={gantiTema}
+      aria-label={tema === "dark" ? "Gunakan tema terang" : "Gunakan tema gelap"}
+      className={tombolBulat}
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={tema}
+          initial={{ rotate: -90, opacity: 0 }}
+          animate={{ rotate: 0, opacity: 1 }}
+          exit={{ rotate: 90, opacity: 0 }}
+          transition={{ duration: 0.25 }}
+          className="grid place-items-center"
+        >
+          {tema === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+        </motion.span>
+      </AnimatePresence>
+    </button>
+  );
 
   return (
     <MotionConfig reducedMotion="user">
       <div
-        data-theme="light"
+        data-theme={tema}
+        suppressHydrationWarning
         className={`${sans.variable} ${display.variable} tekstur flex min-h-[100dvh] flex-col bg-[color:var(--bg)] text-[color:var(--ink)] antialiased md:flex-row`}
         style={{ fontFamily: "var(--font-sans), system-ui, sans-serif" }}
       >
-        <style dangerouslySetInnerHTML={{ __html: TOKENS }} />
+        <style dangerouslySetInnerHTML={{ __html: GAYA }} />
 
         {/* ================= NOTIFIKASI ================= */}
         <AnimatePresence>
@@ -441,9 +618,20 @@ export default function LoginPage() {
               transition={{ duration: 0.3, ease: HALUS }}
               role="status"
               aria-live="polite"
-              className="fixed left-1/2 top-4 z-[100] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 shadow-[var(--shadow-lift)] sm:left-auto sm:right-6 sm:translate-x-0"
+              className="fixed left-1/2 z-[100] w-[calc(100%-1.5rem)] max-w-sm -translate-x-1/2 overflow-hidden rounded-2xl border border-[color:var(--line)] bg-[color:var(--surface)] shadow-[var(--shadow-lift)] sm:left-auto sm:right-6 sm:translate-x-0"
+              style={{ top: "calc(1rem + env(safe-area-inset-top, 0px))" }}
             >
-              <div className="flex items-start gap-3">
+              <span
+                aria-hidden="true"
+                className={`absolute inset-y-0 left-0 w-1 ${
+                  toast.type === "success"
+                    ? "bg-[color:var(--accent)]"
+                    : toast.type === "error"
+                      ? "bg-[color:var(--danger)]"
+                      : "bg-[color:var(--brand)]"
+                }`}
+              />
+              <div className="flex items-start gap-3 p-4 pl-5">
                 <span className="mt-0.5 shrink-0" aria-hidden="true">
                   {toast.type === "success" ? (
                     <CheckCircle2 size={18} className="text-[color:var(--accent)]" />
@@ -470,10 +658,10 @@ export default function LoginPage() {
         </AnimatePresence>
 
         {/* ================= PANEL MEREK (DESKTOP) ================= */}
-        <aside className="panel-merek relative hidden flex-col justify-between p-10 text-white md:flex md:w-[42%] lg:w-1/2 lg:p-14">
+        <aside className="panel-merek relative hidden flex-col justify-between overflow-hidden p-10 text-white md:flex md:w-[44%] lg:w-1/2 lg:p-14">
           <Link
             href="/"
-            className="focusable flex w-fit items-center gap-3 transition-opacity duration-300 hover:opacity-85"
+            className="focusable relative z-10 flex w-fit items-center gap-3 transition-opacity duration-300 hover:opacity-85"
           >
             <img src="/logo.png" alt="" aria-hidden="true" className="h-11 w-11 object-contain" />
             <span className="leading-tight">
@@ -484,24 +672,25 @@ export default function LoginPage() {
             </span>
           </Link>
 
-          <div className="max-w-[26rem]">
+          <div className="relative z-10 max-w-[27rem]">
+            <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-3.5 py-1.5 text-[12.5px] text-white/75 backdrop-blur-sm">
+              <Sparkles size={13} className="text-[#6FC3B4]" aria-hidden="true" />
+              Asesmen responsif budaya
+            </span>
             <h2
-              className="text-[clamp(28px,3.2vw,40px)] font-normal leading-[1.2] tracking-[-0.02em]"
+              className="text-[clamp(28px,3.2vw,42px)] font-normal leading-[1.15] tracking-[-0.02em]"
               style={judulSerif}
             >
-              Portal pembelajaran yang responsif budaya.
+              Portal pembelajaran yang{" "}
+              <span className="teks-gradasi italic">responsif budaya.</span>
             </h2>
             <p className="mt-6 text-[15.5px] leading-[1.8] text-white/70">
               Sistem evaluasi yang memadukan bantuan kecerdasan buatan dengan pelestarian nilai
               sosiolinguistik dan kearifan lokal. Keputusan penilaian tetap berada di tangan guru.
             </p>
 
-            <ul className="mt-9 space-y-3 border-t border-white/12 pt-7 text-[14px] text-white/65">
-              {[
-                "Satu akun untuk asesmen, analitik, dan bahan ajar",
-                "Data siswa tidak dipakai untuk melatih model",
-                "Akses dipisahkan menurut peran pengguna",
-              ].map((butir) => (
+            <ul className="mt-9 space-y-3.5 border-t border-white/[0.12] pt-7 text-[14px] text-white/70">
+              {keunggulan.map((butir) => (
                 <li key={butir} className="flex items-start gap-3">
                   <CheckCircle2
                     size={16}
@@ -514,46 +703,73 @@ export default function LoginPage() {
             </ul>
           </div>
 
-          <p className="text-[13px] text-white/45">
+          <p className="relative z-10 text-[13px] text-white/45">
             © 2026 Mahatma Academy. Hak cipta dilindungi.
           </p>
         </aside>
 
         {/* ================= AREA FORMULIR ================= */}
-        <main className="relative flex flex-1 flex-col md:w-[58%] lg:w-1/2">
-          {/* Kepala khusus layar kecil */}
-          <div className="flex items-center justify-between border-b border-[color:var(--line-soft)] px-5 py-4 md:hidden">
-            <Link href="/" className="focusable flex items-center gap-2.5">
+        <main className="relative flex flex-1 flex-col md:w-[56%] lg:w-1/2">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="kisi absolute inset-0" />
+            <div className="cahaya cahaya-a -right-32 -top-40 h-[420px] w-[420px]" />
+            <div className="cahaya cahaya-b -left-40 top-1/3 h-[380px] w-[380px]" />
+          </div>
+
+          {/* Bilah atas ponsel — menempel seperti bilah aplikasi */}
+          <div
+            className="sticky top-0 z-30 flex items-center gap-3 border-b border-[color:var(--line-soft)] bg-[color:var(--bg)]/85 px-4 py-3 backdrop-blur-xl md:hidden"
+            style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top, 0px))" }}
+          >
+            <button
+              type="button"
+              onClick={handleBack}
+              aria-label={step === 1 ? "Kembali ke beranda" : "Kembali ke langkah sebelumnya"}
+              className={tombolBulat}
+            >
+              <ArrowLeft size={17} />
+            </button>
+            <Link href="/" className="focusable flex min-w-0 flex-1 items-center gap-2.5">
               <img src="/logo.png" alt="" aria-hidden="true" className="h-8 w-8 object-contain" />
-              <span className="text-[15px] font-medium" style={judulSerif}>
+              <span className="truncate text-[15px] font-medium" style={judulSerif}>
                 Mahatma Academy
               </span>
             </Link>
+            {tombolTema}
+          </div>
+
+          {/* Kendali khusus layar besar */}
+          <div className="absolute right-8 top-8 z-30 hidden items-center gap-2 md:flex">
             {step !== 1 && (
               <button
                 type="button"
                 onClick={handleBack}
-                className="focusable inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] text-[color:var(--ink-2)]"
+                className="focusable inline-flex items-center gap-2 rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-2.5 text-[13px] text-[color:var(--ink-2)] shadow-[var(--shadow-soft)] transition-colors duration-300 hover:text-[color:var(--ink)]"
               >
                 <ArrowLeft size={15} aria-hidden="true" />
                 {step === 2 ? "Ganti peran" : "Kembali"}
               </button>
             )}
+            {tombolTema}
           </div>
 
-          {step !== 1 && (
-            <button
-              type="button"
-              onClick={handleBack}
-              className="focusable absolute right-8 top-8 z-20 hidden items-center gap-2 rounded-lg border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-2 text-[13px] text-[color:var(--ink-2)] shadow-[var(--shadow-soft)] transition-colors duration-300 hover:text-[color:var(--ink)] md:inline-flex"
-            >
-              <ArrowLeft size={15} aria-hidden="true" />
-              {step === 2 ? "Ganti peran" : "Kembali"}
-            </button>
-          )}
+          <div
+            className="relative flex flex-1 items-center justify-center overflow-y-auto px-5 py-8 sm:px-8 sm:py-14"
+            style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom, 0px))" }}
+          >
+            <div className="w-full max-w-[440px]">
+              {/* Penunjuk langkah */}
+              <div className="mb-7 flex items-center gap-2" aria-hidden="true">
+                {Array.from({ length: totalLangkah }, (_, i) => (
+                  <span
+                    key={i}
+                    className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${
+                      i < step ? "bg-[color:var(--brand)]" : "bg-[color:var(--line)]"
+                    }`}
+                  />
+                ))}
+              </div>
 
-          <div className="flex flex-1 items-center justify-center overflow-y-auto px-5 py-10 sm:px-8 sm:py-14">
-            <div className="w-full max-w-[430px]">
               {/* Pemberitahuan pemeliharaan */}
               <AnimatePresence>
                 {isMaintenance && step === 1 && (
@@ -563,7 +779,7 @@ export default function LoginPage() {
                     exit={{ opacity: 0, y: -12 }}
                     transition={{ duration: 0.3, ease: HALUS }}
                     role="alert"
-                    className="mb-8 flex items-start gap-3 rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 shadow-[var(--shadow-soft)]"
+                    className="mb-7 flex items-start gap-3 rounded-2xl border border-[color:var(--line)] bg-[color:var(--surface)] p-4 shadow-[var(--shadow-soft)]"
                   >
                     <Wrench size={18} className="mt-0.5 shrink-0 text-[color:var(--accent)]" />
                     <div>
@@ -587,9 +803,11 @@ export default function LoginPage() {
                     exit={{ opacity: 0, y: -12 }}
                     transition={{ duration: 0.32, ease: HALUS }}
                   >
-                    <p className="mb-3 text-[13px] text-[color:var(--ink-3)]">Langkah 1 dari 2</p>
+                    <p className="mb-3 text-[12.5px] font-medium uppercase tracking-[0.12em] text-[color:var(--accent)]">
+                      Langkah 1 dari 2
+                    </p>
                     <h1
-                      className="text-[clamp(26px,6vw,33px)] font-normal leading-[1.2] tracking-[-0.015em]"
+                      className="text-[clamp(28px,7vw,36px)] font-normal leading-[1.15] tracking-[-0.02em]"
                       style={judulSerif}
                     >
                       Selamat datang
@@ -603,30 +821,49 @@ export default function LoginPage() {
                       role="radiogroup"
                       aria-label="Pilihan peran pengguna"
                     >
-                      {roles.map((role) => {
+                      {roles.map((role, i) => {
                         const aktif = selectedRole === role.id;
                         return (
                           <button
                             key={role.id}
+                            ref={(el) => {
+                              tombolPeran.current[i] = el;
+                            }}
                             type="button"
                             role="radio"
                             aria-checked={aktif}
+                            tabIndex={aktif || (!selectedRole && i === 0) ? 0 : -1}
+                            onKeyDown={(e) => onKeyPeran(e, i)}
                             onClick={() => setSelectedRole(role.id)}
-                            className={`focusable flex flex-col items-start rounded-2xl border p-5 text-left transition-all duration-300 ${
+                            className={`focusable relative flex flex-col items-start overflow-hidden rounded-2xl border p-5 text-left shadow-[var(--shadow-soft)] transition-all duration-300 active:scale-[.98] ${
                               aktif
-                                ? "border-[color:var(--brand)] bg-[color:var(--brand-soft)] shadow-[var(--shadow-soft)]"
-                                : "border-[color:var(--line-soft)] bg-[color:var(--surface)] shadow-[var(--shadow-soft)] hover:border-[color:var(--line)]"
+                                ? "border-[color:var(--brand)] bg-[color:var(--brand-soft)]"
+                                : "border-[color:var(--line-soft)] bg-[color:var(--surface)] hover:border-[color:var(--line)]"
                             }`}
                           >
+                            <AnimatePresence>
+                              {aktif && (
+                                <motion.span
+                                  initial={{ opacity: 0, scale: 0.6 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  exit={{ opacity: 0, scale: 0.6 }}
+                                  transition={{ duration: 0.2 }}
+                                  aria-hidden="true"
+                                  className="absolute right-3.5 top-3.5 text-[color:var(--brand)]"
+                                >
+                                  <CheckCircle2 size={18} />
+                                </motion.span>
+                              )}
+                            </AnimatePresence>
                             <span
                               aria-hidden="true"
-                              className={`mb-4 grid h-10 w-10 place-items-center rounded-full transition-colors duration-300 ${
+                              className={`mb-4 grid h-11 w-11 place-items-center rounded-xl transition-colors duration-300 ${
                                 aktif
                                   ? "bg-[color:var(--brand)] text-[color:var(--brand-ink)]"
                                   : "bg-[color:var(--surface-2)] text-[color:var(--ink-2)]"
                               }`}
                             >
-                              <role.icon size={19} />
+                              <role.icon size={20} />
                             </span>
                             <span className="text-[16px] font-medium" style={judulSerif}>
                               {role.name}
@@ -643,7 +880,7 @@ export default function LoginPage() {
                       type="button"
                       onClick={() => setStep(2)}
                       disabled={!selectedRole}
-                      className="focusable group mt-8 inline-flex w-full items-center justify-center gap-2.5 rounded-[10px] bg-[color:var(--brand)] px-6 py-4 text-[15px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-soft)] transition-all duration-300 hover:shadow-[var(--shadow-lift)] disabled:cursor-not-allowed disabled:bg-[color:var(--surface-2)] disabled:text-[color:var(--ink-3)] disabled:shadow-none"
+                      className={`${tombolUtama} group mt-8 disabled:bg-[color:var(--surface-2)] disabled:text-[color:var(--ink-3)] disabled:opacity-100 disabled:shadow-none`}
                     >
                       Lanjutkan
                       <ArrowRight
@@ -668,13 +905,27 @@ export default function LoginPage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -12 }}
                     transition={{ duration: 0.32, ease: HALUS }}
-                    className="rounded-2xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-6 shadow-[var(--shadow-soft)] sm:p-8"
+                    className="rounded-3xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-6 shadow-[var(--shadow-soft)] sm:p-8"
                   >
-                    <p className="mb-3 text-[13px] text-[color:var(--ink-3)]">
-                      Masuk sebagai {roles.find((r) => r.id === selectedRole)?.name}
-                    </p>
+                    <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-[color:var(--line)] bg-[color:var(--surface-2)] px-3 py-1.5 text-[12.5px] text-[color:var(--ink-2)]">
+                      {(() => {
+                        const peran = roles.find((r) => r.id === selectedRole);
+                        if (!peran) return "Masuk ke sistem";
+                        const Ikon = peran.icon;
+                        return (
+                          <>
+                            <Ikon
+                              size={14}
+                              className="text-[color:var(--accent)]"
+                              aria-hidden="true"
+                            />
+                            Masuk sebagai {peran.name}
+                          </>
+                        );
+                      })()}
+                    </span>
                     <h1
-                      className="text-[clamp(23px,5.5vw,29px)] font-normal leading-[1.2] tracking-[-0.015em]"
+                      className="text-[clamp(24px,6vw,30px)] font-normal leading-[1.15] tracking-[-0.02em]"
                       style={judulSerif}
                     >
                       Masuk ke sistem
@@ -694,9 +945,12 @@ export default function LoginPage() {
                             type="email"
                             inputMode="email"
                             autoComplete="email"
+                            autoCapitalize="none"
+                            spellCheck={false}
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
+                            disabled={sibuk}
                             placeholder="nama@sekolah.sch.id"
                             className="kolom focusable"
                           />
@@ -705,13 +959,17 @@ export default function LoginPage() {
 
                       <div>
                         <div className="mb-2 flex items-baseline justify-between gap-3">
-                          <label htmlFor="login-password" className="text-[13px] font-medium text-[color:var(--ink-2)]">
+                          <label
+                            htmlFor="login-password"
+                            className="text-[13px] font-medium text-[color:var(--ink-2)]"
+                          >
                             Kata sandi
                           </label>
                           <button
                             type="button"
                             onClick={handleForgotPassword}
-                            className="focusable rounded text-[13px] text-[color:var(--accent)] transition-opacity duration-300 hover:opacity-75"
+                            disabled={sibuk}
+                            className="focusable rounded text-[13px] text-[color:var(--accent)] transition-opacity duration-300 hover:opacity-75 disabled:opacity-50"
                           >
                             Lupa sandi
                           </button>
@@ -727,13 +985,16 @@ export default function LoginPage() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
+                            disabled={sibuk}
                             placeholder="Masukkan kata sandi"
-                            className="kolom focusable pr-12"
+                            className="kolom kolom-aksi focusable"
                           />
                           <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+                            aria-label={
+                              showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"
+                            }
                             className="focusable absolute inset-y-0 right-0 flex items-center px-4 text-[color:var(--ink-3)] transition-colors duration-300 hover:text-[color:var(--ink)]"
                           >
                             {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
@@ -741,15 +1002,11 @@ export default function LoginPage() {
                         </div>
                       </div>
 
-                      <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="focusable inline-flex w-full items-center justify-center gap-2.5 rounded-[10px] bg-[color:var(--brand)] px-6 py-4 text-[15px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-soft)] transition-all duration-300 hover:shadow-[var(--shadow-lift)] disabled:opacity-60"
-                      >
-                        {isLoading ? (
+                      <button type="submit" disabled={sibuk} className={tombolUtama}>
+                        {sibuk ? (
                           <>
                             <Loader2 size={17} className="animate-spin" aria-hidden="true" />
-                            Memverifikasi
+                            {mengalihkan ? "Mengarahkan" : "Memverifikasi"}
                           </>
                         ) : (
                           "Masuk"
@@ -757,7 +1014,7 @@ export default function LoginPage() {
                       </button>
                     </form>
 
-                    {selectedRole !== "admin" && isRegOpen && (
+                    {selectedRole !== "admin" && bolehDaftar && (
                       <div className="mt-7 border-t border-[color:var(--line-soft)] pt-6 text-center">
                         <p className="text-[13.5px] text-[color:var(--ink-2)]">
                           Belum punya akun?{" "}
@@ -772,12 +1029,14 @@ export default function LoginPage() {
                       </div>
                     )}
 
-                    {selectedRole !== "admin" && !isRegOpen && (
+                    {selectedRole !== "admin" && !bolehDaftar && (
                       <p
                         role="status"
                         className="mt-7 border-t border-[color:var(--line-soft)] pt-6 text-center text-[13.5px] text-[color:var(--ink-2)]"
                       >
-                        Pendaftaran akun baru sedang ditutup. Hubungi administrator sekolah Anda.
+                        {isMaintenance
+                          ? "Pendaftaran ditutup selama pemeliharaan sistem."
+                          : "Pendaftaran akun baru sedang ditutup. Hubungi administrator sekolah Anda."}
                       </p>
                     )}
                   </motion.div>
@@ -791,11 +1050,13 @@ export default function LoginPage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -12 }}
                     transition={{ duration: 0.32, ease: HALUS }}
-                    className="rounded-2xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-6 shadow-[var(--shadow-soft)] sm:p-8"
+                    className="rounded-3xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-6 shadow-[var(--shadow-soft)] sm:p-8"
                   >
-                    <p className="mb-3 text-[13px] text-[color:var(--ink-3)]">Pengajuan akun baru</p>
+                    <p className="mb-3 text-[12.5px] font-medium uppercase tracking-[0.12em] text-[color:var(--accent)]">
+                      Pengajuan akun baru
+                    </p>
                     <h1
-                      className="text-[clamp(23px,5.5vw,29px)] font-normal leading-[1.2] tracking-[-0.015em]"
+                      className="text-[clamp(24px,6vw,30px)] font-normal leading-[1.15] tracking-[-0.02em]"
                       style={judulSerif}
                     >
                       Daftar sebagai {namaPeran(selectedRole).toLowerCase()}
@@ -817,7 +1078,7 @@ export default function LoginPage() {
                             value={regNama}
                             onChange={(e) => setRegNama(e.target.value)}
                             required
-                            disabled={otpSent}
+                            disabled={otpSent || sibuk}
                             className="kolom focusable"
                           />
                         </div>
@@ -839,7 +1100,7 @@ export default function LoginPage() {
                               value={regNamaLembaga}
                               onChange={(e) => setRegNamaLembaga(e.target.value)}
                               required
-                              disabled={otpSent}
+                              disabled={otpSent || sibuk}
                               className="kolom focusable"
                             />
                           </div>
@@ -864,7 +1125,7 @@ export default function LoginPage() {
                             value={regNPSN}
                             onChange={(e) => setRegNPSN(e.target.value)}
                             required={selectedRole === "lembaga"}
-                            disabled={otpSent}
+                            disabled={otpSent || sibuk}
                             placeholder={
                               selectedRole === "lembaga"
                                 ? "Contoh: 69725804"
@@ -888,18 +1149,30 @@ export default function LoginPage() {
                             type="email"
                             inputMode="email"
                             autoComplete="email"
+                            autoCapitalize="none"
+                            spellCheck={false}
                             value={regEmail}
                             onChange={(e) => setRegEmail(e.target.value)}
                             required
-                            disabled={otpSent}
+                            disabled={otpSent || sibuk}
                             className="kolom focusable"
                           />
                         </div>
+                        {otpSent && (
+                          <button
+                            type="button"
+                            onClick={bukaUlangIsian}
+                            className="focusable mt-2.5 inline-flex items-center gap-1.5 rounded text-[13px] text-[color:var(--accent)] transition-opacity hover:opacity-75"
+                          >
+                            <PencilLine size={14} aria-hidden="true" />
+                            Ubah data dan kirim ulang kode
+                          </button>
+                        )}
                       </div>
 
                       {/* Verifikasi kode */}
                       {metodeVerifikasi === "otp_email" && (
-                        <div className="rounded-xl border border-[color:var(--line)] bg-[color:var(--accent-soft)]/60 p-4">
+                        <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--accent-soft)]/60 p-4">
                           <label htmlFor="reg-otp" className="mb-2 block text-[13px] font-medium">
                             Kode verifikasi email
                           </label>
@@ -914,7 +1187,7 @@ export default function LoginPage() {
                                 inputMode="numeric"
                                 autoComplete="one-time-code"
                                 maxLength={6}
-                                disabled={!otpSent}
+                                disabled={!otpSent || sibuk}
                                 value={inputOtp}
                                 onChange={(e) => setInputOtp(e.target.value.replace(/\D/g, ""))}
                                 placeholder={otpSent ? "6 digit kode" : "Kirim kode dulu"}
@@ -924,22 +1197,31 @@ export default function LoginPage() {
                             <button
                               type="button"
                               onClick={handleSendOTP}
-                              disabled={isSendingOtp || !regEmail || otpSent}
-                              className="focusable shrink-0 whitespace-nowrap rounded-[10px] bg-[color:var(--accent)] px-4 text-[13.5px] font-medium text-white transition-opacity duration-300 hover:opacity-90 disabled:opacity-45"
+                              disabled={
+                                isSendingOtp || !regEmail.trim() || jedaKirimUlang > 0 || sibuk
+                              }
+                              className="focusable inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-[color:var(--accent)] px-4 text-[13.5px] font-medium text-white transition-opacity duration-300 hover:opacity-90 active:scale-95 disabled:opacity-45"
                             >
                               {isSendingOtp ? (
-                                <Loader2 size={16} className="mx-auto animate-spin" />
+                                <Loader2 size={16} className="animate-spin" />
+                              ) : jedaKirimUlang > 0 ? (
+                                `${jedaKirimUlang}s`
                               ) : otpSent ? (
-                                "Terkirim"
+                                <>
+                                  <RefreshCw size={14} aria-hidden="true" />
+                                  Kirim ulang
+                                </>
                               ) : (
                                 "Kirim kode"
                               )}
                             </button>
                           </div>
                           <p className="mt-2.5 text-[12.5px] leading-relaxed text-[color:var(--ink-2)]">
-                            {otpSent
-                              ? "Kode dikirim ke email Anda. Periksa juga folder spam."
-                              : "Kode akan dikirim ke alamat email di atas."}
+                            {jedaKirimUlang > 0
+                              ? `Kode sudah dikirim. Bisa dikirim ulang dalam ${jedaKirimUlang} detik.`
+                              : otpSent
+                                ? "Kode belum masuk? Tekan Kirim ulang, lalu periksa folder spam."
+                                : "Kode akan dikirim ke alamat email di atas."}
                           </p>
                         </div>
                       )}
@@ -960,13 +1242,16 @@ export default function LoginPage() {
                             onChange={(e) => setRegPassword(e.target.value)}
                             minLength={6}
                             required
+                            disabled={sibuk}
                             placeholder="Minimal 6 karakter"
-                            className="kolom focusable pr-12"
+                            className="kolom kolom-aksi focusable"
                           />
                           <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+                            aria-label={
+                              showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"
+                            }
                             className="focusable absolute inset-y-0 right-0 flex items-center px-4 text-[color:var(--ink-3)] transition-colors duration-300 hover:text-[color:var(--ink)]"
                           >
                             {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
@@ -976,13 +1261,13 @@ export default function LoginPage() {
 
                       <button
                         type="submit"
-                        disabled={isLoading || (metodeVerifikasi === "otp_email" && !otpSent)}
-                        className="focusable inline-flex w-full items-center justify-center gap-2.5 rounded-[10px] bg-[color:var(--brand)] px-6 py-4 text-[15px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-soft)] transition-all duration-300 hover:shadow-[var(--shadow-lift)] disabled:opacity-55"
+                        disabled={sibuk || (metodeVerifikasi === "otp_email" && !otpSent)}
+                        className={tombolUtama}
                       >
-                        {isLoading ? (
+                        {sibuk ? (
                           <>
                             <Loader2 size={17} className="animate-spin" aria-hidden="true" />
-                            Mengirim
+                            {mengalihkan ? "Mengarahkan" : "Mengirim"}
                           </>
                         ) : (
                           <>
