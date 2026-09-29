@@ -1,273 +1,384 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Users, AlertCircle, FileWarning, Activity, 
-  CheckCircle2, Loader2, ArrowRight, BookOpen, Building, Calendar 
+import {
+  Users, AlertCircle, FileWarning, Activity,
+  CheckCircle2, BookOpen, Building, Calendar,
+  BrainCircuit, BarChart4, FileCheck2, ChevronRight,
+  type LucideIcon
 } from "lucide-react";
 import { Teachers } from "next/font/google";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
-import { db } from "@/lib/firebase"; 
+import { db } from "@/lib/firebase";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { collection, onSnapshot, query, doc, deleteDoc, orderBy, where } from "firebase/firestore";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
+type AntreanItem = { id: string; nama?: string; kelas?: string; tugas?: string };
+type TitikGrafik = { name?: string; nilai?: number; urutanBulan?: number };
+
+/**
+ * Sapaan ditentukan sekali saat komponen dibuat, bukan di dalam effect.
+ * Aman dari hydration mismatch karena render pertama selalu berupa skeleton.
+ */
+function sapaanSaatIni() {
+  const jam = new Date().getHours();
+  if (jam < 11) return "Selamat Pagi";
+  if (jam < 15) return "Selamat Siang";
+  if (jam < 18) return "Selamat Sore";
+  return "Selamat Malam";
+}
+
 export default function BerandaGuru() {
   const [isLoading, setIsLoading] = useState(true);
+  const [uid, setUid] = useState<string | null>(null);
   const [guruNama, setGuruNama] = useState("");
-  const [waktuSapaan, setWaktuSapaan] = useState("Halo");
+  const [waktuSapaan] = useState(sapaanSaatIni);
   const [npsnGuru, setNpsnGuru] = useState("");
   const [namaInstansi, setNamaInstansi] = useState("");
-  
-  const [stats, setStats] = useState({
-    siswaAktif: 0,
-    totalKelas: 0,
-    rataRataKelas: 0
-  });
-  
-  const [antrean, setAntrean] = useState<any[]>([]);
-  const [dataStatistik, setDataStatistik] = useState<any[]>([]);
 
+  const [stats, setStats] = useState({ siswaAktif: 0, totalKelas: 0, rataRataKelas: 0 });
+  const [antrean, setAntrean] = useState<AntreanItem[]>([]);
+  const [dataStatistik, setDataStatistik] = useState<TitikGrafik[]>([]);
+
+  // Pantau sesi login
   useEffect(() => {
-    const jam = new Date().getHours();
-    if (jam < 11) setWaktuSapaan("Selamat Pagi");
-    else if (jam < 15) setWaktuSapaan("Selamat Siang");
-    else if (jam < 18) setWaktuSapaan("Selamat Sore");
-    else setWaktuSapaan("Selamat Malam");
-
-    const auth = getAuth();
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        const unsubStats = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            const npsn = data.npsn || "";
-            
-            setGuruNama(data.nama || "Pendidik");
-            setNpsnGuru(npsn);
-            setStats(prev => ({
-              ...prev,
-              rataRataKelas: data.rataRataKelas || 0
-            }));
-
-            if (npsn) {
-              const qLembaga = query(collection(db, "users"), where("role", "==", "lembaga"), where("npsn", "==", npsn));
-              onSnapshot(qLembaga, (lembagaSnap) => {
-                if (!lembagaSnap.empty) {
-                   const dataLembaga = lembagaSnap.docs[0].data();
-                   setNamaInstansi(dataLembaga.namaLembaga || dataLembaga.namaInstansi || "");
-                } else {
-                   setNamaInstansi(`NPSN: ${npsn}`);
-                }
-              });
-
-              const qSiswa = query(collection(db, "users"), where("role", "==", "siswa"), where("npsn", "==", npsn));
-              onSnapshot(qSiswa, (siswaSnap) => {
-                setStats(prev => ({ ...prev, siswaAktif: siswaSnap.size }));
-              });
-            } else {
-              setNamaInstansi(data.instansi || "");
-            }
-          }
-        });
-
-        // 2. Hitung Total Kelas yang Diampu
-        const qKelas = query(collection(db, "manajemen_kelas"), where("guruId", "==", user.uid));
-        const unsubKelas = onSnapshot(qKelas, (kelasSnap) => {
-          setStats(prev => ({ ...prev, totalKelas: kelasSnap.size }));
-        });
-
-        // 3. Ambil Antrean Tugas
-        const qAntrean = query(collection(db, "antrean_validasi"), orderBy("timestamp", "desc"));
-        const unsubAntrean = onSnapshot(qAntrean, (snapshot) => {
-          setAntrean(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-        });
-
-        // 4. Ambil Grafik Performa
-        const qGrafik = query(collection(db, "grafik_nilai"), orderBy("urutanBulan", "asc"));
-        const unsubGrafik = onSnapshot(qGrafik, (snapshot) => {
-          setDataStatistik(snapshot.docs.map(d => d.data()));
-          setIsLoading(false); 
-        });
-
-        return () => { unsubStats(); unsubKelas(); unsubAntrean(); unsubGrafik(); };
-      }
+    const unsubscribeAuth = onAuthStateChanged(getAuth(), (user) => {
+      setUid(user ? user.uid : null);
+      if (!user) setIsLoading(false);
     });
 
     return () => unsubscribeAuth();
   }, []);
 
+  // Data milik guru yang sedang login
+  useEffect(() => {
+    if (!uid) return;
+
+    const unsubProfil = onSnapshot(doc(db, "users", uid), (docSnap) => {
+      if (!docSnap.exists()) return;
+      const data = docSnap.data();
+      setGuruNama(data.nama || "Pendidik");
+      setNpsnGuru(data.npsn || "");
+      if (!data.npsn) setNamaInstansi(data.instansi || "");
+      setStats((prev) => ({ ...prev, rataRataKelas: data.rataRataKelas || 0 }));
+    });
+
+    const unsubKelas = onSnapshot(
+      query(collection(db, "manajemen_kelas"), where("guruId", "==", uid)),
+      (kelasSnap) => setStats((prev) => ({ ...prev, totalKelas: kelasSnap.size }))
+    );
+
+    const unsubAntrean = onSnapshot(
+      query(collection(db, "antrean_validasi"), orderBy("timestamp", "desc")),
+      (snapshot) => setAntrean(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
+    );
+
+    const unsubGrafik = onSnapshot(
+      query(collection(db, "grafik_nilai"), orderBy("urutanBulan", "asc")),
+      (snapshot) => {
+        setDataStatistik(snapshot.docs.map((d) => d.data() as TitikGrafik));
+        setIsLoading(false);
+      }
+    );
+
+    return () => { unsubProfil(); unsubKelas(); unsubAntrean(); unsubGrafik(); };
+  }, [uid]);
+
+  // Data lembaga: hanya dipasang ulang saat NPSN berubah, bukan tiap profil ter-update
+  useEffect(() => {
+    if (!npsnGuru) return;
+
+    const unsubLembaga = onSnapshot(
+      query(collection(db, "users"), where("role", "==", "lembaga"), where("npsn", "==", npsnGuru)),
+      (lembagaSnap) => {
+        if (!lembagaSnap.empty) {
+          const dataLembaga = lembagaSnap.docs[0].data();
+          setNamaInstansi(dataLembaga.namaLembaga || dataLembaga.namaInstansi || "");
+        } else {
+          setNamaInstansi(`NPSN: ${npsnGuru}`);
+        }
+      }
+    );
+
+    const unsubSiswa = onSnapshot(
+      query(collection(db, "users"), where("role", "==", "siswa"), where("npsn", "==", npsnGuru)),
+      (siswaSnap) => setStats((prev) => ({ ...prev, siswaAktif: siswaSnap.size }))
+    );
+
+    return () => { unsubLembaga(); unsubSiswa(); };
+  }, [npsnGuru]);
+
   const handlePeriksaCepat = async (id: string) => {
-    setAntrean(antrean.filter(item => item.id !== id));
+    const sebelumnya = antrean;
+    setAntrean((prev) => prev.filter((item) => item.id !== id));
     try {
       await deleteDoc(doc(db, "antrean_validasi", id));
     } catch (error) {
       console.error("Gagal meninjau tugas:", error);
+      setAntrean(sebelumnya);
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="w-full h-[70vh] flex flex-col items-center justify-center text-slate-500" role="status">
-        <Loader2 size={36} className="animate-spin text-blue-600 mb-3" />
-        <p className="text-xs font-bold text-slate-700">Memuat Portal Akademik...</p>
-      </div>
-    );
-  }
+  if (isLoading) return <BerandaSkeleton />;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-7xl mx-auto space-y-5 pb-6">
-      
-      {/* HERO BANNER - DESAIN FORMAL */}
-      <div className="relative overflow-hidden bg-slate-900 rounded-2xl p-5 md:p-8 text-white shadow-md border border-slate-800">
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div className="max-w-xl">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-[10px] font-bold mb-3 tracking-wider">
-              <Building size={12} className="text-slate-400" /> 
-              {namaInstansi ? `${namaInstansi} (NPSN: ${npsnGuru})` : 'Instansi Belum Terhubung'}
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="max-w-7xl mx-auto w-full space-y-4 md:space-y-5 pb-4"
+    >
+      {/* ============== HERO / SAPAAN ============== */}
+      <section className="relative overflow-hidden rounded-2xl md:rounded-3xl bg-gradient-to-br from-[#1e3a8a] via-slate-900 to-slate-900 text-white shadow-lg shadow-slate-900/10 border border-slate-800">
+        <div className="pointer-events-none absolute -top-20 -right-16 w-56 h-56 rounded-full bg-blue-500/20 blur-3xl" aria-hidden="true" />
+
+        <div className="relative z-10 p-4 sm:p-6 lg:p-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+          <div className="min-w-0 lg:max-w-xl">
+            <span className="inline-flex max-w-full items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 border border-white/15 text-blue-100 text-[10px] sm:text-[11px] font-bold tracking-wide backdrop-blur-sm">
+              <Building size={12} className="shrink-0 text-blue-300" />
+              <span className="truncate">
+                {namaInstansi ? `${namaInstansi}${npsnGuru ? ` · ${npsnGuru}` : ""}` : "Instansi Belum Terhubung"}
+              </span>
             </span>
-            
-            <p className="text-slate-400 text-xs md:text-sm font-medium">{waktuSapaan},</p>
-            <h1 className={`text-2xl md:text-3xl font-bold text-white mb-2 ${teachersFont.className}`}>
+
+            <p className="text-blue-200/80 text-xs sm:text-sm font-medium mt-3">{waktuSapaan},</p>
+            <h1 className={`text-xl sm:text-2xl lg:text-3xl font-bold text-white leading-tight break-words ${teachersFont.className}`}>
               {guruNama}
             </h1>
-            
-            <p className="text-slate-300 text-xs md:text-sm leading-relaxed opacity-90">
-              Terdapat <strong className="text-white underline">{antrean.length} tugas</strong> menunggu evaluasi Anda hari ini. Silakan periksa melalui modul penugasan atau daftar tinjauan di bawah.
+
+            <p className="text-slate-300 text-[12px] sm:text-sm leading-relaxed mt-2">
+              {antrean.length > 0 ? (
+                <>
+                  Terdapat <strong className="text-white font-bold">{antrean.length} tugas</strong> menunggu evaluasi Anda hari ini.
+                </>
+              ) : (
+                <>Tidak ada tugas yang menunggu evaluasi. Selamat mengajar hari ini.</>
+              )}
+            </p>
+
+            <p className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-100/90 lg:hidden">
+              <Calendar size={13} className="text-blue-300" /> Ganjil 2026/2027
             </p>
           </div>
-          
-          <div className="flex flex-col sm:flex-row lg:flex-col gap-2.5 w-full lg:w-auto">
-            <div className="bg-slate-800/80 border border-slate-700 p-3 rounded-xl text-center hidden lg:block">
-              <p className="text-[9px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Tahun Ajaran</p>
-              <p className="text-sm font-bold text-slate-200 flex items-center justify-center gap-1.5">
-                <Calendar size={14} className="text-blue-400"/> Ganjil 2026/2027
+
+          <div className="flex flex-col gap-3 w-full lg:w-auto lg:shrink-0">
+            <div className="hidden lg:block bg-white/10 border border-white/15 px-4 py-3 rounded-2xl text-center backdrop-blur-sm">
+              <p className="text-[9px] text-blue-200/80 uppercase tracking-widest font-bold mb-1">Tahun Ajaran</p>
+              <p className="text-sm font-bold text-white flex items-center justify-center gap-1.5">
+                <Calendar size={14} className="text-blue-300" /> Ganjil 2026/2027
               </p>
             </div>
-            
-            <div className="flex gap-2 w-full">
-              <Link href="/dashboard/guru/asesmen" className="flex-1 sm:flex-none bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 text-center active:scale-95">
+
+            <div className="grid grid-cols-2 gap-2.5 w-full lg:w-auto">
+              <Link
+                href="/dashboard/guru/asesmen"
+                className="min-h-[44px] bg-blue-600 hover:bg-blue-500 text-white px-4 rounded-xl font-bold text-xs sm:text-[13px] shadow-sm transition-colors flex items-center justify-center gap-1.5 active:scale-[0.97]"
+              >
                 <FileWarning size={15} /> Evaluasi
               </Link>
-              <Link href="/dashboard/guru/kelas" className="flex-1 sm:flex-none bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 text-center active:scale-95">
+              <Link
+                href="/dashboard/guru/kelas"
+                className="min-h-[44px] bg-white/10 hover:bg-white/20 border border-white/20 text-white px-4 rounded-xl font-bold text-xs sm:text-[13px] transition-colors flex items-center justify-center gap-1.5 active:scale-[0.97]"
+              >
                 <BookOpen size={15} /> Data Kelas
               </Link>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* KARTU STATISTIK AKADEMIK */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <StatCard title="Total Siswa" value={stats.siswaAktif.toString()} icon={Users} color="blue" trend={npsnGuru || "Global"} delay={0.1} />
-        <StatCard title="Total Kelas" value={stats.totalKelas.toString()} icon={BookOpen} color="indigo" trend="Aktif" delay={0.2} />
-        <StatCard title="Tugas Tertunda" value={antrean.length.toString()} icon={AlertCircle} color="amber" highlight={antrean.length > 0} trend={antrean.length === 0 ? "Tuntas" : "Perlu Tinjauan"} delay={0.3} />
-        <StatCard title="Rata-rata Nilai" value={stats.rataRataKelas.toString()} icon={Activity} color="emerald" trend="Akademik" delay={0.4} />
-      </div>
+      {/* ============== STATISTIK ============== */}
+      <section aria-label="Ringkasan akademik" className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 md:gap-4">
+        <StatCard title="Total Siswa" value={stats.siswaAktif} icon={Users} color="blue" trend={npsnGuru || "Global"} delay={0.05} />
+        <StatCard title="Total Kelas" value={stats.totalKelas} icon={BookOpen} color="indigo" trend="Aktif" delay={0.1} />
+        <StatCard title="Tugas Tertunda" value={antrean.length} icon={AlertCircle} color="amber" highlight={antrean.length > 0} trend={antrean.length === 0 ? "Tuntas" : "Perlu Tinjauan"} delay={0.15} />
+        <StatCard title="Rata-rata Nilai" value={stats.rataRataKelas} icon={Activity} color="emerald" trend="Akademik" delay={0.2} />
+      </section>
 
-      {/* GRID KONTEN BAWAH */}
+      {/* ============== AKSI CEPAT (MOBILE) ============== */}
+      <nav aria-label="Akses cepat" className="lg:hidden -mx-4 px-4 sm:-mx-6 sm:px-6">
+        <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1 snap-x snap-mandatory">
+          <QuickAction href="/dashboard/guru/generator" icon={BookOpen} label="Bahan Ajar" />
+          <QuickAction href="/dashboard/guru/asesmen" icon={BrainCircuit} label="Asesmen" />
+          <QuickAction href="/dashboard/guru/validasi" icon={FileCheck2} label="Validasi" />
+          <QuickAction href="/dashboard/guru/analitik" icon={BarChart4} label="Analitik" />
+        </div>
+      </nav>
+
+      {/* ============== KONTEN UTAMA ============== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-5">
-        
-        {/* GRAFIK PERKEMBANGAN NILAI */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6 flex flex-col">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 gap-3">
-            <div>
-              <h3 className={`text-base font-bold text-slate-800 ${teachersFont.className}`}>Tren Performa Akademik</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Grafik pergerakan nilai rata-rata siswa dalam satu semester.</p>
+        {/* Grafik performa */}
+        <section className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 md:p-6 flex flex-col">
+          <div className="flex flex-wrap justify-between items-start gap-2 mb-4 md:mb-5">
+            <div className="min-w-0">
+              <h2 className={`text-[15px] sm:text-base font-bold text-slate-800 ${teachersFont.className}`}>Tren Performa Akademik</h2>
+              <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">Pergerakan nilai rata-rata siswa dalam satu semester.</p>
             </div>
-            <div className="flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 text-[10px] font-bold text-slate-600">
-              <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-600"></div> Nilai Rata-rata</span>
-            </div>
+            <span className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 text-[10px] font-bold text-slate-600 shrink-0">
+              <span className="w-2 h-2 rounded-full bg-blue-600" aria-hidden="true" /> Nilai Rata-rata
+            </span>
           </div>
-          
-          <div className="flex-1 w-full min-h-[250px]">
+
+          <div className="flex-1 w-full h-[220px] sm:h-[260px] lg:h-[300px]">
             {dataStatistik.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={dataStatistik} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={dataStatistik} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="colorNilai" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563eb" stopOpacity={0.2}/><stop offset="95%" stopColor="#2563eb" stopOpacity={0}/></linearGradient>
+                    <linearGradient id="colorNilai" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.22} />
+                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                    </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} dy={8} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} dx={-8} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', padding: '10px 14px', fontSize: '12px' }} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#64748b" }} dy={8} interval="preserveStartEnd" minTickGap={12} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#64748b" }} width={38} />
+                  <Tooltip
+                    cursor={{ stroke: "#cbd5e1", strokeWidth: 1 }}
+                    contentStyle={{ borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)", padding: "8px 12px", fontSize: "12px" }}
+                  />
                   <Area type="monotone" dataKey="nilai" name="Rata-rata Nilai" stroke="#2563eb" strokeWidth={2.5} fillOpacity={1} fill="url(#colorNilai)" />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 py-10">
-                <Activity size={32} className="text-slate-300 mb-2" />
-                <span className="text-xs font-bold text-slate-600">Belum ada data analitik semester ini</span>
+              <div className="w-full h-full flex flex-col items-center justify-center text-center px-4 bg-slate-50/60 rounded-xl border border-dashed border-slate-200">
+                <Activity size={30} className="text-slate-300 mb-2" />
+                <p className="text-xs font-bold text-slate-600">Belum ada data analitik</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Data muncul setelah penilaian semester berjalan.</p>
               </div>
             )}
           </div>
-        </div>
+        </section>
 
-        {/* ANTREAN TUGAS */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden max-h-[420px]">
-          <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-            <h3 className={`text-sm font-bold text-slate-800 flex items-center gap-2 ${teachersFont.className}`}>
-              <FileWarning size={16} className="text-slate-600" /> Tinjauan Tugas
-            </h3>
-            <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full">{antrean.length} Berkas</span>
+        {/* Antrean tinjauan */}
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden lg:max-h-[420px]">
+          <div className="px-4 sm:px-5 py-3.5 border-b border-slate-100 bg-slate-50/80 flex justify-between items-center gap-2">
+            <h2 className={`text-sm font-bold text-slate-800 flex items-center gap-2 ${teachersFont.className}`}>
+              <FileWarning size={16} className="text-slate-500" /> Tinjauan Tugas
+            </h2>
+            <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0">
+              {antrean.length} Berkas
+            </span>
           </div>
-          
-          <div className="flex-1 overflow-y-auto p-3 space-y-2.5 custom-scrollbar">
-            <AnimatePresence>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2.5 max-h-[60vh] lg:max-h-none">
+            <AnimatePresence initial={false}>
               {antrean.length > 0 ? (
                 antrean.map((item) => (
-                  <motion.div key={item.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-sm space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-slate-800 text-xs truncate">{item.nama}</span>
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded text-[9px] font-bold uppercase">{item.kelas}</span>
+                  <motion.article
+                    key={item.id}
+                    layout
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                    transition={{ duration: 0.18 }}
+                    className="p-3 sm:p-3.5 bg-white rounded-xl border border-slate-200 space-y-2 hover:border-slate-300 transition-colors"
+                  >
+                    <div className="flex justify-between items-center gap-2">
+                      <h3 className="font-bold text-slate-800 text-xs sm:text-[13px] truncate">{item.nama}</h3>
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded text-[9px] font-bold uppercase shrink-0">
+                        {item.kelas}
+                      </span>
                     </div>
-                    <p className="text-[11px] text-slate-500 line-clamp-2">{item.tugas}</p>
-                    <button onClick={() => handlePeriksaCepat(item.id)} className="w-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 py-2 rounded-xl text-xs font-bold transition-all flex justify-center items-center gap-1 active:scale-95">
+                    <p className="text-[11px] sm:text-xs text-slate-500 line-clamp-2">{item.tugas}</p>
+                    <button
+                      type="button"
+                      onClick={() => handlePeriksaCepat(item.id)}
+                      className="w-full min-h-[40px] bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-xl text-xs font-bold transition-colors flex justify-center items-center gap-1.5 active:scale-[0.98]"
+                    >
                       <CheckCircle2 size={14} /> Tandai Selesai
                     </button>
-                  </motion.div>
+                  </motion.article>
                 ))
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-                  <CheckCircle2 size={32} className="text-emerald-500 mb-2" />
-                  <p className="text-xs font-bold text-slate-800">Semua Tugas Tuntas!</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Tidak ada antrean tugas saat ini.</p>
+                  <span className="p-3 rounded-full bg-emerald-50 mb-3">
+                    <CheckCircle2 size={26} className="text-emerald-600" />
+                  </span>
+                  <p className="text-xs font-bold text-slate-800">Semua Tugas Tuntas</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Tidak ada antrean tinjauan saat ini.</p>
                 </div>
               )}
             </AnimatePresence>
           </div>
-        </div>
-
+        </section>
       </div>
     </motion.div>
   );
 }
 
-function StatCard({ title, value, icon: Icon, color, highlight, trend, delay }: any) {
-  const colorStyles: any = {
-    blue: "bg-blue-50 text-blue-600",
-    amber: "bg-amber-50 text-amber-600",
-    emerald: "bg-emerald-50 text-emerald-600",
-    indigo: "bg-indigo-50 text-indigo-600"
-  };
+/* ---------------------------------- UI ---------------------------------- */
 
+const colorStyles: Record<string, string> = {
+  blue: "bg-blue-50 text-blue-600",
+  amber: "bg-amber-50 text-amber-600",
+  emerald: "bg-emerald-50 text-emerald-600",
+  indigo: "bg-indigo-50 text-indigo-600",
+};
+
+function StatCard({
+  title, value, icon: Icon, color, highlight, trend, delay,
+}: {
+  title: string; value: number | string; icon: LucideIcon; color: string;
+  highlight?: boolean; trend: string; delay: number;
+}) {
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className={`bg-white p-4 md:p-5 rounded-2xl border ${highlight ? 'border-amber-300 ring-2 ring-amber-50' : 'border-slate-200'} shadow-sm relative overflow-hidden`}>
-      <div className="flex justify-between items-start mb-3">
-        <div className={`p-2.5 rounded-xl ${colorStyles[color]}`}>
-          <Icon size={18} strokeWidth={2.2} />
-        </div>
-        <span className="text-[9px] text-slate-500 font-bold bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200">{trend}</span>
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.25 }}
+      className={`bg-white p-3 sm:p-4 md:p-5 rounded-2xl border shadow-sm ${
+        highlight ? "border-amber-300 ring-2 ring-amber-100" : "border-slate-200"
+      }`}
+    >
+      <div className="flex justify-between items-start gap-2 mb-2.5 md:mb-3">
+        <span className={`p-2 sm:p-2.5 rounded-xl shrink-0 ${colorStyles[color]}`}>
+          <Icon size={17} strokeWidth={2.2} />
+        </span>
+        <span className="hidden sm:inline-block text-[9px] text-slate-500 font-bold bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200 truncate max-w-[60%]">
+          {trend}
+        </span>
       </div>
-      
-      <div>
-        <h3 className={`text-xl md:text-2xl font-black text-slate-800 mb-0.5 tracking-tight ${teachersFont.className}`}>{value}</h3>
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{title}</p>
-      </div>
+
+      <p className={`text-lg sm:text-xl md:text-2xl font-black text-slate-800 tracking-tight ${teachersFont.className}`}>
+        {value}
+      </p>
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5 truncate">{title}</p>
     </motion.div>
+  );
+}
+
+function QuickAction({ href, icon: Icon, label }: { href: string; icon: LucideIcon; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="snap-start shrink-0 min-h-[44px] flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3.5 text-xs font-bold text-slate-700 shadow-sm active:scale-[0.97] transition-transform"
+    >
+      <Icon size={15} className="text-blue-600" />
+      {label}
+      <ChevronRight size={14} className="text-slate-300" />
+    </Link>
+  );
+}
+
+function BerandaSkeleton() {
+  return (
+    <div className="max-w-7xl mx-auto w-full space-y-4 md:space-y-5 animate-pulse" role="status" aria-label="Memuat portal akademik">
+      <div className="h-44 sm:h-40 rounded-2xl md:rounded-3xl bg-slate-200" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 md:gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-[104px] sm:h-[124px] rounded-2xl bg-slate-200" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-5">
+        <div className="lg:col-span-2 h-[300px] sm:h-[360px] rounded-2xl bg-slate-200" />
+        <div className="h-[240px] lg:h-[360px] rounded-2xl bg-slate-200" />
+      </div>
+      <span className="sr-only">Memuat Portal Akademik...</span>
+    </div>
   );
 }

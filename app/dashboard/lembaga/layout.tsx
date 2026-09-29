@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   LayoutDashboard, Users, BarChart3, LogOut, GraduationCap, 
   BookOpen, Settings, Clock, ChevronLeft, ChevronRight, Landmark,
-  ClipboardCheck, FileSpreadsheet, Menu, X 
+  ClipboardCheck, FileSpreadsheet, Menu, X, Stamp
 } from "lucide-react";
 
 import { db } from "@/lib/firebase"; 
@@ -38,6 +38,7 @@ export default function LembagaLayout({ children }: { children: React.ReactNode 
     { name: "Validasi Asesmen", icon: FileSpreadsheet, path: "/dashboard/lembaga/validasi-asesmen" },
     { name: "Bahan Ajar", icon: BookOpen, path: "/dashboard/lembaga/bahan-ajar" },
     { name: "Analitik", icon: BarChart3, path: "/dashboard/lembaga/analitik" },
+    { name: "Kop Surat", icon: Stamp, path: "/dashboard/lembaga/kop" },
     { name: "Pengaturan", icon: Settings, path: "/dashboard/lembaga/pengaturan" },
   ];
 
@@ -53,6 +54,7 @@ export default function LembagaLayout({ children }: { children: React.ReactNode 
     { name: "Validasi Asesmen", icon: FileSpreadsheet, path: "/dashboard/lembaga/validasi-asesmen" },
     { name: "Bahan Ajar", icon: BookOpen, path: "/dashboard/lembaga/bahan-ajar" },
     { name: "Analitik", icon: BarChart3, path: "/dashboard/lembaga/analitik" },
+    { name: "Kop Surat", icon: Stamp, path: "/dashboard/lembaga/kop" },
   ];
 
   useEffect(() => {

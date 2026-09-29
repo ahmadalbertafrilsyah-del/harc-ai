@@ -2,13 +2,10 @@
 
 import React, { useState, useEffect, useRef, FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Users, BookOpen, Plus, ChevronRight, GraduationCap, Loader2, Camera, Key, 
-  ArrowLeft, UploadCloud, BrainCircuit, CheckCircle2, FileText, X, Clock, 
-  CalendarDays, Save, Trash2, Target, Settings2, Edit3, FileSpreadsheet, 
-  ArrowDownToLine, Calculator, AlertCircle, ClipboardCheck, List, Eye, Printer, 
-  SlidersHorizontal, Percent, FileCheck, Bold, Italic, Underline, AlignLeft, ListOrdered,
-  MessageSquareText, Activity, Info
+import {
+  Users, Plus, Loader2, Key, ArrowLeft, CheckCircle2, X,
+  CalendarDays, Save, Trash2, FileSpreadsheet, ArrowDownToLine,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { db } from "@/lib/firebase"; 
@@ -30,8 +27,6 @@ export default function ManajemenKelas() {
 
   const [selectedClass, setSelectedClass] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState("siswa"); 
-  const [daftarUjian, setDaftarUjian] = useState<any[]>([]);
-  const [koleksiAI, setKoleksiAI] = useState<any[]>([]);
 
   // === STATE ADMINISTRASI (ABSENSI & JURNAL) ===
   const [tanggal, setTanggal] = useState(new Date().toISOString().split('T')[0]);
@@ -49,96 +44,6 @@ export default function ManajemenKelas() {
   const [isRiwayatJurnalOpen, setIsRiwayatJurnalOpen] = useState(false);
   const [riwayatJurnalData, setRiwayatJurnalData] = useState<any[]>([]); 
 
-  // === STATE UJIAN CBT ===
-  const [isCbtModalOpen, setIsCbtModalOpen] = useState(false);
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [isHasilUjianOpen, setIsHasilUjianOpen] = useState(false);
-  const [daftarSoal, setDaftarSoal] = useState<any[]>([]);
-  const [selectedUjianView, setSelectedUjianView] = useState<any | null>(null);
-  const [hasilUjianData, setHasilUjianData] = useState<any[]>([]);
-  const [expandedFeedbackId, setExpandedFeedbackId] = useState<string | null>(null);
-
-  // === STATE KOREKSI AI OVERRIDE ===
-  const [hasilKoreksiAI, setHasilKoreksiAI] = useState<any | null>(null);
-  const [overrideScore, setOverrideScore] = useState<number | null>(null);
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [streamObj, setStreamObj] = useState<MediaStream | null>(null);
-
-  const [cbtForm, setCbtForm] = useState({
-    judul: "", jenisUjian: "Asesmen Formatif", jenisUjianCustom: "", sumberSoal: "Buat Manual (Ketik Sendiri)", bahanBacaan: "", opsiPG: "A - D (4 Opsi)",
-    waktuMenit: 60, waktuMulai: "", waktuSelesai: "", koleksiId: "" 
-  });
-
-  const bukaKameraPerangkat = async () => {
-    try {
-      setIsCameraActive(true);
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "environment" } 
-      });
-      setStreamObj(stream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (err) {
-      alert("Gagal mengakses kamera. Pastikan Anda telah memberikan izin (permission) akses kamera pada peramban/browser.");
-      setIsCameraActive(false);
-    }
-  };
-
-  const tutupKameraPerangkat = () => {
-    if (streamObj) {
-      streamObj.getTracks().forEach(track => track.stop());
-      setStreamObj(null);
-    }
-    setIsCameraActive(false);
-  };
-
-  useEffect(() => {
-  let animationFrameId: number;
-  let isScanning = true;
-
-  const scanQRCode = async () => {
-    if (!isCameraActive || !videoRef.current) return;
-    
-    // Memeriksa dukungan BarcodeDetector di browser seluler
-    if ('BarcodeDetector' in window) {
-      try {
-        const barcodeDetector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
-        const barcodes = await barcodeDetector.detect(videoRef.current);
-        
-        if (barcodes.length > 0 && isScanning) {
-          isScanning = false;
-          const rawValue = barcodes[0].rawValue;
-          
-          // Aksi ketika QR Code berhasil terbaca
-          alert(`Berhasil Memindai! Data: ${rawValue}`);
-          
-          // Tutup kamera otomatis setelah berhasil
-          tutupKameraPerangkat();
-        }
-      } catch (e) {
-        // Mengabaikan error per frame saat mendeteksi
-      }
-    }
-    
-    if (isCameraActive) {
-      animationFrameId = requestAnimationFrame(scanQRCode);
-    }
-  };
-
-  if (isCameraActive) {
-    const timer = setTimeout(() => {
-      scanQRCode();
-    }, 1000);
-    return () => clearTimeout(timer);
-  }
-
-  return () => {
-    cancelAnimationFrame(animationFrameId);
-    };
-  }, [isCameraActive]);
-
   // === STATE REKAP NILAI ===
   const [kkm, setKkm] = useState(75); 
   const [nilai, setNilai] = useState<Record<string, Record<string, number>>>({});
@@ -147,7 +52,6 @@ export default function ManajemenKelas() {
   const [isSubmittingRekap, setIsSubmittingRekap] = useState(false);
   const [statusPesanRekap, setStatusPesanRekap] = useState<{tipe: "sukses"|"error", teks: string} | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // === 1. TARIK DATA AWAL ===
   useEffect(() => {
@@ -160,9 +64,6 @@ export default function ManajemenKelas() {
           setKelasData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
           setIsLoading(false);
         });
-        onSnapshot(query(collection(db, "modul_ajar"), where("userId", "==", user.uid)), (snapshot) => {
-          setKoleksiAI(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        });
       }
     });
     return () => unsubscribeAuth();
@@ -173,22 +74,6 @@ export default function ManajemenKelas() {
       onSnapshot(query(collection(db, "users"), where("role", "==", "siswa"), where("npsn", "==", guruNpsn)), (snap) => setDaftarSiswaGlobal(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     }
   }, [guruNpsn]);
-
-  useEffect(() => {
-    if (selectedClass) {
-      onSnapshot(query(collection(db, "bank_soal"), where("kelasId", "==", selectedClass.id)), (snapshot) => setDaftarUjian(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
-    }
-  }, [selectedClass]);
-
-  useEffect(() => {
-    if (isHasilUjianOpen && selectedUjianView) {
-      const q = query(collection(db, "jawaban_siswa"), where("idUjian", "==", selectedUjianView.id));
-      const unsub = onSnapshot(q, (snap) => {
-        setHasilUjianData(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      });
-      return () => unsub();
-    }
-  }, [isHasilUjianOpen, selectedUjianView]);
 
   // === 2. FETCH REKAP NILAI & ABSENSI ===
   useEffect(() => {
@@ -329,26 +214,6 @@ export default function ManajemenKelas() {
 
   const handleTambahIndikator = () => setIndikatorNilai([...indikatorNilai, { id: `ind_${Date.now()}`, nama: "Indikator Baru", bobot: 0 }]);
   const handleHapusIndikator = (id: string) => setIndikatorNilai(indikatorNilai.filter(i => i.id !== id));
-  const hapusUjian = async (id: string) => { if(confirm("Yakin ingin menghapus ujian ini?")) await deleteDoc(doc(db, "bank_soal", id)); };
-
-  const handleUploadLJK = (e: any) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    alert(`Memproses LJK: ${file.name} dengan AI Vision...`);
-    setTimeout(() => { 
-      setHasilKoreksiAI({
-        namaSiswa: "Ahmad Muhammad Alhammad",
-        nilaiAwal: 65,
-        diagnosa: "AI menandai jawaban salah karena dialek lokal ('ndak') dianggap tidak baku."
-      });
-      setOverrideScore(65);
-    }, 2500);
-  };
-
-  const simpanOverrideNilai = () => {
-    alert(`Nilai diubah menjadi ${overrideScore}. Keputusan otoritas guru (Responsif Budaya) direkam.`);
-    setHasilKoreksiAI(null);
-  }
 
   // === FITUR OFFLINE: CETAK KARTU ISYARAT (PLICKERS) ===
   const handlePrintKartuPlickers = (siswa: any) => {
@@ -370,390 +235,6 @@ export default function ManajemenKelas() {
           <div class="instruction">Putar kartu ke arah atas untuk memilih opsi jawaban (A / B / C / D)</div>
         </div>
       </body></html>
-    `;
-    printWindow.document.write(html); printWindow.document.close(); printWindow.focus();
-    setTimeout(() => { printWindow.print(); }, 800);
-  };
-
-  // === FITUR: DETEKSI POLA BANTUAN AI PADA URAIAN ===
-  const deteksiPolaAI = (teksJawaban: string) => {
-    if (!teksJawaban || teksJawaban.length < 30) {
-      return { status: "Teks terlalu pendek", persentase: 0, warna: "text-slate-500 bg-slate-50 border-slate-200" };
-    }
-    const kalimat = teksJawaban.split(/[.!?]/).filter(Boolean);
-    let panjangKataPerKalimat = kalimat.map(k => k.split(/\s+/).length);
-    let rataKata = panjangKataPerKalimat.reduce((a, b) => a + b, 0) / (kalimat.length || 1);
-    let deviasi = panjangKataPerKalimat.reduce((sum, val) => sum + Math.abs(val - rataKata), 0) / (kalimat.length || 1);
-
-    let skorAI = deviasi < 2.5 ? Math.min(Math.round((2.5 - deviasi) * 35 + 40), 95) : Math.max(Math.round(20 - deviasi), 5);
-
-    if (skorAI > 70) {
-      return { status: "Indikasi Kuat Buatan AI", persentase: skorAI, warna: "text-rose-600 bg-rose-50 border-rose-200" };
-    } else if (skorAI > 40) {
-      return { status: "Moderat / Campuran", persentase: skorAI, warna: "text-amber-600 bg-amber-50 border-amber-200" };
-    } else {
-      return { status: "Murni Gaya Bahasa Siswa", persentase: skorAI, warna: "text-emerald-600 bg-emerald-50 border-emerald-200" };
-    }
-  };
-
-  const generateFeedbackAI = async (siswa: any, jawabanData: any) => {
-    const nilai = jawabanData.nilai || 0;
-    let feedbackText = "";
-    if (nilai >= 85) {
-      feedbackText = `Berdasarkan analisis sistem, Ananda ${siswa.nama} telah menunjukkan pemahaman kognitif yang luar biasa. Kemampuan analisis soal sangat menonjol. AI merekomendasikan pengayaan mandiri (HOTS) di level lanjutan.`;
-    } else if (nilai >= 60) {
-      feedbackText = `Sistem mendeteksi bahwa Ananda ${siswa.nama} masih kesulitan pada pemahaman materi spesifik. AI menyarankan guru untuk memberikan intervensi (scaffolding) tambahan. Tingkat kemandirian siswa berada pada fase "Berkembang".`;
-    } else {
-      feedbackText = `Tingkat Ketergantungan Tinggi: Ananda ${siswa.nama} terdeteksi membutuhkan pendampingan khusus. Terdapat kesalahan berulang pada konsep dasar. Mohon berikan tugas remedial secara terarah.`;
-    }
-    try {
-      await updateDoc(doc(db, "jawaban_siswa", jawabanData.id), { feedbackGuru: feedbackText });
-      alert(`Auto-Feedback AI untuk ${siswa.nama} Berhasil di-generate!`);
-    } catch (error) {
-      alert("Gagal memproses feedback AI.");
-    }
-  };
-
-  const getInitialOpsi = () => Array.from({length: cbtForm.opsiPG.includes("5") ? 5 : 4}).map((_, i) => ({ id: ["A", "B", "C", "D", "E"][i], teks: "" }));
-
-  const tambahSoalManual = (tipe: string) => {
-    const soalBaru = { 
-      id: Date.now().toString(), tipe: tipe, pertanyaan: "", 
-      opsi: (tipe === "PG") ? getInitialOpsi() : [], 
-      pasangan: tipe === "Jodohkan" ? [{kiri: "", kanan: ""}, {kiri: "", kanan: ""}] : [],
-      kunci: "A", panduanAI: "",
-      analisis: { kesukaran: "Sedang", dayaPembeda: "Baik", status: "Layak Digunakan" }
-    };
-    setDaftarSoal([...daftarSoal, soalBaru]);
-  };
-  
-  const hapusSoal = (id: string) => setDaftarSoal(daftarSoal.filter(s => s.id !== id));
-
-  // ==========================================
-  // PARSER AI BARU & CERDAS
-  // ==========================================
-  const prosesLanjutPembuatan = () => {
-    if(!cbtForm.judul || !cbtForm.waktuMulai || !cbtForm.waktuSelesai) { 
-      alert("Mohon isi Judul Ujian dan Jadwal Pelaksanaan."); return; 
-    }
-    if((cbtForm.sumberSoal === "Tarik dari Bank Soal AI (Generator)" || cbtForm.sumberSoal === "Upload dari Kisi-kisi / LKPD (Word/PDF)") && !cbtForm.koleksiId) {
-      alert("Harap pilih Koleksi Hasil Generate AI terlebih dahulu."); return;
-    }
-
-    let initialSoal: any[] = [];
-
-    if (cbtForm.sumberSoal === "Tarik dari Bank Soal AI (Generator)" && cbtForm.koleksiId) {
-       const selectedKol = koleksiAI.find(k => k.id === cbtForm.koleksiId);
-       if (selectedKol && selectedKol.konten) {
-          const content = selectedKol.konten;
-          const soalBlocks = content.match(/\[SOAL_START\]([\s\S]*?)\[SOAL_END\]/g);
-
-          if (soalBlocks && soalBlocks.length > 0) {
-              soalBlocks.forEach((block: string, index: number) => {
-                  let tipe = "PG";
-                  let pertanyaan = "";
-                  let opsi: any[] = [];
-                  let pasangan: any[] = [];
-                  let kunci = "A";
-                  let panduanAI = "";
-
-                  const tipeMatch = block.match(/\[TIPE:(.*?)\]/i);
-                  if (tipeMatch) {
-                      const tipeRaw = tipeMatch[1].trim().toUpperCase();
-                      if(tipeRaw === "BS") tipe = "Benar/Salah";
-                      else if(tipeRaw === "JODOHKAN") tipe = "Jodohkan";
-                      else if(tipeRaw === "ISIAN") tipe = "Isian Singkat";
-                      else if(tipeRaw === "URAIAN") tipe = "Uraian";
-                  }
-
-                  const kunciMatch = block.match(/\[KUNCI:([\s\S]*?)\]/i);
-                  if (kunciMatch) {
-                      let rawKunci = kunciMatch[1].trim();
-                      if (tipe === "PG") kunci = rawKunci.replace(/[^A-E]/gi, '').charAt(0).toUpperCase() || "A";
-                      else if (tipe === "Benar/Salah") kunci = rawKunci.toLowerCase().includes("benar") ? "Benar" : "Salah";
-                      else panduanAI = rawKunci;
-                  }
-
-                  let cleanText = block.replace(/\[SOAL_START\]/gi, '').replace(/\[SOAL_END\]/gi, '')
-                                       .replace(/\[TIPE:.*?\]/gi, '').replace(/\[KUNCI:[\s\S]*?\]/gi, '').trim();
-
-                  const lines = cleanText.split('\n').map((l: string) => l.trim()).filter((l: string) => l);
-                  const qLines: string[] = [];
-
-                  if (tipe === "PG") {
-                      const optRegex = /^(?:[\*\-]\s*)?(?:\*\*)?([A-E])[\.\)](?:\*\*)?\s+(.*)/i;
-                      lines.forEach((line: string) => {
-                          const m = line.match(optRegex);
-                          if(m) opsi.push({ id: m[1].toUpperCase(), teks: m[2].trim() });
-                          else if(opsi.length === 0) qLines.push(line);
-                          else opsi[opsi.length-1].teks += " " + line.trim();
-                      });
-                      pertanyaan = qLines.join('\n').trim();
-                  } 
-                  else if (tipe === "Jodohkan") {
-                      lines.forEach((line: string) => {
-                          if(line.includes("|") && !line.match(/\|[-\s:]+\|/)) {
-                              const cols = line.split("|").map((c: string) => c.trim()).filter((c: string) => c);
-                              if(cols.length >= 2 && !cols[0].toLowerCase().includes("pernyataan") && !cols[0].toLowerCase().includes("kiri") && !cols[0].toLowerCase().includes("lajur")) {
-                                  pasangan.push({ kiri: cols[0].replace(/^\d+\.\s*/, ''), kanan: cols[1] });
-                              }
-                          } 
-                          else if (!line.includes("|") && (line.includes("=") || (line.includes(" - ") && !line.match(/^[\*\-]\s/)))) {
-                              const sp = line.split(/\s*=\s*|\s+-\s+/);
-                              if(sp.length >= 2) {
-                                  pasangan.push({ kiri: sp[0].trim().replace(/^\d+\.\s*/, ''), kanan: sp[1].trim() });
-                              } else {
-                                  qLines.push(line);
-                              }
-                          } 
-                          else if (!line.match(/\|[-\s:]+\|/)) {
-                              qLines.push(line);
-                          }
-                      });
-                      pertanyaan = qLines.join('\n').trim();
-                      if(pasangan.length === 0) pasangan = [{kiri:"", kanan:""}];
-                  } 
-                  else {
-                      pertanyaan = cleanText.replace(/^\d+\.\s*/, '').trim();
-                  }
-
-                  initialSoal.push({
-                      id: `soal_${Date.now()}_${index}_${Math.random()}`,
-                      tipe, pertanyaan, opsi, kunci, panduanAI, pasangan,
-                      analisis: { kesukaran: "Sedang", dayaPembeda: "Baik", status: "Layak Digunakan" }
-                  });
-              });
-          } else {
-             let kunciJawabanSection = "";
-             const kunciMatch = content.match(/(?:Kunci Jawaban|KUNCI JAWABAN|Pedoman Penskoran)[\s\S]*/i);
-             if (kunciMatch) { kunciJawabanSection = kunciMatch[0]; }
-
-             const blockRegex = /(?:\n|^)(?:\*\*)?(?:[A-Z]\.\s+)?(\d+)\.\s(?:\*\*)?/g;
-             let match, lastIndex = 0, soalMatches: any[] = [];
-
-             while ((match = blockRegex.exec(content)) !== null) {
-                if (soalMatches.length > 0) {
-                  soalMatches[soalMatches.length - 1].text = content.substring(lastIndex, match.index).trim();
-                }
-                soalMatches.push({ num: match[1], text: "" });
-                lastIndex = blockRegex.lastIndex;
-             }
-             if (soalMatches.length > 0) soalMatches[soalMatches.length - 1].text = content.substring(lastIndex).trim();
-
-             soalMatches.forEach((sMatch: any, index: number) => {
-                let blockText = sMatch.text;
-                if (kunciMatch && blockText.includes(kunciMatch[0])) {
-                   blockText = blockText.replace(kunciMatch[0], "").trim();
-                }
-                if (!blockText) return;
-
-                let tipe = "Uraian";
-                let opsi: any[] = [];
-                let pasangan: any[] = [];
-                let kunci = "A";
-                let panduanAI = "";
-
-                const lines = blockText.split(/\n|<br\s*\/?>/i).map((l: string) => l.trim()).filter((l: string) => l);
-                const pertanyaanLines: string[] = [];
-                const optRegex = /^(?:[\*\-]\s*)?(?:\*\*)?([A-E])[\.\)](?:\*\*)?\s+(.*)/i;
-
-                lines.forEach((line: string) => {
-                    const lineMatch = line.match(optRegex);
-                    if (lineMatch) {
-                        opsi.push({ id: lineMatch[1].toUpperCase(), teks: lineMatch[2].trim() });
-                    } else {
-                        if (opsi.length === 0) pertanyaanLines.push(line);
-                        else opsi[opsi.length - 1].teks += " " + line.trim();
-                    }
-                });
-
-                let pertanyaan = pertanyaanLines.join('\n').trim();
-
-                if (opsi.length >= 2) { 
-                    tipe = "PG"; 
-                } else if (blockText.toLowerCase().includes("benar") && blockText.toLowerCase().includes("salah")) { 
-                    tipe = "Benar/Salah"; opsi = []; 
-                } else if (blockText.toLowerCase().includes("jodohkan") || blockText.toLowerCase().includes("pasangkan")) {
-                    tipe = "Jodohkan";
-                    lines.forEach((line: string) => {
-                        if(line.includes("|") && !line.match(/\|[-\s:]+\|/)) {
-                            const cols = line.split("|").map((c: string) => c.trim()).filter((c: string) => c);
-                            if(cols.length >= 2 && !cols[0].toLowerCase().includes("pernyataan") && !cols[0].toLowerCase().includes("kiri") && !cols[0].toLowerCase().includes("lajur") && !cols[0].toLowerCase().includes("no")) {
-                                let kiri = cols[0].replace(/^\d+\.\s*/, '');
-                                let kanan = cols[cols.length > 2 ? 2 : 1]; 
-                                if (cols.length >= 4) { kiri = cols[1]; kanan = cols[3]; } 
-                                else if (cols.length >= 2) { kiri = cols[0]; kanan = cols[1]; }
-                                pasangan.push({ kiri: kiri.replace(/^\d+\.\s*/, ''), kanan: kanan.replace(/^[A-Z]\.\s*/, '') });
-                            }
-                        } else if (!line.includes("|") && (line.includes("=") || (line.includes(" - ") && !line.match(/^[\*\-]\s/)))) {
-                            const sp = line.split(/\s*=\s*|\s+-\s+/);
-                            if (sp.length >= 2) pasangan.push({ kiri: sp[0].trim().replace(/^\d+\.\s*/, ''), kanan: sp[1].trim().replace(/^[A-Z]\.\s*/, '') });
-                        }
-                    });
-                    if (pasangan.length === 0) pasangan = [{kiri: "", kanan: ""}, {kiri: "", kanan: ""}];
-                } else if (blockText.toLowerCase().includes("isian") || blockText.includes("....") || blockText.includes("___")) { 
-                    tipe = "Isian Singkat"; 
-                }
-
-                if (kunciJawabanSection) {
-                    const kunciRegex = new RegExp(`(?:\\n|^|<br\\s*\\/?>)(?:\\*\\*)?${sMatch.num}\\.(?:\\*\\*)?\\s*(.*)`, 'i');
-                    const kMatch = kunciJawabanSection.match(kunciRegex);
-                    if (kMatch) {
-                        let rawKunci = kMatch[1].trim();
-                        if (tipe === "PG") { 
-                            const parsedLetter = rawKunci.match(/^[A-E]/i); 
-                            if (parsedLetter) kunci = parsedLetter[0].toUpperCase(); 
-                        } else if (tipe === "Benar/Salah") { 
-                            kunci = rawKunci.toLowerCase().includes("benar") ? "Benar" : "Salah"; 
-                        } else { 
-                            panduanAI = rawKunci; 
-                        }
-                    }
-                }
-
-                initialSoal.push({
-                    id: `soal_${Date.now()}_${index}_${Math.random()}`,
-                    tipe, pertanyaan, opsi, kunci, panduanAI, pasangan,
-                    analisis: { kesukaran: "Sedang", dayaPembeda: "Baik", status: "Layak Digunakan" }
-                });
-             });
-          }
-       }
-    }
-
-    if (initialSoal.length === 0) initialSoal = [{ id: Date.now().toString(), tipe: "PG", pertanyaan: "", opsi: getInitialOpsi(), kunci: "A", panduanAI: "", pasangan: [], analisis: { kesukaran: "Sedang", dayaPembeda: "Baik", status: "Layak Digunakan" } }];
-    setDaftarSoal(initialSoal); setIsCbtModalOpen(false); setIsEditorOpen(true);
-  };
-
-  const simpanUjianKeDatabase = async () => {
-    try {
-      const finalPengaturan = { ...cbtForm, jenisUjian: cbtForm.jenisUjian === 'Custom' ? cbtForm.jenisUjianCustom : cbtForm.jenisUjian };
-      await addDoc(collection(db, "bank_soal"), { kelasId: selectedClass.id, pengaturan: finalPengaturan, soal: daftarSoal, guruId: userUid, timestamp: serverTimestamp() });
-      alert("Ujian berhasil disimpan!"); setIsEditorOpen(false); setActiveTab("cbt");
-    } catch (error) { alert("Gagal menyimpan soal."); }
-  };
-
-  const handlePrintSoal = (ujian: any) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return alert("Izinkan pop-up browser untuk mencetak.");
-    const html = `
-      <html><head><title>Soal Ujian - ${ujian.pengaturan.judul}</title>
-        <style>
-          body { font-family: 'Times New Roman', Times, serif; line-height: 1.5; padding: 40px; color: black; font-size: 14px; }
-          .header { text-align: center; border-bottom: 2px solid black; padding-bottom: 15px; margin-bottom: 20px; }
-          .header h2, .header h3 { margin: 0; padding: 3px 0; }
-          .meta { display: flex; justify-content: space-between; margin-bottom: 30px; font-weight: bold; border-bottom: 1px dashed black; padding-bottom: 10px; }
-          .soal-container { margin-bottom: 20px; page-break-inside: avoid; }
-          .opsi-list { list-style-type: none; padding-left: 20px; margin-top: 5px; }
-          .opsi-list li { margin-bottom: 4px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th, td { border: 1px solid black; padding: 8px; text-align: left; }
-        </style>
-      </head><body>
-        <div class="header"><h2>LEMBAR SOAL UJIAN</h2><h3>${ujian.pengaturan.judul}</h3></div>
-        <div class="meta"><span>Mata Pelajaran: ${selectedClass?.mapel || '-'}</span><span>Waktu: ${ujian.pengaturan.waktuMenit} Menit</span></div>
-        <div class="content">
-          ${(ujian.soal || []).map((s: any, idx: number) => `
-            <div class="soal-container">
-              <div style="display: flex; gap: 8px;"><strong>${idx + 1}.</strong> <div>${(s.pertanyaan || '').replace(/\n/g, '<br/>')}</div></div>
-              ${s.tipe === 'PG' && s.opsi ? `<ul class="opsi-list">${s.opsi.map((opt: any) => `<li>${opt.id}. ${opt.teks || ''}</li>`).join('')}</ul>` : ''}
-              ${s.tipe === 'Jodohkan' && s.pasangan ? `
-                <table><tr><th>Pernyataan (Kiri)</th><th>Pasangan (Kanan)</th></tr>
-                ${s.pasangan.map((p:any)=> `<tr><td>${p.kiri}</td><td>${p.kanan}</td></tr>`).join('')}</table>
-              ` : ''}
-            </div>
-          `).join('')}
-        </div>
-      </body></html>
-    `;
-    printWindow.document.write(html); printWindow.document.close(); printWindow.focus();
-    setTimeout(() => { printWindow.print(); }, 800);
-  };
-
-  const handlePrintLJK = (ujian: any) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return alert("Izinkan pop-up browser untuk mencetak LJK.");
-
-    const qrData = encodeURIComponent(JSON.stringify({ uId: ujian.id, kId: selectedClass?.id }));
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${qrData}`;
-
-    const objectiveSoal = (ujian.soal || []).filter((s: any) => s.tipe === 'PG' || s.tipe === 'Benar/Salah');
-    const subjectiveSoal = (ujian.soal || []).filter((s: any) => s.tipe !== 'PG' && s.tipe !== 'Benar/Salah');
-
-    let objectiveHtml = '';
-    objectiveSoal.forEach((s: any) => {
-      const num = ujian.soal.findIndex((x:any) => x.id === s.id) + 1;
-      if (s.tipe === 'PG') {
-        const opsiLetters = (s.opsi && s.opsi.length > 0) ? s.opsi.map((o:any)=>o.id) : ['A','B','C','D'];
-        const bubbles = opsiLetters.map((l:string) => `<span class="bubble">${l}</span>`).join('');
-        objectiveHtml += `<div class="pg-item"><span class="pg-num">${num}.</span>${bubbles}</div>`;
-      } else if (s.tipe === 'Benar/Salah') {
-        objectiveHtml += `<div class="pg-item"><span class="pg-num">${num}.</span><span class="bubble">B</span><span class="bubble">S</span></div>`;
-      }
-    });
-
-    let subjectiveHtml = '';
-    subjectiveSoal.forEach((s: any) => {
-      const num = ujian.soal.findIndex((x:any) => x.id === s.id) + 1;
-      if (s.tipe === 'Jodohkan') {
-        const lines = s.pasangan ? s.pasangan.map((p:any, i:number) => `<div style="display:flex; margin-top:12px; align-items:flex-end;"><span style="width:25px; font-weight:bold;">${i+1}.</span><div style="border-bottom:1px dotted black; flex:1;"></div></div>`).join('') : '<div class="essay-lines"></div>';
-        subjectiveHtml += `<div class="essay-item"><strong>${num}. (Menjodohkan)</strong><div style="margin-top:10px; margin-bottom:10px;">${lines}</div></div>`;
-      } else {
-        subjectiveHtml += `<div class="essay-item"><strong>${num}. (${s.tipe})</strong> <div class="essay-lines"></div><div class="essay-lines"></div><div class="essay-lines"></div></div>`;
-      }
-    });
-
-    if (!objectiveHtml) objectiveHtml = '<div style="grid-column: 1 / -1; text-align: center; color: #666; font-style: italic;">Tidak ada soal objektif</div>';
-    if (!subjectiveHtml) subjectiveHtml = '<div style="text-align: center; color: #666; font-style: italic;">Tidak ada soal subjektif</div>';
-
-    const html = `
-      <html><head><title>LJK - ${ujian.pengaturan?.judul}</title><style>
-          body { font-family: Arial, sans-serif; font-size: 11px; padding: 20px; color: black; max-width: 800px; margin: auto; }
-          .header { text-align: center; border-bottom: 3px solid black; padding-bottom: 10px; margin-bottom: 20px; position: relative; }
-          .qr-code { position: absolute; top: 0; right: 0; width: 60px; height: 60px; }
-          .header h1 { margin: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 2px; padding-right: 70px; }
-          .header h2 { margin: 5px 0 0 0; font-size: 12px; font-weight: normal; padding-right: 70px; }
-          .petunjuk { font-size: 10px; border: 1px solid black; padding: 10px; margin-bottom: 15px; background-color: #fafafa; }
-          .info-container { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
-          .info-box { flex: 1; border: 1px solid black; padding: 10px; }
-          .info-row { display: flex; margin-bottom: 8px; align-items: flex-end; }
-          .info-label { width: 90px; font-weight: bold; font-size: 11px; }
-          .info-line { flex: 1; border-bottom: 1px dotted black; height: 14px; }
-          .section-title { font-weight: bold; font-size: 13px; text-align: center; text-transform: uppercase; border: 1px solid black; background: #eee; padding: 5px; margin-bottom: 15px;}
-          
-          .pg-grid { column-count: 4; column-gap: 20px; border: 1px solid black; padding: 15px; margin-bottom: 20px; }
-          .pg-item { break-inside: avoid; display: flex; align-items: center; margin-bottom: 8px; }
-          .pg-num { width: 25px; text-align: right; margin-right: 8px; font-weight: bold; }
-          .bubble { border: 1px solid black; border-radius: 50%; width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; font-size: 8px; margin-right: 4px; }
-          
-          .essay-section { border: 1px solid black; padding: 15px; }
-          .essay-item { margin-bottom: 25px; break-inside: avoid; }
-          .essay-lines { border-bottom: 1px dotted black; height: 20px; width: 100%; margin-top: 10px; }
-        </style></head><body>
-        <div class="container">
-          <div class="header">
-            <img src="${qrUrl}" class="qr-code" alt="QR Ujian" />
-            <h1>LEMBAR JAWABAN (LJK)</h1>
-            <h2>${ujian.pengaturan?.judul}</h2>
-          </div>
-          <div class="petunjuk"><b>PETUNJUK PENGISIAN:</b><br/>1. Gunakan pensil 2B atau pulpen tinta hitam pekat.<br/>2. Hitamkan bulatan (⬤) secara penuh pada jawaban yang dianggap benar.<br/>3. Jaga lembar agar tidak kotor/robek karena akan dipindai menggunakan kamera guru.</div>
-          <div class="info-container">
-            <div class="info-box" style="flex: 1.5;">
-              <div class="info-row"><div class="info-label">Nama Peserta</div><div class="info-line"></div></div>
-              <div class="info-row"><div class="info-label">Nomor Induk</div><div class="info-line"></div></div>
-              <div class="info-row"><div class="info-label">Tanda Tangan</div><div class="info-line" style="height: 25px;"></div></div>
-            </div>
-            <div class="info-box" style="flex: 1;">
-              <div style="margin-bottom: 5px;"><b>Mata Pelajaran:</b> ${selectedClass?.mapel}</div>
-              <div style="margin-bottom: 5px;"><b>Durasi Ujian:</b> ${ujian.pengaturan?.waktuMenit || 60} Menit</div>
-              <div style="margin-bottom: 5px;"><b>Tanggal:</b> .......................</div>
-            </div>
-          </div>
-          <div class="section-title">A. SOAL OBJEKTIF (Pilihan Ganda & Benar/Salah)</div>
-          <div class="pg-grid">${objectiveHtml}</div>
-          <div class="section-title">B. SOAL SUBJEKTIF (Menjodohkan, Isian Singkat & Uraian)</div>
-          <div class="essay-section">${subjectiveHtml}</div>
-        </div></body></html>
     `;
     printWindow.document.write(html); printWindow.document.close(); printWindow.focus();
     setTimeout(() => { printWindow.print(); }, 800);
@@ -809,9 +290,9 @@ export default function ManajemenKelas() {
       )}
 
       {/* TAMPILAN 2: DETAIL KELAS & TABS */}
-      {selectedClass && !isEditorOpen && (
+      {selectedClass && (
         <>
-          <button onClick={() => { setSelectedClass(null); setIsEditorOpen(false); }} className="inline-flex items-center gap-1.5 text-slate-500 hover:text-blue-600 font-bold text-xs bg-white border border-slate-200 px-3 py-1.5 rounded-xl transition-all shadow-sm">
+          <button onClick={() => setSelectedClass(null)} className="inline-flex items-center gap-1.5 text-slate-500 hover:text-blue-600 font-bold text-xs bg-white border border-slate-200 px-3 py-1.5 rounded-xl transition-all shadow-sm">
             <ArrowLeft size={15} /> Kembali ke Daftar Kelas
           </button>
 
@@ -830,9 +311,9 @@ export default function ManajemenKelas() {
           </div>
 
           <div className="flex gap-2 border-b border-slate-200 overflow-x-auto scrollbar-none pb-0" style={{ scrollbarWidth: 'none' }}>
-            {["siswa", "absensi", "jurnal", "rekap", "cbt", "koreksi"].map(tab => (
+            {["siswa", "absensi", "jurnal", "rekap"].map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-3 px-3 text-xs md:text-sm font-bold capitalize transition-all relative shrink-0 ${activeTab === tab ? "text-indigo-600 font-extrabold" : "text-slate-500 hover:text-slate-700"}`}>
-                {tab === "cbt" ? "E-Ujian (CBT)" : tab} 
+                {tab}
                 {activeTab === tab && <span className="absolute bottom-0 left-0 w-full h-1 bg-indigo-600 rounded-t-full"></span>}
               </button>
             ))}
@@ -1058,208 +539,8 @@ export default function ManajemenKelas() {
               </motion.div>
             )}
 
-            {/* TAB: E-UJIAN (CBT) */}
-            {activeTab === "cbt" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pb-3 border-b border-slate-100">
-                  <h3 className="font-bold text-slate-800 text-sm md:text-base">Bank Soal & Penugasan CBT</h3>
-                  <button type="button" onClick={() => setIsCbtModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95">
-                    <Plus size={15}/> Pengaturan Ujian Baru
-                  </button>
-                </div>
-
-                {daftarUjian.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                    {daftarUjian.map((ujian) => (
-                      <div key={ujian.id} className="p-4 rounded-2xl border border-slate-200 bg-white shadow-sm flex flex-col justify-between relative">
-                        <div>
-                          <button type="button" onClick={() => hapusUjian(ujian.id)} className="absolute top-4 right-4 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
-                          <h4 className="font-bold text-slate-900 text-sm pr-6">{ujian.pengaturan.judul}</h4>
-                          <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mt-0.5 mb-2.5">{ujian.pengaturan.jenisUjian}</p>
-                          <div className="flex flex-wrap gap-2 text-[11px] text-slate-500 mb-3">
-                            <span className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100"><Target size={12}/> {ujian.soal?.length || 0} Soal</span>
-                            <span className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100"><Clock size={12}/> {ujian.pengaturan.waktuMenit} Menit</span>
-                          </div>
-                        </div>
-
-                        <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
-                          <div className="grid grid-cols-2 gap-2">
-                            <button type="button" onClick={() => handlePrintSoal(ujian)} className="flex justify-center items-center gap-1 text-[10px] font-bold bg-slate-50 border border-slate-200 py-1.5 rounded-xl text-slate-600 hover:bg-slate-100"><Printer size={12}/> Print Soal</button>
-                            <button type="button" onClick={() => handlePrintLJK(ujian)} className="flex justify-center items-center gap-1 text-[10px] font-bold bg-slate-50 border border-slate-200 py-1.5 rounded-xl text-slate-600 hover:bg-slate-100"><FileCheck size={12}/> Unduh LJK</button>
-                          </div>
-                          <button type="button" onClick={() => { setSelectedUjianView(ujian); setIsHasilUjianOpen(true); }} className="w-full flex justify-center items-center gap-1 text-[11px] font-bold bg-indigo-50 border border-indigo-100 py-2 rounded-xl text-indigo-700 hover:bg-indigo-100 transition-colors">
-                            <Eye size={13}/> Lihat Hasil & Feedback AI
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-12 border border-dashed border-slate-200 rounded-2xl text-center">
-                    <p className="text-xs font-bold text-slate-400">Belum ada ujian di kelas ini.</p>
-                  </div>
-                )}
-              </motion.div>
-            )}
-
-            {/* TAB: KOREKSI AI & SCANNER OFFLINE */}
-            {activeTab === "koreksi" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="font-bold text-slate-800 mb-2 flex items-center gap-2 text-sm md:text-base">
-                    <Camera size={18} className="text-indigo-600"/> Pemindai Kamera LJK & Kartu Offline
-                  </h3>
-                  <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                    Arahkan kamera ke QR Code pada LJK siswa atau Kartu Isyarat Pesantren untuk memproses kehadiran dan nilai secara instan.
-                  </p>
-                  
-                  <div className="bg-slate-900 rounded-2xl text-white text-center relative overflow-hidden h-[260px] flex flex-col items-center justify-center border border-slate-800">
-                    {isCameraActive ? (
-                      <div className="relative w-full h-full flex items-center justify-center bg-black">
-                        <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-                        <button type="button" onClick={tutupKameraPerangkat} className="absolute bottom-3 bg-rose-600 hover:bg-rose-700 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md transition-all z-10">
-                          Tutup Kamera
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center p-4">
-                        <div className="absolute inset-0 border-2 border-indigo-500/40 m-4 rounded-xl pointer-events-none flex items-center justify-center">
-                          <div className="w-full h-0.5 bg-indigo-500/60 animate-pulse"></div>
-                        </div>
-                        <Camera size={36} className="text-indigo-400 mb-2 animate-bounce" />
-                        <p className="text-xs font-bold text-slate-300">Kamera Pemindai Siap</p>
-                        <p className="text-[10px] text-slate-500 mt-1">Posisikan QR Code di dalam kotak area pemindaian</p>
-                        <button type="button" onClick={bukaKameraPerangkat} className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">
-                          Buka Kamera Scanner
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-            
-                <div>
-                  <h3 className="font-bold text-slate-800 mb-2 text-sm md:text-base">Unggah Berkas LJK Manual</h3>
-                  <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf" onChange={handleUploadLJK} />
-                  <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-indigo-200 bg-indigo-50/20 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-indigo-50/50 transition-colors h-[260px]">
-                    <UploadCloud size={36} className="text-indigo-400 mb-2.5" />
-                    <p className="font-bold text-slate-800 text-xs mb-0.5">Klik untuk mengunggah Berkas LJK</p>
-                    <p className="text-[10px] text-slate-400">Format: PNG, JPG, PDF</p>
-                  </div>
-                  
-                  <AnimatePresence>
-                    {hasilKoreksiAI && (
-                      <motion.div initial={{opacity:0, y:8}} animate={{opacity:1, y:0}} className="mt-4 p-4 border border-emerald-200 bg-emerald-50 rounded-2xl text-xs space-y-2">
-                        <h4 className="font-bold text-emerald-800 flex items-center gap-1.5"><CheckCircle2 size={15}/> Koreksi AI Selesai</h4>
-                        <p className="text-slate-700">Siswa: <strong>{hasilKoreksiAI.namaSiswa}</strong> | Nilai AI: <strong className="text-rose-600">{hasilKoreksiAI.nilaiAwal}</strong></p>
-                        <div className="pt-2 border-t border-emerald-200/60 space-y-1.5">
-                           <label className="font-bold text-slate-700 flex items-center gap-1"><Info size={13} className="text-indigo-500"/> Otoritas Guru (Override)</label>
-                           <div className="flex gap-2">
-                             <input type="number" value={overrideScore || 0} onChange={e=>setOverrideScore(Number(e.target.value))} className="w-16 p-2 text-center rounded-xl border border-slate-200 text-xs font-bold outline-none bg-white"/>
-                             <button onClick={simpanOverrideNilai} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all">Simpan Nilai</button>
-                           </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </motion.div>
-            )}
           </div>
         </>
-      )}
-
-      {/* TAMPILAN 3: EDITOR SOAL CBT */}
-      {selectedClass && isEditorOpen && (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6 space-y-5">
-          <div className="flex flex-col md:flex-row justify-between md:items-center pb-4 border-b border-slate-100 gap-3">
-            <div>
-              <h2 className={`text-lg md:text-xl font-bold text-slate-900 ${teachersFont.className}`}>{cbtForm.judul}</h2>
-              <p className="text-xs font-bold text-indigo-600 mt-0.5">{cbtForm.jenisUjian === 'Custom' ? cbtForm.jenisUjianCustom : cbtForm.jenisUjian}</p>
-            </div>
-            <div className="flex items-center gap-2 w-full md:w-auto">
-               <button onClick={() => setIsEditorOpen(false)} className="px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-50 transition-all flex-1 md:flex-none">
-                 Tutup Editor
-               </button>
-               <button type="button" onClick={simpanUjianKeDatabase} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-sm flex items-center justify-center gap-1.5 transition-all flex-1 md:flex-none">
-                 <Save size={15} /> Simpan Ujian
-               </button>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {daftarSoal.map((soal, index) => (
-              <div key={soal.id} className="p-4 md:p-5 border border-slate-200 rounded-2xl relative bg-white shadow-sm space-y-3">
-                <button type="button" onClick={() => hapusSoal(soal.id)} className="absolute top-4 right-4 text-slate-300 hover:text-rose-500 bg-slate-50 p-2 rounded-xl border border-slate-200 transition-colors"><Trash2 size={15} /></button>
-                
-                <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100 pr-10">
-                  <span className="font-bold text-xs bg-indigo-50 text-indigo-700 w-6 h-6 flex items-center justify-center rounded-lg">{index + 1}</span>
-                  <select value={soal.tipe} onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].tipe = e.target.value; setDaftarSoal(newSoal); }} className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 outline-none">
-                    <option value="PG">Pilihan Ganda</option>
-                    <option value="Benar/Salah">Benar / Salah</option>
-                    <option value="Jodohkan">Menjodohkan</option>
-                    <option value="Isian Singkat">Isian Singkat</option>
-                    <option value="Uraian">Uraian</option>
-                  </select>
-                </div>
-
-                <div className="border border-slate-200 rounded-xl bg-white overflow-hidden text-xs">
-                  <textarea className="w-full p-3 text-xs outline-none resize-none font-medium min-h-[80px]" value={soal.pertanyaan} onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].pertanyaan = e.target.value; setDaftarSoal(newSoal); }} placeholder="Ketik deskripsi pertanyaan di sini..." />
-                  
-                  <div className="p-3 bg-slate-50 border-t border-slate-100">
-                    {soal.tipe === "PG" && (
-                      <div className="space-y-2">
-                        {soal.opsi?.map((opt: any, oIdx: number) => (
-                          <div key={opt.id} className="flex items-center gap-2">
-                            <span className="font-bold w-5">{opt.id}.</span>
-                            <input type="text" value={opt.teks} onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].opsi[oIdx].teks = e.target.value; setDaftarSoal(newSoal); }} placeholder={`Teks Pilihan ${opt.id}`} className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs outline-none" />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {soal.tipe === "Jodohkan" && (
-                      <div className="space-y-2">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Pasangan Jodohkan</p>
-                        {soal.pasangan?.map((pas: any, pIdx: number) => (
-                          <div key={pIdx} className="flex items-center gap-2">
-                            <input type="text" value={pas.kiri} onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].pasangan[pIdx].kiri = e.target.value; setDaftarSoal(newSoal); }} placeholder="Pernyataan Kiri" className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs outline-none" />
-                            <span className="text-slate-400 font-bold">-</span>
-                            <input type="text" value={pas.kanan} onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].pasangan[pIdx].kanan = e.target.value; setDaftarSoal(newSoal); }} placeholder="Pasangan Kanan" className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs outline-none" />
-                            <button type="button" onClick={() => { const newSoal = [...daftarSoal]; newSoal[index].pasangan.splice(pIdx, 1); setDaftarSoal(newSoal); }} className="text-rose-400 hover:text-rose-600"><Trash2 size={14}/></button>
-                          </div>
-                        ))}
-                        <button type="button" onClick={() => { const newSoal = [...daftarSoal]; newSoal[index].pasangan.push({kiri:"", kanan:""}); setDaftarSoal(newSoal); }} className="text-[10px] font-bold text-indigo-600 flex items-center gap-1 mt-1"><Plus size={12}/> Tambah Pasangan</button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-indigo-50/50 p-3.5 rounded-xl border border-indigo-100 text-xs space-y-2">
-                  <label className="font-bold text-indigo-900 flex items-center gap-1.5 uppercase tracking-wider text-[10px]"><Key size={13}/> Kunci Jawaban / Panduan Koreksi AI</label>
-                  
-                  {(soal.tipe === "PG" || soal.tipe === "Benar/Salah") ? (
-                    <select value={soal.kunci} onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].kunci = e.target.value; setDaftarSoal(newSoal); }} className="bg-white border border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-bold text-indigo-700 outline-none">
-                      {soal.tipe === "PG" ? soal.opsi?.map((opt:any) => <option key={opt.id} value={opt.id}>Opsi {opt.id}</option>) : <><option value="Benar">Benar</option><option value="Salah">Salah</option></>}
-                    </select>
-                  ) : (
-                    <textarea 
-                      value={soal.panduanAI || ""} 
-                      onChange={(e) => { const newSoal = [...daftarSoal]; newSoal[index].panduanAI = e.target.value; setDaftarSoal(newSoal); }} 
-                      placeholder="Tuliskan kunci jawaban spesifik atau rubrik panduan koreksi AI di sini..."
-                      className="w-full bg-white border border-indigo-200 rounded-xl px-3 py-2 text-xs font-medium text-indigo-800 outline-none resize-none min-h-[60px]"
-                    />
-                  )}
-                </div>
-              </div>
-            ))}
-
-            <div className="flex flex-wrap gap-2 pt-3">
-              <button type="button" onClick={() => tambahSoalManual("PG")} className="px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1.5 hover:bg-slate-50"><Plus size={14}/> PG</button>
-              <button type="button" onClick={() => tambahSoalManual("Benar/Salah")} className="px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1.5 hover:bg-slate-50"><Plus size={14}/> B/S</button>
-              <button type="button" onClick={() => tambahSoalManual("Uraian")} className="px-3.5 py-2 bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-1.5 hover:bg-slate-50"><Plus size={14}/> Uraian</button>
-            </div>
-          </div>
-        </motion.div>
       )}
 
       {/* MODAL BUAT KELAS */}
@@ -1282,142 +563,6 @@ export default function ManajemenKelas() {
                   <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl shadow-sm">Simpan</button>
                 </div>
               </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* MODAL CBT CONFIG */}
-      <AnimatePresence>
-        {isCbtModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-xl flex flex-col max-h-[90vh]">
-              <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5"><Target size={16} className="text-indigo-600"/> Pengaturan Ujian Baru</h3>
-                <button type="button" onClick={() => setIsCbtModalOpen(false)} className="text-slate-400 p-1 rounded-lg hover:bg-slate-200"><X size={18}/></button>
-              </div>
-              <div className="p-5 space-y-4 overflow-y-auto text-xs">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Judul Ujian / Penugasan *</label>
-                  <input type="text" value={cbtForm.judul} onChange={(e) => setCbtForm({...cbtForm, judul: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" placeholder="Contoh: Sumatif Harian Bab 1" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Jenis Ujian</label>
-                    <select value={cbtForm.jenisUjian} onChange={(e) => setCbtForm({...cbtForm, jenisUjian: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none">
-                      <option value="Ulangan Harian">Ulangan Harian</option>
-                      <option value="Asesmen Formatif">Asesmen Formatif</option>
-                      <option value="Sumatif Lingkup Materi">Sumatif Lingkup Materi</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Durasi (Menit)</label>
-                    <input type="number" value={cbtForm.waktuMenit} onChange={(e) => setCbtForm({...cbtForm, waktuMenit: Number(e.target.value)})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Waktu Buka</label>
-                    <input type="datetime-local" value={cbtForm.waktuMulai} onChange={(e) => setCbtForm({...cbtForm, waktuMulai: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 outline-none" />
-                  </div>
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Waktu Tutup</label>
-                    <input type="datetime-local" value={cbtForm.waktuSelesai} onChange={(e) => setCbtForm({...cbtForm, waktuSelesai: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 outline-none" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Sumber Soal</label>
-                  <select value={cbtForm.sumberSoal} onChange={(e) => setCbtForm({...cbtForm, sumberSoal: e.target.value, koleksiId: ""})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-indigo-700 outline-none">
-                    <option value="Buat Manual (Ketik Sendiri)">Buat Manual (Ketik Sendiri)</option>
-                    <option value="Tarik dari Bank Soal AI (Generator)">Tarik dari Bank Soal AI (Generator)</option>
-                  </select>
-                </div>
-                {cbtForm.sumberSoal === 'Tarik dari Bank Soal AI (Generator)' && (
-                  <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl space-y-1">
-                    <label className="block font-bold text-indigo-900 uppercase text-[10px]">Pilih Koleksi AI</label>
-                    <select value={cbtForm.koleksiId || ''} onChange={(e) => setCbtForm({...cbtForm, koleksiId: e.target.value})} className="w-full p-2 bg-white border border-indigo-200 rounded-lg text-xs outline-none">
-                      <option value="" disabled>-- Pilih Koleksi AI --</option>
-                      {koleksiAI.map(kol => (<option key={kol.id} value={kol.id}>{kol.tipe} - {kol.mapel}</option>))}
-                    </select>
-                  </div>
-                )}
-              </div>
-              <div className="px-5 py-3 border-t border-slate-100 flex justify-end bg-slate-50 shrink-0">
-                <button type="button" onClick={prosesLanjutPembuatan} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition-all">Lanjutkan <ChevronRight size={15}/></button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* MODAL HASIL UJIAN */}
-      <AnimatePresence>
-        {isHasilUjianOpen && selectedUjianView && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                <div>
-                  <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5"><Target size={16} className="text-indigo-600" /> Hasil & Feedback AI</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">{selectedUjianView.pengaturan.judul}</p>
-                </div>
-                <button type="button" onClick={() => setIsHasilUjianOpen(false)} className="text-slate-400 p-1 rounded-lg hover:bg-slate-200"><X size={18}/></button>
-              </div>
-              <div className="p-5 overflow-y-auto space-y-4 text-xs">
-                <div className="bg-indigo-50 border border-indigo-100 p-3.5 rounded-xl flex gap-2.5 items-start">
-                  <Activity size={18} className="text-indigo-600 shrink-0 mt-0.5" />
-                  <p className="text-indigo-900 leading-relaxed">Sistem menganalisis kemampuan kognitif tiap peserta didik secara otomatis berdasarkan pola pengerjaan ujian.</p>
-                </div>
-
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
-                  <table className="w-full text-left border-collapse min-w-[650px]">
-                    <thead>
-                      <tr className="bg-slate-50 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-200">
-                        <th className="p-3 text-center w-10">No</th>
-                        <th className="p-3">Nama Siswa</th>
-                        <th className="p-3 text-center">Nilai</th>
-                        <th className="p-3 text-center">Benar / Salah</th>
-                        <th className="p-3 text-center w-36">Aksi Feedback</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {siswaKelasAsli.map((siswa, idx) => {
-                        const hasilSiswa = hasilUjianData.find(h => h.uid === siswa.id);
-                        const isExpanded = expandedFeedbackId === siswa.id;
-                        return (
-                          <React.Fragment key={siswa.id}>
-                            <tr className="hover:bg-slate-50/50">
-                              <td className="p-3 text-center font-bold text-slate-400">{idx + 1}</td>
-                              <td className="p-3 font-bold text-slate-800">{siswa.nama}</td>
-                              <td className={`p-3 text-center font-black text-sm ${hasilSiswa?.nilai >= kkm ? 'text-emerald-600' : 'text-rose-600'}`}>{hasilSiswa?.nilai ?? "-"}</td>
-                              <td className="p-3 text-center font-bold text-slate-600">{hasilSiswa?.benar ?? "-"} / {hasilSiswa?.salah ?? "-"}</td>
-                              <td className="p-3 text-center">
-                                {hasilSiswa ? (
-                                  <button onClick={() => {
-                                    setExpandedFeedbackId(isExpanded ? null : siswa.id);
-                                    if (!isExpanded && !hasilSiswa.feedbackGuru) generateFeedbackAI(siswa, hasilSiswa);
-                                  }} className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-3 py-1 rounded-xl text-[10px] font-bold transition-all w-full">
-                                    <MessageSquareText size={12} className="inline mr-1"/> Feedback
-                                  </button>
-                                ) : <span className="text-slate-400 italic">Belum Ujian</span>}
-                              </td>
-                            </tr>
-                            {isExpanded && hasilSiswa && (
-                              <tr className="bg-indigo-50/20">
-                                <td colSpan={5} className="p-4">
-                                  <div className="bg-white border border-indigo-100 p-3.5 rounded-xl space-y-1.5 shadow-sm">
-                                    <p className="font-bold text-indigo-900 uppercase tracking-wider text-[9px]">Umpan Balik Sistem AI:</p>
-                                    <p className="text-slate-700 leading-relaxed font-medium">{hasilSiswa.feedbackGuru || "Menyiapkan rekomendasi..."}</p>
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
-                          </React.Fragment>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
             </motion.div>
           </div>
         )}

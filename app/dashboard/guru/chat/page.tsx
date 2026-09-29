@@ -1,11 +1,19 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Loader2, Sparkles, ChevronUp, Paperclip, CheckCircle2, User, Plus, MessageSquare, Menu, X } from "lucide-react";
+import { Send, Loader2, Sparkles, ChevronUp, Paperclip, CheckCircle2, User, Plus, MessageSquare, Menu, X, Copy, Check, PenLine, FlaskConical, ClipboardList, Lightbulb } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { TitikMengetik } from "@/components/Memuat";
+
+const CONTOH_PROMPT = [
+  { ikon: PenLine, teks: "Buatkan tujuan pembelajaran untuk materi ekosistem kelas 7." },
+  { ikon: ClipboardList, teks: "Susun 5 soal HOTS pilihan ganda tentang pecahan beserta kuncinya." },
+  { ikon: FlaskConical, teks: "Rancang kegiatan pembelajaran berbasis proyek untuk tema energi terbarukan." },
+  { ikon: Lightbulb, teks: "Beri ide apersepsi menarik untuk membuka pelajaran sejarah kemerdekaan." },
+];
 
 // IMPORT FIREBASE
 import { db } from "@/lib/firebase"; 
@@ -53,9 +61,26 @@ export default function ChatbotGuruGeminiStyle() {
   // Data Korpus (Context Grounding)
   const [systemPromptContext, setSystemPromptContext] = useState("");
   
+  const [pesanTersalin, setPesanTersalin] = useState<number | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const salinPesan = async (teks: string, index: number) => {
+    try {
+      await navigator.clipboard.writeText(teks);
+      setPesanTersalin(index);
+      setTimeout(() => setPesanTersalin(null), 1800);
+    } catch { /* abaikan */ }
+  };
+
+  // Textarea tumbuh mengikuti isi, seperti kolom chat AI pada umumnya.
+  const aturTinggiInput = (el: HTMLTextAreaElement) => {
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 160) + "px";
+  };
 
   // Tutup sidebar otomatis di layar kecil saat pertama kali dimuat
   useEffect(() => {
@@ -323,6 +348,21 @@ export default function ChatbotGuruGeminiStyle() {
                 <p className="text-slate-500 max-w-md mx-auto leading-relaxed text-sm">
                   Mari merancang perangkat ajar. Saya telah disinkronkan dengan Korpus Kebudayaan sekolah Anda.
                 </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-2xl mt-8">
+                  {CONTOH_PROMPT.map(({ ikon: Ikon, teks }) => (
+                    <button
+                      key={teks}
+                      onClick={() => { setInput(teks); setTimeout(() => textareaRef.current?.focus(), 0); }}
+                      className="group flex items-start gap-3 text-left p-3.5 bg-white border border-slate-200 rounded-2xl hover:border-blue-300 hover:bg-blue-50/40 transition-colors shadow-sm active:scale-[0.99]"
+                    >
+                      <span className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
+                        <Ikon size={15} />
+                      </span>
+                      <span className="text-[13px] text-slate-600 leading-snug">{teks}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
               <div className="space-y-6 md:space-y-8">
@@ -369,6 +409,17 @@ export default function ChatbotGuruGeminiStyle() {
                             {msg.content}
                           </ReactMarkdown>
                         )}
+
+                        {msg.role === "assistant" && msg.content && (
+                          <div className="mt-2 flex items-center gap-1">
+                            <button
+                              onClick={() => salinPesan(msg.content, index)}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-slate-700 px-2 py-1 rounded-lg hover:bg-slate-100 transition-colors"
+                            >
+                              {pesanTersalin === index ? <><Check size={12} className="text-emerald-600" /> Tersalin</> : <><Copy size={12} /> Salin</>}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   ))}
@@ -377,11 +428,7 @@ export default function ChatbotGuruGeminiStyle() {
                 {isTyping && (
                   <div className="flex gap-2.5 md:gap-4">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 shadow-sm mt-1 animate-pulse"><Sparkles size={14} className="text-white" /></div>
-                    <div className="pt-2.5 text-slate-400 font-medium text-sm flex gap-1.5">
-                      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
-                      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
-                    </div>
+                    <div className="pt-2.5"><TitikMengetik /></div>
                   </div>
                 )}
                 <div ref={messagesEndRef} className="h-4" />
@@ -394,10 +441,11 @@ export default function ChatbotGuruGeminiStyle() {
         <div className="shrink-0 bg-white md:bg-gradient-to-t md:from-[#f8fafc] md:via-[#f8fafc] md:to-transparent border-t md:border-t-0 border-slate-100 pt-2 md:pt-6 pb-2 md:pb-6 px-2 md:px-8 z-10">
           <div className="max-w-4xl mx-auto relative">
             <form className="bg-slate-50 md:bg-white border border-slate-200/80 shadow-sm md:shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] rounded-3xl flex flex-col p-1.5 md:p-2 transition-all focus-within:ring-2 focus-within:ring-blue-100 focus-within:border-blue-300 focus-within:bg-white">
-              <textarea 
-                value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} disabled={isTyping}
-                placeholder="Tanyakan sesuatu..." 
-                className="w-full bg-transparent max-h-32 px-3 md:px-4 py-2.5 md:py-3 text-[14px] md:text-[15px] text-slate-800 placeholder:text-slate-400 focus:outline-none resize-none disabled:opacity-50 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+              <textarea
+                ref={textareaRef}
+                value={input} onChange={(e) => { setInput(e.target.value); aturTinggiInput(e.target); }} onKeyDown={handleKeyDown} disabled={isTyping}
+                placeholder="Tulis pesan untuk HARC-AI..."
+                className="w-full bg-transparent max-h-40 px-3 md:px-4 py-2.5 md:py-3 text-[14px] md:text-[15px] text-slate-800 placeholder:text-slate-400 focus:outline-none resize-none disabled:opacity-50 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
                 rows={1} style={{ minHeight: '50px' }}
               />
               <div className="flex items-center justify-between px-1 md:px-2 pb-1 pt-1 md:pt-2 border-t border-slate-100/50 mt-1">
