@@ -364,7 +364,9 @@ export default function ModulAsesmenGuru() {
     systemPrompt += `CONTOH PG:\n[SOAL_START]\n[TIPE:PG]\n1. Apa ibu kota Indonesia?\n- A. Jakarta\n- B. Bali\n- C. Papua\n- D. Maluku\n[KUNCI:A]\n[SOAL_END]\n\n`;
     systemPrompt += `CONTOH BS:\n[SOAL_START]\n[TIPE:BS]\n2. Matahari terbit dari barat.\n[KUNCI:Salah]\n[SOAL_END]\n\n`;
     systemPrompt += `CONTOH JODOHKAN:\n[SOAL_START]\n[TIPE:JODOHKAN]\n3. Pasangkanlah pernyataan berikut!\n| Pernyataan (Kiri) | Pasangan (Kanan) |\n|---|---|\n| Sapi | Mamalia |\n| Ayam | Unggas |\n[KUNCI:Sapi=Mamalia | Ayam=Unggas]\n[SOAL_END]\n\n`;
-    systemPrompt += `CONTOH URAIAN:\n[SOAL_START]\n[TIPE:URAIAN]\n4. Jelaskan makna proklamasi!\n[KUNCI:Kemerdekaan bangsa dari penjajahan]\n[SOAL_END]\n\n`;
+    systemPrompt += `CONTOH ISIAN:\n[SOAL_START]\n[TIPE:ISIAN]\n4. Ibu kota Provinsi Jawa Barat adalah ....\n[KUNCI:Bandung]\n[SOAL_END]\n\n`;
+    systemPrompt += `CONTOH URAIAN:\n[SOAL_START]\n[TIPE:URAIAN]\n5. Jelaskan makna proklamasi!\n[KUNCI:Kemerdekaan bangsa dari penjajahan]\n[SOAL_END]\n\n`;
+    systemPrompt += `PENTING: untuk ISIAN, [KUNCI:...] WAJIB berisi jawaban singkat yang PASTI dan eksak (satu kata/frasa), bukan penjelasan.\n\n`;
 
     if (pakaiDiagram) systemPrompt += `${instruksiDiagramSVG(formData.mapel)}\nSVG ditulis di dalam badan soal, di antara [TIPE:...] dan [KUNCI:...].\n\n`;
     if (pakaiIlustrasi) systemPrompt += `${instruksiIlustrasiRaster()}\n\n`;

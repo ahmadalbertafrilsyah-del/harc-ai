@@ -96,7 +96,7 @@ export default function ManajemenSiswaLembaga() {
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-100 text-blue-700 font-bold rounded-lg flex items-center justify-center shrink-0">
+                          <div className="w-10 h-10 bg-purple-100 text-purple-700 font-bold rounded-lg flex items-center justify-center shrink-0">
                             {siswa.nama ? siswa.nama.charAt(0).toUpperCase() : "S"}
                           </div>
                           <div>

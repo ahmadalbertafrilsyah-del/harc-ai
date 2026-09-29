@@ -56,14 +56,28 @@ export default function LjkInteraktif({ soal, jawaban, onUbah, modeTinjau = fals
     terurut.forEach((s) => {
       const bobot = s.bobot || BOBOT_DEFAULT[s.tipe] || 1;
       skorMaks += bobot;
-      if (s.tipe !== "PG" && s.tipe !== "Benar/Salah") return;
-      objektif++;
-      if ((isi[s.id] || "").trim().toLowerCase() === (s.kunci || "").trim().toLowerCase()) {
-        benar++;
-        skor += bobot;
+
+      if (s.tipe === "PG" || s.tipe === "Benar/Salah") {
+        objektif++;
+        if ((isi[s.id] || "").trim().toLowerCase() === (s.kunci || "").trim().toLowerCase()) {
+          benar++;
+          skor += bobot;
+        }
+        return;
+      }
+
+      if (s.tipe === "Jodohkan" && s.pasangan.length) {
+        objektif++;
+        const { hurufJawaban } = acakLajurKanan(s);
+        const bagian = (isi[s.id] || "").split("|");
+        const cocok = hurufJawaban.filter(
+          (h, i) => (bagian[i] || "").trim().toUpperCase() === h
+        ).length;
+        skor += (bobot * cocok) / s.pasangan.length;
+        if (cocok === s.pasangan.length) benar++;
       }
     });
-    return { benar, objektif, skor, skorMaks };
+    return { benar, objektif, skor: Math.round(skor * 10) / 10, skorMaks };
   }, [modeTinjau, terurut, isi]);
 
   if (soal.length === 0) {
@@ -228,32 +242,86 @@ function ButirLjk({
           )}
 
           {/* Menjodohkan */}
-          {soal.tipe === "Jodohkan" && (
-            <div className="mt-2.5 space-y-2">
-              {(soal.pasangan.length ? soal.pasangan : [{ kiri: "", kanan: "" }]).map((p, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <span className="text-[12px] text-slate-700 flex-1 min-w-0 truncate">{idx + 1}. {p.kiri || "—"}</span>
-                  <input
-                    type="text"
-                    disabled={terkunci}
-                    value={(nilai ? nilai.split("|")[idx] : "") || ""}
-                    onChange={(e) => {
-                      const bagian = nilai ? nilai.split("|") : [];
-                      bagian[idx] = e.target.value;
-                      onJawab(bagian.join("|"));
-                    }}
-                    placeholder="Huruf"
-                    className="w-20 min-h-[40px] px-2 text-center bg-white border border-slate-300 rounded-lg text-[12px] font-bold uppercase outline-none focus:border-blue-500"
-                  />
+          {soal.tipe === "Jodohkan" && soal.pasangan.length > 0 && (() => {
+            const { kananAcak, hurufJawaban } = acakLajurKanan(soal);
+            const hurufOpsi = kananAcak.map((_k, i) => String.fromCharCode(65 + i));
+            const bagian = nilai ? nilai.split("|") : [];
+            const setHuruf = (idx: number, huruf: string) => {
+              const arr = nilai ? nilai.split("|") : [];
+              while (arr.length < soal.pasangan.length) arr.push("");
+              arr[idx] = huruf;
+              onJawab(arr.join("|"));
+            };
+            return (
+              <div className="mt-3 space-y-3">
+                {/* Lajur kanan — pilihan jawaban yang harus dipasangkan */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-2.5 sm:p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-2">Pilihan Jawaban (Lajur Kanan)</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
+                    {kananAcak.map((teks, i) => (
+                      <div key={i} className="flex items-start gap-2">
+                        <span className="mt-0.5 shrink-0 w-5 h-5 rounded-md bg-white border border-slate-300 text-slate-600 font-bold text-[10px] flex items-center justify-center">
+                          {hurufOpsi[i]}
+                        </span>
+                        <span className="text-[12px] text-slate-700 leading-snug">{teks || "—"}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-              {modeTinjau && soal.pasangan.length > 0 && (
-                <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2 leading-relaxed">
-                  <b>Kunci:</b> {acakLajurKanan(soal).hurufJawaban.map((h, i) => `${i + 1}-${h}`).join(", ")} — huruf sesuai naskah cetak.
-                </p>
-              )}
-            </div>
-          )}
+
+                {/* Lajur kiri — pernyataan yang dipasangkan lewat pemilih huruf */}
+                <div className="space-y-2">
+                  {soal.pasangan.map((p, idx) => {
+                    const jawab = (bagian[idx] || "").trim().toUpperCase();
+                    const kunci = hurufJawaban[idx];
+                    const benarItem = jawab === kunci;
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex items-center gap-2.5 rounded-xl border p-2 pr-2.5 transition-colors ${
+                          modeTinjau && jawab
+                            ? benarItem
+                              ? "border-emerald-300 bg-emerald-50/60"
+                              : "border-rose-300 bg-rose-50/60"
+                            : "border-slate-200 bg-white"
+                        }`}
+                      >
+                        <span className="shrink-0 w-5 h-5 rounded-md bg-slate-100 text-slate-500 font-bold text-[10px] flex items-center justify-center">
+                          {idx + 1}
+                        </span>
+                        <span className="flex-1 min-w-0 text-[12.5px] text-slate-700 leading-snug">{p.kiri || "—"}</span>
+                        <select
+                          disabled={terkunci}
+                          value={jawab}
+                          onChange={(e) => setHuruf(idx, e.target.value)}
+                          aria-label={`Pasangan untuk nomor ${idx + 1}`}
+                          className={`shrink-0 w-16 min-h-[38px] px-2 text-center bg-white border rounded-lg text-[12px] font-bold outline-none focus:border-blue-500 ${
+                            jawab ? "border-blue-400 text-slate-800" : "border-slate-300 text-slate-400"
+                          } ${terkunci ? "cursor-default appearance-none" : ""}`}
+                        >
+                          <option value="">—</option>
+                          {hurufOpsi.map((h) => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                        {modeTinjau && jawab && (
+                          benarItem
+                            ? <CheckCircle2 size={15} className="shrink-0 text-emerald-600" />
+                            : <CircleDashed size={15} className="shrink-0 text-rose-500" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {modeTinjau && (
+                  <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2 leading-relaxed">
+                    <b>Kunci jawaban:</b> {hurufJawaban.map((h, i) => `${i + 1}→${h}`).join("  •  ")}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Isian & uraian */}
           {(soal.tipe === "Isian Singkat" || soal.tipe === "Uraian") && (

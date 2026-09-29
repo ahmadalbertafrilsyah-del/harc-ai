@@ -19,6 +19,7 @@ export default function ManajemenKelas() {
   const [kelasData, setKelasData] = useState<any[]>([]);
   const [userUid, setUserUid] = useState<string | null>(null);
   const [guruNpsn, setGuruNpsn] = useState<string>("");
+  const [guruNama, setGuruNama] = useState<string>("");
   const [daftarSiswaGlobal, setDaftarSiswaGlobal] = useState<any[]>([]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -59,7 +60,7 @@ export default function ManajemenKelas() {
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUserUid(user.uid);
-        onSnapshot(doc(db, "users", user.uid), (docSnap) => { if(docSnap.exists()){ setGuruNpsn(docSnap.data().npsn || docSnap.data().instansi || ""); }});
+        onSnapshot(doc(db, "users", user.uid), (docSnap) => { if(docSnap.exists()){ setGuruNpsn(docSnap.data().npsn || docSnap.data().instansi || ""); setGuruNama(docSnap.data().nama || ""); }});
         onSnapshot(query(collection(db, "manajemen_kelas"), where("guruId", "==", user.uid)), (snapshot) => {
           setKelasData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
           setIsLoading(false);
@@ -160,7 +161,7 @@ export default function ManajemenKelas() {
     e.preventDefault();
     setIsSubmittingJurnal(true); setStatusPesanJurnal(null);
     try {
-      await addDoc(collection(db, "jurnal_kbm"), { guruId: userUid, kelasId: selectedClass.id, mapel: selectedClass.mapel || "Umum", tanggal: tanggal, ...jurnal, timestamp: serverTimestamp() });
+      await addDoc(collection(db, "jurnal_kbm"), { guruId: userUid, namaGuru: guruNama || "", kelasId: selectedClass.id, namaKelas: selectedClass.nama || "", kelas: selectedClass.nama || "", mapel: selectedClass.mapel || "Umum", npsn: guruNpsn || "", tanggal: tanggal, ...jurnal, timestamp: serverTimestamp() });
       setJurnal({ materi: "", kegiatan: "", hambatan: "", solusi: "" });
       setStatusPesanJurnal({ tipe: "sukses", teks: "Jurnal KBM berhasil dikirim." }); setTimeout(() => setStatusPesanJurnal(null), 3000);
     } catch (error: any) {} finally { setIsSubmittingJurnal(false); }

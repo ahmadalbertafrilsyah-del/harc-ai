@@ -9,7 +9,7 @@ import { Teachers } from "next/font/google";
 import { useState, useEffect } from "react";
 
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, query, where, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { collection, onSnapshot, query, where, doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 import ReactMarkdown from "react-markdown";
@@ -51,14 +51,43 @@ export default function ValidasiAsesmenLembaga() {
   const { kop } = useKopLembaga(npsn);
 
   useEffect(() => {
-    const unsubAuth = onAuthStateChanged(getAuth(), (user) => {
+    const unsubAuth = onAuthStateChanged(getAuth(), async (user) => {
       if (!user) { setIsLoading(false); return; }
-      const qDoc = query(collection(db, "modul_ajar"), where("statusValidasi", "==", "menunggu"));
-      const unsub = onSnapshot(qDoc, (snap) => {
-        setPending(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Dok));
+
+      // Ambil NPSN lembaga untuk membatasi dokumen HANYA dari sekolah ini
+      let npsnLembaga = "";
+      try {
+        const profil = await getDoc(doc(db, "users", user.uid));
+        npsnLembaga = profil.exists() ? (profil.data().npsn || profil.data().instansi || "") : "";
+      } catch { /* abaikan */ }
+      setNpsn(npsnLembaga);
+
+      if (!npsnLembaga) {
+        setPending([]);
         setIsLoading(false);
-      });
-      return () => unsub();
+        return;
+      }
+
+      // Daftar guru se-instansi (kunci filter agar tidak bocor lintas sekolah)
+      let unsubDoc: (() => void) | null = null;
+      const unsubGuru = onSnapshot(
+        query(collection(db, "users"), where("role", "==", "guru"), where("npsn", "==", npsnLembaga)),
+        (guruSnap) => {
+          const guruIds = new Set(guruSnap.docs.map((g) => g.id));
+          if (unsubDoc) { unsubDoc(); unsubDoc = null; }
+          unsubDoc = onSnapshot(
+            query(collection(db, "modul_ajar"), where("statusValidasi", "==", "menunggu")),
+            (snap) => {
+              const semua = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Dok);
+              // Batasi ke dokumen milik guru instansi ini (atau yang ber-npsn sama)
+              setPending(semua.filter((m: any) => guruIds.has(m.userId) || m.npsn === npsnLembaga));
+              setIsLoading(false);
+            }
+          );
+        }
+      );
+
+      return () => { if (unsubDoc) unsubDoc(); unsubGuru(); };
     });
     return () => unsubAuth();
   }, []);
@@ -99,7 +128,7 @@ export default function ValidasiAsesmenLembaga() {
       <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-slate-200 pb-4">
         <div className="min-w-0">
           <h1 className={`text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2 ${teachersFont.className}`}>
-            <FileSpreadsheet className="text-emerald-600 shrink-0" size={24} /> Validasi Perangkat Guru
+            <FileSpreadsheet className="text-purple-600 shrink-0" size={24} /> Validasi Perangkat Guru
           </h1>
           <p className="text-slate-500 text-[12px] sm:text-sm mt-1.5 leading-relaxed">
             Tinjau dan setujui perangkat ajar serta instrumen asesmen yang diajukan guru sebelum digunakan.
@@ -111,7 +140,7 @@ export default function ValidasiAsesmenLembaga() {
             value={cari}
             onChange={(e) => setCari(e.target.value)}
             placeholder="Cari mapel / tipe / materi..."
-            className="w-full min-h-[42px] pl-9 pr-3 bg-white border border-slate-300 rounded-xl text-[13px] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 shadow-sm"
+            className="w-full min-h-[42px] pl-9 pr-3 bg-white border border-slate-300 rounded-xl text-[13px] outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 shadow-sm"
           />
         </div>
       </header>
@@ -131,7 +160,7 @@ export default function ValidasiAsesmenLembaga() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
           {terfilter.map((d) => (
-            <article key={d.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:border-emerald-300 transition-colors flex flex-col">
+            <article key={d.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:border-purple-300 transition-colors flex flex-col">
               <div className="flex items-start justify-between gap-2 mb-2">
                 <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 px-2 py-1 rounded border border-slate-200 truncate">{d.tipe || "Dokumen"}</span>
                 <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded flex items-center gap-1 shrink-0"><Clock size={11} /> Menunggu</span>
@@ -143,7 +172,7 @@ export default function ValidasiAsesmenLembaga() {
               </div>
               <button
                 onClick={() => { setDipilih(d); setCatatan(""); }}
-                className="mt-3.5 w-full min-h-[42px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                className="mt-3.5 w-full min-h-[42px] bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
               >
                 <Eye size={14} /> Tinjau Dokumen
               </button>
@@ -163,7 +192,7 @@ export default function ValidasiAsesmenLembaga() {
               <div className="flex justify-between items-center gap-2 p-3 sm:p-4 border-b border-slate-200 bg-slate-50 shrink-0">
                 <div className="min-w-0">
                   <h3 className="text-sm font-bold text-slate-800 truncate flex items-center gap-2">
-                    <FileSpreadsheet size={16} className="text-emerald-600 shrink-0" /> {dipilih.materi || dipilih.topik}
+                    <FileSpreadsheet size={16} className="text-purple-600 shrink-0" /> {dipilih.materi || dipilih.topik}
                   </h3>
                   <p className="text-[11px] text-slate-500 mt-0.5">{dipilih.tipe} • {dipilih.mapel} • oleh {dipilih.namaGuru || dipilih.pembuat || "Guru"}</p>
                 </div>
@@ -202,7 +231,7 @@ export default function ValidasiAsesmenLembaga() {
                   value={catatan}
                   onChange={(e) => setCatatan(e.target.value)}
                   placeholder="Catatan untuk guru (opsional saat menyetujui, disarankan saat menolak)..."
-                  className="w-full min-h-[44px] px-3 bg-slate-50 border border-slate-300 rounded-xl text-[13px] outline-none focus:border-emerald-500"
+                  className="w-full min-h-[44px] px-3 bg-slate-50 border border-slate-300 rounded-xl text-[13px] outline-none focus:border-purple-500"
                 />
                 <div className="flex gap-2">
                   <button

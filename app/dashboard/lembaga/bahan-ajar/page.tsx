@@ -88,7 +88,7 @@ export default function BahanAjarLembaga() {
         </div>
         <div className="relative w-full md:w-64">
           <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
-          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Cari..." className="bg-white border border-slate-300 pl-10 pr-4 py-2.5 rounded-xl text-sm w-full outline-none focus:border-blue-500 shadow-sm" />
+          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Cari..." className="bg-white border border-slate-300 pl-10 pr-4 py-2.5 rounded-xl text-sm w-full outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 shadow-sm" />
         </div>
       </div>
 
@@ -122,7 +122,7 @@ export default function BahanAjarLembaga() {
               <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center shrink-0">
                 <div>
                   <h2 className={`font-bold text-lg text-slate-800 flex items-center gap-2 ${teachersFont.className}`}>
-                    <FileText size={20} className="text-blue-600"/> Preview Dokumen Akademik
+                    <FileText size={20} className="text-purple-600"/> Preview Dokumen Akademik
                   </h2>
                   <p className="text-[11px] font-medium text-slate-500 mt-1">Oleh: {selectedDoc.namaGuru} | Mapel: {selectedDoc.mapel}</p>
                 </div>
@@ -192,7 +192,7 @@ export default function BahanAjarLembaga() {
                       value={feedback} 
                       onChange={(e) => setFeedback(e.target.value)}
                       placeholder="Misal: Tolong sesuaikan alokasi waktu pada pertemuan ke-3..."
-                      className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none shadow-sm" 
+                      className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 transition-all resize-none shadow-sm"
                       rows={6}
                     />
                     <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">Berikan catatan khusus jika dokumen ini perlu direvisi oleh pendidik yang bersangkutan.</p>

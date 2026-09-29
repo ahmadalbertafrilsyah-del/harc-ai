@@ -54,22 +54,33 @@ export default function LembagaBeranda() {
               const unsubSiswa = onSnapshot(qSiswa, (snap) => setStats(prev => ({ ...prev, totalSiswa: snap.size })));
 
               // 3. Data Modul & Aktivitas Guru
+              let unsubModul: (() => void) | null = null;
+              const waktuMs = (m: any) => {
+                const t = m.createdAt || m.timestamp; // generator menulis createdAt
+                if (!t) return 0;
+                if (typeof t.toMillis === "function") return t.toMillis();
+                if (t.seconds) return t.seconds * 1000;
+                return typeof t === "number" ? t : 0;
+              };
+
               const unsubModulTrigger = onSnapshot(qGuru, (guruSnap) => {
                 const guruIds = guruSnap.docs.map(g => g.id);
                 const guruMap = new Map(guruSnap.docs.map(g => [g.id, g.data().nama]));
 
+                // Bersihkan listener modul sebelumnya agar tidak menumpuk (mencegah kebocoran)
+                if (unsubModul) { unsubModul(); unsubModul = null; }
+
                 if (guruIds.length > 0) {
                   // Karena Firebase 'in' max 10, untuk skala R&D kita filter di Client Side
-                  const qModul = query(collection(db, "modul_ajar"));
-                  onSnapshot(qModul, (modulSnap) => {
+                  unsubModul = onSnapshot(collection(db, "modul_ajar"), (modulSnap) => {
                     const modulSekolahIni = modulSnap.docs
                       .map(d => ({ id: d.id, ...d.data() } as any))
                       .filter(m => guruIds.includes(m.userId));
-                    
+
                     const menunggu = modulSekolahIni.filter(m => m.statusValidasi === "menunggu").length;
-                    
-                    setStats(prev => ({ 
-                      ...prev, 
+
+                    setStats(prev => ({
+                      ...prev,
                       totalModul: modulSekolahIni.length,
                       menungguValidasi: menunggu
                     }));
@@ -80,11 +91,11 @@ export default function LembagaBeranda() {
                       tipe: 'guru',
                       aktor: guruMap.get(m.userId) || "Guru",
                       aksi: `Membuat Modul Ajar: ${m.mapel || m.topik}`,
-                      timestamp: m.timestamp,
+                      waktu: waktuMs(m),
                       status: m.statusValidasi
                     }));
 
-                    setLogAktivitas(logGuru.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)).slice(0, 5));
+                    setLogAktivitas(logGuru.sort((a, b) => b.waktu - a.waktu).slice(0, 5));
                     setIsLoading(false);
                   });
                 } else {
@@ -92,7 +103,7 @@ export default function LembagaBeranda() {
                 }
               });
 
-              return () => { unsubGuru(); unsubSiswa(); unsubModulTrigger(); };
+              return () => { unsubGuru(); unsubSiswa(); unsubModulTrigger(); if (unsubModul) unsubModul(); };
             } else {
               setIsLoading(false);
             }
@@ -236,7 +247,7 @@ export default function LembagaBeranda() {
                     <p className="text-xs text-slate-600 mt-1">
                       Oleh: <strong className="text-slate-800">{log.aktor}</strong> • 
                       <span className="text-slate-500 ml-1">
-                        {log.timestamp ? new Date(log.timestamp.toDate()).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}) : 'Baru saja'} WIB
+                        {log.waktu ? `${new Date(log.waktu).toLocaleDateString('id-ID', {day:'2-digit', month:'short'})} • ${new Date(log.waktu).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})} WIB` : 'Baru saja'}
                       </span>
                     </p>
                   </div>

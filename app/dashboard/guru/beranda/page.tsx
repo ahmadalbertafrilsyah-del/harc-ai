@@ -276,8 +276,9 @@ export default function BerandaGuru() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, height: 0, marginTop: 0 }}
                     transition={{ duration: 0.18 }}
-                    className="p-3 sm:p-3.5 bg-white rounded-xl border border-slate-200 space-y-2 hover:border-slate-300 transition-colors"
+                    className="relative p-3 sm:p-3.5 pl-4 bg-white rounded-xl border border-slate-200 space-y-2 hover:border-blue-300 hover:shadow-sm transition-all"
                   >
+                    <span className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-full bg-blue-500/70" aria-hidden="true" />
                     <div className="flex justify-between items-center gap-2">
                       <h3 className="font-bold text-slate-800 text-xs sm:text-[13px] truncate">{item.nama}</h3>
                       <span className="px-2 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded text-[9px] font-bold uppercase shrink-0">
@@ -313,11 +314,11 @@ export default function BerandaGuru() {
 
 /* ---------------------------------- UI ---------------------------------- */
 
-const colorStyles: Record<string, string> = {
-  blue: "bg-blue-50 text-blue-600",
-  amber: "bg-amber-50 text-amber-600",
-  emerald: "bg-emerald-50 text-emerald-600",
-  indigo: "bg-indigo-50 text-indigo-600",
+const colorStyles: Record<string, { icon: string; accent: string; dot: string }> = {
+  blue: { icon: "bg-blue-50 text-blue-600 ring-blue-100", accent: "from-blue-500/70", dot: "bg-blue-500" },
+  amber: { icon: "bg-amber-50 text-amber-600 ring-amber-100", accent: "from-amber-500/70", dot: "bg-amber-500" },
+  emerald: { icon: "bg-emerald-50 text-emerald-600 ring-emerald-100", accent: "from-emerald-500/70", dot: "bg-emerald-500" },
+  indigo: { icon: "bg-indigo-50 text-indigo-600 ring-indigo-100", accent: "from-indigo-500/70", dot: "bg-indigo-500" },
 };
 
 function StatCard({
@@ -326,28 +327,33 @@ function StatCard({
   title: string; value: number | string; icon: LucideIcon; color: string;
   highlight?: boolean; trend: string; delay: number;
 }) {
+  const c = colorStyles[color] ?? colorStyles.blue;
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.25 }}
-      className={`bg-white p-3 sm:p-4 md:p-5 rounded-2xl border shadow-sm ${
+      className={`group relative overflow-hidden bg-white p-3 sm:p-4 md:p-5 rounded-2xl border shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 ${
         highlight ? "border-amber-300 ring-2 ring-amber-100" : "border-slate-200"
       }`}
     >
+      {/* Aksen gradien halus di sisi atas */}
+      <div className={`pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r to-transparent ${c.accent}`} aria-hidden="true" />
+
       <div className="flex justify-between items-start gap-2 mb-2.5 md:mb-3">
-        <span className={`p-2 sm:p-2.5 rounded-xl shrink-0 ${colorStyles[color]}`}>
+        <span className={`p-2 sm:p-2.5 rounded-xl shrink-0 ring-1 ${c.icon}`}>
           <Icon size={17} strokeWidth={2.2} />
         </span>
-        <span className="hidden sm:inline-block text-[9px] text-slate-500 font-bold bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200 truncate max-w-[60%]">
-          {trend}
+        <span className="inline-flex items-center gap-1 text-[9px] text-slate-500 font-bold bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200 truncate max-w-[62%]">
+          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${highlight ? "bg-amber-500" : c.dot}`} aria-hidden="true" />
+          <span className="truncate">{trend}</span>
         </span>
       </div>
 
-      <p className={`text-lg sm:text-xl md:text-2xl font-black text-slate-800 tracking-tight ${teachersFont.className}`}>
+      <p className={`text-xl sm:text-2xl md:text-[26px] font-black text-slate-800 tracking-tight tabular-nums leading-none ${teachersFont.className}`}>
         {value}
       </p>
-      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5 truncate">{title}</p>
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1.5 truncate">{title}</p>
     </motion.div>
   );
 }
@@ -356,9 +362,11 @@ function QuickAction({ href, icon: Icon, label }: { href: string; icon: LucideIc
   return (
     <Link
       href={href}
-      className="snap-start shrink-0 min-h-[44px] flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3.5 text-xs font-bold text-slate-700 shadow-sm active:scale-[0.97] transition-transform"
+      className="snap-start shrink-0 min-h-[44px] flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3.5 text-xs font-bold text-slate-700 shadow-sm hover:border-blue-300 hover:bg-blue-50/40 active:scale-[0.97] transition-all"
     >
-      <Icon size={15} className="text-blue-600" />
+      <span className="p-1 rounded-lg bg-blue-50 text-blue-600">
+        <Icon size={14} />
+      </span>
       {label}
       <ChevronRight size={14} className="text-slate-300" />
     </Link>

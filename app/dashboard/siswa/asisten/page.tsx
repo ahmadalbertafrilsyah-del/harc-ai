@@ -81,13 +81,14 @@ export default function ChatbotGuruGeminiStyle() {
   // Inisialisasi Auth, Token, Konfigurasi, dan Prompt
   useEffect(() => {
     const auth = getAuth();
+    let unsubProfil: (() => void) | null = null;
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUserUid(user.uid);
-        
-        const unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
+
+        unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
           if (docSnap.exists()) {
-            setUserName(docSnap.data().nama || "Pendidik");
+            setUserName(docSnap.data().nama || "Pelajar");
             setAiTokens(docSnap.data().aiTokens || 0);
           }
         });
@@ -109,21 +110,22 @@ export default function ChatbotGuruGeminiStyle() {
           const constraints = snapConstraints.docs.map(d => `- [${d.data().kategori}]: ${d.data().aturan}`).join("\n");
 
           setSystemPromptContext(`
-            Anda adalah HARC-AI, asisten guru canggih. Anda bertugas membantu merancang modul ajar dan pedagogi.
-            ATURAN FORMAT SOAL & TEKS: 
-            1. Gunakan format Markdown untuk setiap list, tebal (bold), dan tabel.
-            2. Jika Anda membuat soal pilihan ganda, WAJIB pisahkan opsi (A, B, C, D, E) dengan baris baru (ENTER) agar tersusun menurun.
+            Anda adalah HARC-AI, asisten belajar untuk SISWA. Tugas Anda mendampingi siswa memahami pelajaran:
+            menjelaskan konsep dengan bahasa sederhana, memberi contoh, dan menuntun cara berpikir.
+            PENTING: Bila siswa sedang meminta bantuan mengerjakan tugas/ujian, JANGAN memberi jawaban akhir langsung —
+            arahkan dengan petunjuk agar siswa memahami sendiri.
+            ATURAN FORMAT:
+            1. Gunakan format Markdown untuk list, tebal (bold), dan tabel.
+            2. Jawab ringkas, ramah, dan mudah dipahami sesuai jenjang siswa.
             ATURAN DARI SEKOLAH:
             ${constraints || "Tidak ada batasan khusus."}
-            PANDUAN KORPUS:
+            PANDUAN KORPUS BUDAYA:
             ${korpusRules || "Gunakan bahasa baku."}
           `);
         } catch (error) { console.error("Gagal menarik korpus"); }
-
-        return () => unsubProfil();
       }
     });
-    return () => unsubscribeAuth();
+    return () => { unsubscribeAuth(); if (unsubProfil) unsubProfil(); };
   }, []);
 
   // MANAJEMEN ROOM CHAT

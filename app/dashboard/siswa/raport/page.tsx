@@ -1,9 +1,9 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Award, BarChart3, Clock, AlertCircle, MessageSquare, Send, Loader2, X, Download, Filter, Search, CheckCircle2 } from "lucide-react";
+import { Award, BarChart3, Clock, AlertCircle, MessageSquare, Send, Loader2, X, Download, Filter, Search, CheckCircle2, BookOpenCheck, Target } from "lucide-react";
 import { Teachers } from "next/font/google";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase"; 
 import { collection, onSnapshot, query, where, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
@@ -26,6 +26,10 @@ export default function RaportSiswa() {
   const [userUid, setUserUid] = useState<string | null>(null);
   const [profilSiswa, setProfilSiswa] = useState<any>({});
 
+  // Buku nilai akademik (rekap_nilai) dari guru
+  const [kelasList, setKelasList] = useState<any[]>([]);
+  const [rekapMap, setRekapMap] = useState<Record<string, any>>({});
+
   // Filter State
   const [searchQuery, setSearchQuery] = useState("");
   const [filterKelas, setFilterKelas] = useState("Semua");
@@ -44,6 +48,10 @@ export default function RaportSiswa() {
         onSnapshot(doc(db, "users", user.uid), (snap) => {
             if(snap.exists()) setProfilSiswa(snap.data());
         });
+        onSnapshot(
+          query(collection(db, "manajemen_kelas"), where("peserta", "array-contains", user.uid)),
+          (snap) => setKelasList(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+        );
         fetchRiwayatUjian(user.uid);
       } else {
         setIsLoading(false);
@@ -51,6 +59,43 @@ export default function RaportSiswa() {
     });
     return () => unsubscribeAuth();
   }, []);
+
+  // Langganan rekap_nilai per kelas yang diikuti (doc id = kelasId)
+  useEffect(() => {
+    if (kelasList.length === 0) return;
+    const unsubs = kelasList.map((k) =>
+      onSnapshot(doc(db, "rekap_nilai", k.id), (snap) => {
+        setRekapMap((prev) => ({ ...prev, [k.id]: snap.exists() ? snap.data() : null }));
+      })
+    );
+    return () => unsubs.forEach((u) => u());
+  }, [kelasList]);
+
+  // Hitung nilai akademik siswa dari rekap_nilai
+  const bukuNilai = useMemo(() => {
+    if (!userUid) return [] as any[];
+    return kelasList
+      .map((k) => {
+        const rekap = rekapMap[k.id];
+        const dataN = rekap?.dataNilai?.[userUid];
+        const indikator = (rekap?.indikator || []) as { id: string; nama: string; bobot: number }[];
+        if (!rekap || !dataN || indikator.length === 0) return null;
+        const adaNilai = indikator.some((ind) => Number(dataN[ind.id]) > 0);
+        if (!adaNilai) return null;
+        let nilaiAkhir = 0;
+        indikator.forEach((ind) => { if (ind.bobot > 0) nilaiAkhir += (Number(dataN[ind.id]) || 0) * (ind.bobot / 100); });
+        return {
+          kelasId: k.id,
+          nama: k.nama || "Kelas",
+          mapel: k.mapel || "Umum",
+          kkm: Number(rekap.kkm) || 75,
+          indikator,
+          dataN,
+          nilaiAkhir: Math.round(nilaiAkhir),
+        };
+      })
+      .filter(Boolean) as any[];
+  }, [kelasList, rekapMap, userUid]);
 
   const fetchRiwayatUjian = (uid: string) => {
     const q = query(collection(db, "jawaban_siswa"), where("uid", "==", uid));
@@ -123,6 +168,63 @@ export default function RaportSiswa() {
           <Download size={16} /> Unduh Raport (CSV)
         </button>
       </div>
+
+      {/* Buku Nilai Akademik (rekap_nilai dari guru) */}
+      {bukuNilai.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 mb-4">
+            <BookOpenCheck size={16} className="text-emerald-600" /> Buku Nilai Akademik
+            <span className="ml-1 text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full normal-case tracking-normal">
+              {bukuNilai.length} mata pelajaran
+            </span>
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {bukuNilai.map((bn) => {
+              const tuntas = bn.nilaiAkhir >= bn.kkm;
+              return (
+                <div key={bn.kelasId} className="relative overflow-hidden bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                  <div className={`pointer-events-none absolute inset-x-0 top-0 h-1 ${tuntas ? "bg-emerald-500/70" : "bg-rose-500/60"}`} aria-hidden="true" />
+
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-800 text-[15px] truncate">{bn.mapel}</p>
+                      <p className="text-[11px] text-slate-400 truncate">{bn.nama} · KKM {bn.kkm}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={`text-3xl font-black leading-none tabular-nums ${tuntas ? "text-emerald-600" : "text-rose-600"}`}>
+                        {bn.nilaiAkhir}
+                      </p>
+                      <span className={`inline-block mt-1 text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md border ${
+                        tuntas ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"
+                      }`}>
+                        {tuntas ? "Tuntas" : "Belum Tuntas"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 pt-3 border-t border-slate-100">
+                    {bn.indikator.map((ind: any) => (
+                      <div key={ind.id} className="flex items-center justify-between gap-2 text-[12px]">
+                        <span className="text-slate-500 truncate flex items-center gap-1.5">
+                          <Target size={11} className="text-slate-300 shrink-0" />
+                          {ind.nama} <span className="text-slate-300">({ind.bobot}%)</span>
+                        </span>
+                        <span className="font-bold text-slate-700 tabular-nums shrink-0">{Number(bn.dataN[ind.id]) || 0}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Riwayat Asesmen */}
+      <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 mb-4">
+        <BarChart3 size={16} className="text-blue-600" /> Riwayat Asesmen &amp; Ujian
+      </h2>
 
       {/* Filter Bar */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">

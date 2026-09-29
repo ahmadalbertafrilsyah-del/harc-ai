@@ -188,7 +188,8 @@ function parseBertag(konten: string): Soal[] {
     if (kunciMentah) {
       if (tipe === "PG") kunci = kunciMentah.replace(/[^A-E]/gi, "").charAt(0).toUpperCase() || "A";
       else if (tipe === "Benar/Salah") kunci = kunciMentah.toLowerCase().includes("benar") ? "Benar" : "Salah";
-      else panduanAI = kunciMentah;
+      else if (tipe === "Isian Singkat") kunci = kunciMentah; // jawaban singkat eksak → dapat dinilai otomatis
+      else panduanAI = kunciMentah; // Uraian → pedoman penskoran
     }
 
     const bersih = b
@@ -313,6 +314,7 @@ function parseBernomor(konten: string): Soal[] {
         if (mentah) {
           if (tipe === "PG") kunci = mentah.match(/^[A-E]/i)?.[0].toUpperCase() || kunci;
           else if (tipe === "Benar/Salah") kunci = mentah.toLowerCase().includes("benar") ? "Benar" : "Salah";
+          else if (tipe === "Isian Singkat") kunci = mentah;
           else panduanAI = mentah;
         }
       }

@@ -80,10 +80,23 @@ export default function JurnalRefleksi() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-20 md:pb-10">
-      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-        <h2 className="text-2xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-          <PenTool className="text-emerald-600"/> Jurnal Harian
+    <div className="max-w-4xl mx-auto space-y-6 md:space-y-7 pb-20 md:pb-10">
+      {/* Header halaman */}
+      <div className="flex items-start gap-3.5 border-b border-slate-200 pb-5">
+        <span className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100 shrink-0">
+          <PenTool size={22} />
+        </span>
+        <div className="min-w-0">
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 leading-tight">Jurnal Refleksi</h1>
+          <p className="text-slate-500 text-sm mt-1.5 max-w-xl leading-relaxed">
+            Rekam proses belajarmu setiap hari. Refleksi yang konsisten membantu memahami perkembangan diri secara akademik.
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm">
+        <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+          <Save size={15} className="text-emerald-600"/> Tulis Refleksi Hari Ini
         </h2>
 
         {/* Notifikasi Status */}
@@ -122,24 +135,33 @@ export default function JurnalRefleksi() {
       </div>
 
       <div className="space-y-4">
+        {riwayat.length > 0 && (
+          <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 px-1">
+            <Calendar size={15} className="text-emerald-600" /> Riwayat Refleksi
+            <span className="ml-1 text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full normal-case tracking-normal">{riwayat.length} catatan</span>
+          </h2>
+        )}
         {riwayat.length > 0 ? (
           riwayat.map((item) => (
-            <div key={item.id} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-start gap-4 hover:shadow-md transition-shadow">
-              <div className="bg-emerald-100 p-3 rounded-xl text-emerald-600 shrink-0">
-                <Calendar size={24}/>
+            <div key={item.id} className="relative bg-white p-5 md:p-6 pl-6 rounded-2xl border border-slate-200 shadow-sm flex items-start gap-4 hover:shadow-md hover:border-emerald-200 transition-all">
+              <span className="absolute left-0 top-5 bottom-5 w-1 rounded-full bg-emerald-500/60" aria-hidden="true" />
+              <div className="bg-emerald-50 p-3 rounded-xl text-emerald-600 ring-1 ring-emerald-100 shrink-0">
+                <Calendar size={22}/>
               </div>
-              <div>
+              <div className="min-w-0">
                 {/* Mencegah error toDate() jika timestamp lokal masih null/pending */}
-                <p className="text-xs font-bold text-slate-400 mb-2">
+                <p className="text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wide">
                   {item.timestamp ? item.timestamp.toDate().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : "Baru saja"}
                 </p>
-                <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{item.isi}</p>
+                <p className="text-slate-700 text-[14px] leading-relaxed whitespace-pre-wrap">{item.isi}</p>
               </div>
             </div>
           ))
         ) : (
-          <div className="text-center p-8 text-slate-400">
-            <p className="font-medium text-sm">Belum ada catatan jurnal. Mulai tulis refleksimu hari ini!</p>
+          <div className="text-center py-14 bg-white rounded-2xl border border-dashed border-slate-300">
+            <PenTool size={36} className="mx-auto text-slate-300 mb-3" />
+            <p className="font-bold text-sm text-slate-600">Belum ada catatan jurnal</p>
+            <p className="text-xs text-slate-400 mt-1">Mulailah menulis refleksi belajarmu hari ini.</p>
           </div>
         )}
       </div>

@@ -214,6 +214,9 @@ export default function PanelKoreksi({ ujianId, judulUjian, kelasNama, soal, daf
         idUjian: ujianId,
         judulUjian,
         kelas: kelasNama,
+        // `uid` menautkan hasil koreksi luring ke Raport siswa (raport query where uid==user.uid).
+        // `siswaId` dipertahankan untuk kompatibilitas data lama.
+        uid: siswa?.id || "",
         siswaId: siswa?.id || "",
         nama: siswa?.nama || bacaan.nama,
         nisn: siswa?.nisn || bacaan.nomorInduk || "",

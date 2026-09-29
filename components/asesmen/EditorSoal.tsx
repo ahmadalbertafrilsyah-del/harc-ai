@@ -27,6 +27,21 @@ type Props = {
   jumlahOpsiPG: number;
 };
 
+/** Menyiapkan pratinjau: SVG dipertahankan (handler event dibuang), tag lain di-escape. */
+function pratinjauSoalHtml(teks: string): string {
+  const svg: string[] = [];
+  const disimpan = String(teks ?? "").replace(/<svg[\s\S]*?<\/svg>/gi, (m) => {
+    svg.push(m.replace(/\son[a-z]+\s*=\s*(["'])[^"']*\1/gi, ""));
+    return `\u0000SVG${svg.length - 1}\u0000`;
+  });
+  return disimpan
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br/>")
+    .replace(/\u0000SVG(\d+)\u0000/g, (_m, i) => svg[Number(i)] || "");
+}
+
 export default function EditorSoal({ soal, onUbah, jumlahOpsiPG }: Props) {
   const [terbuka, setTerbuka] = useState<string | null>(null);
   const kelompok = kelompokkanSoal(soal);
@@ -224,6 +239,15 @@ function KartuSoal({
               placeholder="Tulis pertanyaan. Kode <svg>...</svg> dari generator akan tampil sebagai gambar."
               className="w-full p-3 bg-white border border-slate-300 rounded-xl text-[13px] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-y"
             />
+            {/^[\s\S]*<svg[\s\S]*<\/svg>/i.test(soal.pertanyaan) && (
+              <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1.5">Pratinjau Gambar</p>
+                <div
+                  className="text-[13px] text-slate-700 [&_svg]:max-w-full [&_svg]:h-auto [&_svg]:mx-auto [&_svg]:block"
+                  dangerouslySetInnerHTML={{ __html: pratinjauSoalHtml(soal.pertanyaan) }}
+                />
+              </div>
+            )}
           </div>
 
           {soal.tipe === "PG" && (
