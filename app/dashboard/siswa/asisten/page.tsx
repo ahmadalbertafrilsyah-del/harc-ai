@@ -101,7 +101,7 @@ export default function ChatbotGuruGeminiStyle() {
             setAvailableModels(modelsArray);
             setSelectedModel(modelsArray[0]); 
           }
-        } catch (error) { console.error("Gagal menarik konfigurasi model"); }
+        } catch { console.error("Gagal menarik konfigurasi model"); }
 
         try {
           const snapKorpus = await getDocs(collection(db, "korpus_budaya"));
@@ -122,7 +122,7 @@ export default function ChatbotGuruGeminiStyle() {
             PANDUAN KORPUS BUDAYA:
             ${korpusRules || "Gunakan bahasa baku."}
           `);
-        } catch (error) { console.error("Gagal menarik korpus"); }
+        } catch { console.error("Gagal menarik korpus"); }
       }
     });
     return () => { unsubscribeAuth(); if (unsubProfil) unsubProfil(); };
@@ -348,24 +348,24 @@ export default function ChatbotGuruGeminiStyle() {
                           <ReactMarkdown 
                             remarkPlugins={[remarkGfm]}
                             components={{
-                              p: ({node, ...props}) => <p className="mb-3 last:mb-0" {...props} />,
-                              strong: ({node, ...props}) => <strong className="font-bold text-blue-900" {...props} />,
-                              h1: ({node, ...props}) => <h1 className="text-xl md:text-2xl font-bold mt-5 mb-3" {...props} />,
-                              h2: ({node, ...props}) => <h2 className="text-lg md:text-xl font-bold mt-4 mb-2" {...props} />,
-                              h3: ({node, ...props}) => <h3 className="text-base md:text-lg font-bold mt-4 mb-2 text-slate-800" {...props} />,
-                              ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-4 space-y-1" {...props} />,
-                              ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-4 space-y-1" {...props} />,
-                              li: ({node, ...props}) => <li className="pl-1" {...props} />,
-                              blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-blue-500 pl-4 py-1 my-3 bg-blue-50/50 italic text-slate-700" {...props} />,
-                              table: ({node, ...props}) => (
+                              p: ({...props}) => <p className="mb-3 last:mb-0" {...props} />,
+                              strong: ({...props}) => <strong className="font-bold text-blue-900" {...props} />,
+                              h1: ({...props}) => <h1 className="text-xl md:text-2xl font-bold mt-5 mb-3" {...props} />,
+                              h2: ({...props}) => <h2 className="text-lg md:text-xl font-bold mt-4 mb-2" {...props} />,
+                              h3: ({...props}) => <h3 className="text-base md:text-lg font-bold mt-4 mb-2 text-slate-800" {...props} />,
+                              ul: ({...props}) => <ul className="list-disc pl-5 mb-4 space-y-1" {...props} />,
+                              ol: ({...props}) => <ol className="list-decimal pl-5 mb-4 space-y-1" {...props} />,
+                              li: ({...props}) => <li className="pl-1" {...props} />,
+                              blockquote: ({...props}) => <blockquote className="border-l-4 border-blue-500 pl-4 py-1 my-3 bg-blue-50/50 italic text-slate-700" {...props} />,
+                              table: ({...props}) => (
                                 <div className="overflow-x-auto my-5 rounded-lg border border-slate-200 shadow-sm [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                                   <table className="w-full text-left text-sm min-w-[500px]" {...props} />
                                 </div>
                               ),
-                              thead: ({node, ...props}) => <thead className="bg-slate-50 border-b border-slate-200" {...props} />,
-                              th: ({node, ...props}) => <th className="px-4 py-3 font-bold text-slate-700 whitespace-nowrap" {...props} />,
-                              td: ({node, ...props}) => <td className="px-4 py-3 border-b border-slate-100/80 text-slate-600 align-top" {...props} />,
-                              code: ({node, className, children, ...props}) => <code className="bg-slate-100 text-pink-600 px-1.5 py-0.5 rounded text-[13px] font-mono break-words" {...props}>{children}</code>
+                              thead: ({...props}) => <thead className="bg-slate-50 border-b border-slate-200" {...props} />,
+                              th: ({...props}) => <th className="px-4 py-3 font-bold text-slate-700 whitespace-nowrap" {...props} />,
+                              td: ({...props}) => <td className="px-4 py-3 border-b border-slate-100/80 text-slate-600 align-top" {...props} />,
+                              code: ({children, ...props}) => <code className="bg-slate-100 text-pink-600 px-1.5 py-0.5 rounded text-[13px] font-mono break-words" {...props}>{children}</code>
                             }}
                           >
                             {msg.content}

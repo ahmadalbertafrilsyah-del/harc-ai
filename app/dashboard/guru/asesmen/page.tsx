@@ -882,9 +882,9 @@ export default function ModulAsesmenGuru() {
                       remarkPlugins={[remarkGfm]}
                       rehypePlugins={[rehypeRaw]}
                       components={{
-                        table: ({ node, ...props }) => <div className="table-wrapper"><table {...props} /></div>,
+                        table: ({ ...props }) => <div className="table-wrapper"><table {...props} /></div>,
                         /* eslint-disable-next-line @next/next/no-img-element */
-                        img: ({ node, ...props }) => <img {...props} alt={props.alt || ""} loading="lazy" />,
+                        img: ({ ...props }) => <img {...props} alt={props.alt || ""} loading="lazy" />,
                       }}
                     >
                       {sanitasiHasil}

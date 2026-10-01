@@ -1,10 +1,10 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Database, Search, Plus, Trash2, ShieldCheck, 
-  Loader2, BookMarked, MessageSquareWarning, AlertCircle, 
-  Landmark, GraduationCap, Microscope, Bot, X, ArrowRight, SlidersHorizontal 
+import {
+  Search, Plus, Trash2, ShieldCheck,
+  Loader2, BookMarked, MessageSquareWarning, AlertCircle,
+  Landmark, GraduationCap, Microscope, Bot, X, ArrowRight
 } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect } from "react";

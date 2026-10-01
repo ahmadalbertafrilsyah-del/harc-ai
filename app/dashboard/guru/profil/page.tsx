@@ -1,14 +1,16 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, Phone, MapPin, Award, BookOpen, Edit, Loader2, Camera, User, Save, X, Building, Coins, Fingerprint, ShieldCheck, Activity } from "lucide-react";
+import { Phone, MapPin, Award, BookOpen, Edit, Loader2, Camera, User, Save, X, Building, Coins, Fingerprint, ShieldCheck, Activity } from "lucide-react";
 import { Teachers } from "next/font/google";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 // IMPORT FIREBASE
-import { db } from "@/lib/firebase"; 
+import { db } from "@/lib/firebase";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { doc, onSnapshot, collection, query, orderBy, limit, setDoc, serverTimestamp, where } from "firebase/firestore";
+
+import { unggahKeCloudinary } from "@/lib/cloudinary";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -22,6 +24,8 @@ export default function ProfilGuru() {
   // State untuk Modal Edit
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingFoto, setIsUploadingFoto] = useState(false);
+  const inputFoto = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     nama: "",
     nip: "",
@@ -84,6 +88,40 @@ export default function ProfilGuru() {
     return () => { unsubProfil(); unsubAktivitas(); };
   }, [userUid]);
 
+  const unggahFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !userUid) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Berkas foto harus berupa gambar (PNG/JPG).");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Ukuran foto maksimal 2 MB. Perkecil gambar terlebih dahulu.");
+      return;
+    }
+
+    setIsUploadingFoto(true);
+    try {
+      const hasil = await unggahKeCloudinary(file, {
+        folder: `foto-profil/${userUid}`,
+        resourceType: "image",
+      });
+      await setDoc(
+        doc(db, "users", userUid),
+        { fotoUrl: hasil.url, lastUpdate: serverTimestamp() },
+        { merge: true }
+      );
+      // profilData diperbarui otomatis oleh listener onSnapshot.
+    } catch (error: any) {
+      console.error("Gagal mengunggah foto:", error);
+      alert(error?.message || "Gagal mengunggah foto profil.");
+    } finally {
+      setIsUploadingFoto(false);
+      e.target.value = "";
+    }
+  };
+
   const bukaModalEdit = () => {
     setFormData({
       nama: profilData?.nama || "",
@@ -145,7 +183,10 @@ export default function ProfilGuru() {
         <div className="lg:w-1/3 space-y-6">
           <div className="bg-white p-6 md:p-8 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border border-slate-200/80 text-center flex flex-col items-center relative overflow-hidden">
             
-            <div className="relative mb-5 group cursor-pointer" onClick={() => alert("Fitur Upload Foto akan ditenagai oleh Cloudinary di pembaruan berikutnya!")}>
+            <div
+              className="relative mb-5 group cursor-pointer"
+              onClick={() => !isUploadingFoto && inputFoto.current?.click()}
+            >
               <div className="w-28 h-28 md:w-32 md:h-32 rounded-full border-4 border-white shadow-lg overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center text-4xl font-bold">
                 {profilData?.fotoUrl ? (
                   <img src={profilData.fotoUrl} alt={profilData?.nama} className="w-full h-full object-cover" />
@@ -153,9 +194,16 @@ export default function ProfilGuru() {
                   profilData?.nama ? profilData.nama.charAt(0).toUpperCase() : "U"
                 )}
               </div>
-              <div className="absolute inset-0 bg-slate-900/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <Camera size={24} className="text-white" />
+              <div className={`absolute inset-0 bg-slate-900/40 rounded-full transition-opacity flex items-center justify-center ${isUploadingFoto ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+                {isUploadingFoto ? <Loader2 size={24} className="text-white animate-spin" /> : <Camera size={24} className="text-white" />}
               </div>
+              <input
+                ref={inputFoto}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={unggahFoto}
+              />
             </div>
 
             <h2 className={`text-xl md:text-2xl font-bold text-slate-800 leading-tight ${teachersFont.className}`}>{profilData?.nama || "Pendidik Baru"}</h2>

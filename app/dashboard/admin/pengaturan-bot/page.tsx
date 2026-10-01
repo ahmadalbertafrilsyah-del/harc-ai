@@ -1,24 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { db } from "@/lib/firebase"; 
-import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
+import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { Bot, Save, Loader2, Info, Battery, UploadCloud, FileText, Trash2 } from "lucide-react";
+
+import { unggahKeCloudinary } from "@/lib/cloudinary";
 
 export default function PengaturanBotAdmin() {
   const [systemPrompt, setSystemPrompt] = useState("");
   const [dailyTokenLimit, setDailyTokenLimit] = useState(15000);
   const [uploadedDocs, setUploadedDocs] = useState<Array<{name: string, url: string, path: string}>>([]);
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [notification, setNotification] = useState({ show: false, msg: "", type: "" });
-
-  // Inisialisasi Storage (Bisa disesuaikan dengan path @/lib/firebase Anda)
-  const storage = getStorage();
 
   useEffect(() => {
     const fetchPengaturan = async () => {
@@ -77,49 +75,33 @@ export default function PengaturanBotAdmin() {
 
     setIsUploading(true);
     setUploadProgress(0);
-    
-    try {
-      const filePath = `ai_knowledge_base/${Date.now()}_${file.name}`;
-      const storageRef = ref(storage, filePath);
-      const uploadTask = uploadBytesResumable(storageRef, file);
 
-      uploadTask.on(
-        "state_changed",
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(Math.round(progress));
-        },
-        (error) => {
-          console.error("Upload error:", error);
-          showNotification("Gagal mengunggah dokumen.", "error");
-          setIsUploading(false);
-        },
-        async () => {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          const newDoc = { name: file.name, url: downloadURL, path: filePath };
-          
-          setUploadedDocs((prev) => [...prev, newDoc]);
-          setIsUploading(false);
-          setUploadProgress(0);
-          showNotification("Dokumen berhasil diunggah. Jangan lupa klik Simpan Pengaturan.", "success");
-        }
-      );
-    } catch (error) {
+    try {
+      const hasil = await unggahKeCloudinary(file, {
+        folder: "ai_knowledge_base",
+        resourceType: "auto",
+        onProgres: (persen) => setUploadProgress(persen),
+      });
+      const newDoc = { name: file.name, url: hasil.url, path: hasil.publicId };
+
+      setUploadedDocs((prev) => [...prev, newDoc]);
+      showNotification("Dokumen berhasil diunggah. Jangan lupa klik Simpan Pengaturan.", "success");
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      showNotification(error?.message || "Gagal mengunggah dokumen.", "error");
+    } finally {
       setIsUploading(false);
-      showNotification("Terjadi kesalahan saat memproses file.", "error");
+      setUploadProgress(0);
+      // Kosongkan input agar berkas yang sama bisa diunggah ulang bila perlu.
+      e.target.value = "";
     }
   };
 
-  const handleDeleteDoc = async (docPath: string) => {
-    try {
-      const storageRef = ref(storage, docPath);
-      await deleteObject(storageRef);
-      setUploadedDocs((prev) => prev.filter((d) => d.path !== docPath));
-      showNotification("Dokumen dihapus. Klik Simpan untuk memperbarui database.", "success");
-    } catch (error) {
-      console.error("Gagal menghapus file:", error);
-      showNotification("Gagal menghapus dokumen dari penyimpanan.", "error");
-    }
+  const handleDeleteDoc = (docPath: string) => {
+    // Penghapusan fisik di Cloudinary butuh API secret di server; di sisi klien
+    // cukup melepas rujukan dari daftar, lalu disimpan ke database saat "Simpan".
+    setUploadedDocs((prev) => prev.filter((d) => d.path !== docPath));
+    showNotification("Dokumen dilepas dari daftar. Klik Simpan untuk memperbarui database.", "success");
   };
 
   const showNotification = (msg: string, type: string) => {

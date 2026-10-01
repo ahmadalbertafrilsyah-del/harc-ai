@@ -64,9 +64,12 @@ export default function LembagaLayout({ children }: { children: React.ReactNode 
     const timer = setInterval(updateTime, 1000);
 
     const auth = getAuth();
+    let unsubProfil: (() => void) | undefined;
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      unsubProfil?.();
+      unsubProfil = undefined;
       if (user) {
-        const unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
+        unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
             setProfil({
@@ -75,11 +78,10 @@ export default function LembagaLayout({ children }: { children: React.ReactNode 
             });
           }
         });
-        return () => unsubProfil();
       }
     });
 
-    return () => { clearInterval(timer); unsubscribeAuth(); };
+    return () => { clearInterval(timer); unsubscribeAuth(); unsubProfil?.(); };
   }, []);
 
   // FUNGSI LOGOUT (MENGUNCI SESI)
@@ -178,7 +180,7 @@ export default function LembagaLayout({ children }: { children: React.ReactNode 
 
             <div className="w-px h-6 bg-slate-200 mx-1"></div>
             
-            <div className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 p-1.5 pr-3 rounded-xl transition-colors">
+            <Link href="/dashboard/lembaga/pengaturan" className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 p-1.5 pr-3 rounded-xl transition-colors">
               <div className="text-right">
                 <p className="font-bold text-slate-700 text-sm truncate max-w-[150px]">{profil.namaLembaga}</p>
                 <p className="text-slate-400 text-[11px] font-medium">{profil.tipe}</p>
@@ -186,7 +188,7 @@ export default function LembagaLayout({ children }: { children: React.ReactNode 
               <div className="w-9 h-9 bg-purple-700 text-white rounded-lg flex items-center justify-center text-xs font-bold shadow-sm">
                 {getInitials(profil.namaLembaga)}
               </div>
-            </div>
+            </Link>
           </div>
         </header>
 

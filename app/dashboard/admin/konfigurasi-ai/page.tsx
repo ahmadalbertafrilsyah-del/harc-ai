@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { BrainCircuit, Save, Loader2, CheckCircle2, AlertCircle, Settings2, Code2, Sliders } from "lucide-react";
+import { Save, Loader2, CheckCircle2, AlertCircle, Code2, Sliders } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, FormEvent, useEffect } from "react";
 import { db } from "@/lib/firebase"; 
@@ -28,7 +28,7 @@ export default function KonfigurasiAI() {
         const docRef = doc(db, "sistem_pengaturan", "ai_prompts");
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          setPrompts(docSnap.data() as any);
+          setPrompts(prev => ({ ...prev, ...docSnap.data() }));
         }
       } catch (error) {
         console.error("Gagal menarik prompts:", error);
@@ -49,7 +49,7 @@ export default function KonfigurasiAI() {
       });
       setStatusPesan({ tipe: "sukses", teks: "Instruksi sistem berhasil disimpan." });
       setTimeout(() => setStatusPesan(null), 3000);
-    } catch (error) {
+    } catch {
       setStatusPesan({ tipe: "error", teks: "Gagal menyimpan konfigurasi AI." });
     } finally {
       setIsSaving(false);

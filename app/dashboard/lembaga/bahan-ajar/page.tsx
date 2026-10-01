@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, BookOpen, Clock, CheckCircle2, XCircle, FileText, User, X, Loader2, Save } from "lucide-react";
+import { Search, BookOpen, Clock, CheckCircle2, XCircle, FileText, User, X, Loader2 } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase"; 
@@ -66,7 +66,7 @@ export default function BahanAjarLembaga() {
       alert(`Dokumen berhasil ${status === 'disetujui' ? 'Disetujui' : 'Ditolak'}`);
       setSelectedDoc(null);
       setFeedback("");
-    } catch (e) {
+    } catch {
       alert("Gagal memperbarui status.");
     } finally {
       setIsSaving(false);
@@ -154,12 +154,12 @@ export default function BahanAjarLembaga() {
                         remarkPlugins={[remarkGfm]}
                         rehypePlugins={[rehypeRaw]}
                         components={{
-                          table: ({node, ...props}) => (
+                          table: ({...props}) => (
                             <div className={isLandscape ? "w-full overflow-x-auto" : "table-wrapper"}>
                               <table className={isLandscape ? "promes-table" : ""} {...props} />
                             </div>
                           ),
-                          th: ({node, children, ...props}) => {
+                          th: ({children, ...props}) => {
                             const text = String(children).toLowerCase().trim();
                             let width = 'auto'; let whiteSpace = 'normal';
                             if (text === 'no' || text === 'no.') width = '3%';
@@ -171,7 +171,7 @@ export default function BahanAjarLembaga() {
                             else if (isLandscape) { whiteSpace = 'nowrap'; } 
                             return <th style={{ width, whiteSpace: whiteSpace as any, padding: isLandscape ? '4px 2px' : '6px 10px' }} {...props}>{children}</th>;
                           },
-                          td: ({node, children, ...props}) => {
+                          td: ({children, ...props}) => {
                             return <td style={{ padding: isLandscape ? '4px 2px' : '6px 10px', fontSize: isLandscape ? '9pt' : 'inherit' }} {...props}>{children}</td>;
                           }
                         }}

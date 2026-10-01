@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, FormEvent } from "react";
+import React, { useState, useEffect, FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, Plus, Loader2, Key, ArrowLeft, CheckCircle2, X,
@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { db } from "@/lib/firebase"; 
-import { collection, onSnapshot, query, addDoc, serverTimestamp, deleteDoc, doc, where, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, addDoc, serverTimestamp, deleteDoc, doc, where, getDoc, setDoc } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
@@ -35,9 +35,7 @@ export default function ManajemenKelas() {
   const [isSubmittingAbsen, setIsSubmittingAbsen] = useState(false);
   const [statusPesanAbsen, setStatusPesanAbsen] = useState<{tipe: "sukses"|"error", teks: string} | null>(null);
   const [isRiwayatAbsenOpen, setIsRiwayatAbsenOpen] = useState(false);
-  const [riwayatAbsenData, setRiwayatAbsenData] = useState<any[]>([]); 
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
+  const [riwayatAbsenData, setRiwayatAbsenData] = useState<any[]>([]);
 
   const [jurnal, setJurnal] = useState({ materi: "", kegiatan: "", hambatan: "", solusi: "" });
   const [isSubmittingJurnal, setIsSubmittingJurnal] = useState(false);
@@ -92,7 +90,7 @@ export default function ManajemenKelas() {
         }
         siswaKelas.forEach(s => { if(!currentNilai[s.id]) currentNilai[s.id] = {}; });
         setNilai(currentNilai);
-      } catch (error) {}
+      } catch {}
     };
     fetchRekapNilai();
   }, [selectedClass, daftarSiswaGlobal]);
@@ -107,7 +105,7 @@ export default function ManajemenKelas() {
         const absenSnap = await getDoc(doc(db, "absensi_siswa", `${selectedClass.id}_${tanggal}`));
         if (absenSnap.exists() && absenSnap.data().dataKehadiran) { currentAbsen = { ...currentAbsen, ...absenSnap.data().dataKehadiran }; }
         setAbsensi(currentAbsen);
-      } catch (error) {}
+      } catch {}
     };
     fetchAbsensi();
   }, [selectedClass, tanggal, daftarSiswaGlobal]);
@@ -145,7 +143,7 @@ export default function ManajemenKelas() {
     try {
       await addDoc(collection(db, "manajemen_kelas"), { nama: newClass.nama, mapel: newClass.mapel, kode: Math.floor(100000 + Math.random() * 900000).toString(), siswa: 0, peserta: [], status: "Aktif", guruId: userUid, timestamp: serverTimestamp() });
       setIsModalOpen(false); setNewClass({ nama: "", mapel: "" });
-    } catch (error) {} finally { setIsSubmitting(false); }
+    } catch {} finally { setIsSubmitting(false); }
   };
 
   const handleSimpanAbsensi = async (e: FormEvent) => {
@@ -154,7 +152,7 @@ export default function ManajemenKelas() {
     try {
       await setDoc(doc(db, "absensi_siswa", `${selectedClass.id}_${tanggal}`), { guruId: userUid, kelasId: selectedClass.id, tanggal: tanggal, dataKehadiran: absensi, timestamp: serverTimestamp() }, { merge: true });
       setStatusPesanAbsen({ tipe: "sukses", teks: "Data absensi berhasil diperbarui." }); setTimeout(() => setStatusPesanAbsen(null), 3000);
-    } catch (error: any) {} finally { setIsSubmittingAbsen(false); }
+    } catch { setStatusPesanAbsen({ tipe: "error", teks: "Gagal menyimpan absensi. Periksa koneksi." }); } finally { setIsSubmittingAbsen(false); }
   };
 
   const handleSimpanJurnal = async (e: FormEvent) => {
@@ -164,7 +162,7 @@ export default function ManajemenKelas() {
       await addDoc(collection(db, "jurnal_kbm"), { guruId: userUid, namaGuru: guruNama || "", kelasId: selectedClass.id, namaKelas: selectedClass.nama || "", kelas: selectedClass.nama || "", mapel: selectedClass.mapel || "Umum", npsn: guruNpsn || "", tanggal: tanggal, ...jurnal, timestamp: serverTimestamp() });
       setJurnal({ materi: "", kegiatan: "", hambatan: "", solusi: "" });
       setStatusPesanJurnal({ tipe: "sukses", teks: "Jurnal KBM berhasil dikirim." }); setTimeout(() => setStatusPesanJurnal(null), 3000);
-    } catch (error: any) {} finally { setIsSubmittingJurnal(false); }
+    } catch { setStatusPesanJurnal({ tipe: "error", teks: "Gagal mengirim jurnal. Periksa koneksi." }); } finally { setIsSubmittingJurnal(false); }
   };
 
   const handleUbahNilai = (idSiswa: string, idIndikator: string, value: string) => {
@@ -185,7 +183,7 @@ export default function ManajemenKelas() {
     try {
       await setDoc(doc(db, "rekap_nilai", selectedClass.id), { guruId: userUid, kelasId: selectedClass.id, kkm: kkm, indikator: indikatorNilai, dataNilai: nilai, terakhirDiperbarui: serverTimestamp() }, { merge: true });
       setStatusPesanRekap({ tipe: "sukses", teks: "Rekap Nilai berhasil disimpan." }); setTimeout(() => setStatusPesanRekap(null), 3000);
-    } catch (error: any) {} finally { setIsSubmittingRekap(false); }
+    } catch { setStatusPesanRekap({ tipe: "error", teks: "Gagal menyimpan rekap nilai. Periksa koneksi." }); } finally { setIsSubmittingRekap(false); }
   };
 
   const handleDownloadExcel = () => {
@@ -418,7 +416,10 @@ export default function ManajemenKelas() {
                         </tbody>
                       </table>
                     </div>
-                    <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+                    <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
+                      {statusPesanAbsen ? (
+                        <span className={`text-xs font-bold ${statusPesanAbsen.tipe === "sukses" ? "text-emerald-600" : "text-rose-600"}`}>{statusPesanAbsen.teks}</span>
+                      ) : <span />}
                       <button type="submit" disabled={isSubmittingAbsen} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 disabled:opacity-50">
                         {isSubmittingAbsen ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Simpan Absensi
                       </button>
@@ -463,7 +464,10 @@ export default function ManajemenKelas() {
                       <textarea rows={2} value={jurnal.solusi} onChange={(e) => setJurnal({...jurnal, solusi: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-800 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 font-medium resize-none" />
                     </div>
                   </div>
-                  <div className="pt-2 flex justify-end">
+                  <div className="pt-2 flex items-center justify-between gap-3">
+                    {statusPesanJurnal ? (
+                      <span className={`text-xs font-bold ${statusPesanJurnal.tipe === "sukses" ? "text-emerald-600" : "text-rose-600"}`}>{statusPesanJurnal.teks}</span>
+                    ) : <span />}
                     <button type="submit" disabled={isSubmittingJurnal} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 disabled:opacity-50">
                       {isSubmittingJurnal ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Kirim Jurnal KBM
                     </button>
@@ -530,7 +534,10 @@ export default function ManajemenKelas() {
                         </tbody>
                       </table>
                     </div>
-                    <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+                    <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
+                      {statusPesanRekap ? (
+                        <span className={`text-xs font-bold ${statusPesanRekap.tipe === "sukses" ? "text-emerald-600" : "text-rose-600"}`}>{statusPesanRekap.teks}</span>
+                      ) : <span />}
                       <button type="submit" disabled={isSubmittingRekap} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 disabled:opacity-50">
                         {isSubmittingRekap ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Simpan Rekap Nilai
                       </button>

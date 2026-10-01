@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Award, BarChart3, Clock, AlertCircle, MessageSquare, Send, Loader2, X, Download, Filter, Search, CheckCircle2, BookOpenCheck, Target } from "lucide-react";
+import { Award, BarChart3, AlertCircle, MessageSquare, Send, Loader2, X, Download, Filter, Search, BookOpenCheck, Target } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase"; 
@@ -17,7 +17,7 @@ const dapatkanWaktuAman = (item: any) => {
     if (item.timestamp.seconds) return item.timestamp.seconds * 1000;
     if (typeof item.timestamp === 'number') return item.timestamp;
     return 0;
-  } catch (error) { return 0; }
+  } catch { return 0; }
 };
 
 export default function RaportSiswa() {
@@ -128,7 +128,7 @@ export default function RaportSiswa() {
       alert("Sanggahan berhasil dikirim!");
       setSelectedRaport({ ...selectedRaport, sanggahan: { teks: sanggahanText, status: "menunggu_validasi_guru" } });
       setSanggahanText("");
-    } catch (error) { alert("Gagal mengirim sanggahan."); } finally { setIsSubmitting(false); }
+    } catch { alert("Gagal mengirim sanggahan."); } finally { setIsSubmitting(false); }
   };
 
   const handleDownloadExcel = () => {
@@ -278,7 +278,7 @@ export default function RaportSiswa() {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <p className="text-xs text-slate-600 line-clamp-2 italic w-48 lg:w-64">"{raport.feedbackGuru || "Belum ada umpan balik."}"</p>
+                          <p className="text-xs text-slate-600 line-clamp-2 italic w-48 lg:w-64">&ldquo;{raport.feedbackGuru || "Belum ada umpan balik."}&rdquo;</p>
                         </td>
                         <td className="px-6 py-4 text-center">
                           <button onClick={() => setSelectedRaport(raport)} className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-bold transition-colors w-max">
@@ -326,7 +326,7 @@ export default function RaportSiswa() {
                 <div>
                   <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Umpan Balik Guru / AI</h3>
                   <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl text-slate-700 text-sm leading-relaxed italic">
-                    "{selectedRaport?.feedbackGuru || "Sistem dan Guru belum memberikan umpan balik naratif untuk evaluasi ini."}"
+                    &ldquo;{selectedRaport?.feedbackGuru || "Sistem dan Guru belum memberikan umpan balik naratif untuk evaluasi ini."}&rdquo;
                   </div>
                 </div>
 
@@ -334,7 +334,7 @@ export default function RaportSiswa() {
                   <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
                     <div className="flex items-center gap-2 text-amber-700 font-bold mb-2 text-sm"><AlertCircle size={16}/> Menunggu Validasi Manual</div>
                     <p className="text-xs text-slate-600 mb-3">Kamu telah mengajukan sanggahan. Guru sedang meninjaunya berdasarkan korpus budaya daerahmu.</p>
-                    <div className="p-3 bg-white border border-amber-100 rounded-lg text-sm text-slate-700 italic">"{selectedRaport.sanggahan.teks}"</div>
+                    <div className="p-3 bg-white border border-amber-100 rounded-lg text-sm text-slate-700 italic">&ldquo;{selectedRaport.sanggahan.teks}&rdquo;</div>
                   </div>
                 ) : (
                   <div className="border-t border-slate-100 pt-5">

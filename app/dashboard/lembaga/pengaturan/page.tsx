@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Building, Mail, User, Phone, Save, ShieldCheck, Loader2, Hash } from "lucide-react";
+import { Building, Mail, User, Save, Loader2, Hash } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase"; 
@@ -41,6 +41,9 @@ export default function PengaturanLembaga() {
             noTelp: data.noTelp || ""
           });
         }
+        setIsLoading(false);
+      } else {
+        setUserUid(null);
         setIsLoading(false);
       }
     });

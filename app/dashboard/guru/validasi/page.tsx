@@ -301,9 +301,9 @@ export default function StatusKoleksiGuru() {
                             remarkPlugins={[remarkGfm]}
                             rehypePlugins={[rehypeRaw]}
                             components={{
-                              table: ({ node, ...props }) => <div className={isLanskap ? "w-full overflow-x-auto" : "table-wrapper"}><table {...props} /></div>,
+                              table: ({ ...props }) => <div className={isLanskap ? "w-full overflow-x-auto" : "table-wrapper"}><table {...props} /></div>,
                               /* eslint-disable-next-line @next/next/no-img-element */
-                              img: ({ node, ...props }) => <img {...props} alt={props.alt || ""} loading="lazy" />,
+                              img: ({ ...props }) => <img {...props} alt={props.alt || ""} loading="lazy" />,
                             }}
                           >
                             {bersihkanSvg(dipilih.konten || "").replace(/<br\s*\/?>(\n)?/gi, "\n")}

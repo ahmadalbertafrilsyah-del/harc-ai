@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Settings, Save, ShieldCheck, Bell, Database, Loader2, KeyRound, Globe, Phone, Mail, ChevronDown } from "lucide-react";
+import { Save, ShieldCheck, Bell, Loader2, KeyRound, Globe, Phone, Mail, ChevronDown } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect } from "react";
 

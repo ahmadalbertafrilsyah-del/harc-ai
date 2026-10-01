@@ -33,7 +33,7 @@ export default function ManajemenLogs() {
     if (confirm("Hapus log ini dari database?")) {
       try {
         await deleteDoc(doc(db, "ai_logs", id));
-      } catch (error) {
+      } catch {
         alert("Gagal menghapus log.");
       }
     }

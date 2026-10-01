@@ -2,8 +2,8 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Calendar, Save, Loader2, CheckCircle2, AlertCircle, 
-  BookOpen, GraduationCap, Database
+  Calendar, Save, Loader2, CheckCircle2, AlertCircle,
+  BookOpen, GraduationCap
 } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect, FormEvent } from "react";
@@ -51,7 +51,7 @@ export default function MasterDataAdmin() {
       
       setStatusPesan({ tipe: "sukses", teks: "Master data berhasil diperbarui." });
       setTimeout(() => setStatusPesan(null), 3000);
-    } catch (error) {
+    } catch {
       setStatusPesan({ tipe: "error", teks: "Gagal menyimpan pengaturan." });
     } finally {
       setIsSaving(false);

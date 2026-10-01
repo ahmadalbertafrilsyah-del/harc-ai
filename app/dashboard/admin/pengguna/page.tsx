@@ -1,9 +1,9 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Users, Search, Trash2, ShieldCheck, Loader2, CheckCircle2, 
-  XCircle, Coins, Lock, Unlock, Eye, X, Building2, UserCircle, GraduationCap 
+import {
+  Search, Trash2, Loader2,
+  Coins, Lock, Eye, X, Building2, UserCircle, GraduationCap
 } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect } from "react";

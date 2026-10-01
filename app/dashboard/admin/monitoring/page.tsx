@@ -1,7 +1,7 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { Activity, BrainCircuit, Coins, AlertTriangle, CheckCircle, RefreshCw, Zap, Loader2, ServerCrash, AlertCircle, Save, Bot, DollarSign, ListFilter } from "lucide-react";
+import { motion } from "framer-motion";
+import { BrainCircuit, Coins, Loader2, Save, Bot, DollarSign, ListFilter, AlertTriangle, SlidersHorizontal, Activity } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase"; 
@@ -33,7 +33,7 @@ export default function MonitoringAI() {
     const unsubStats = onSnapshot(doc(db, "ai_monitoring", "token_stats"), (docSnap) => {
         if (docSnap.exists()) setTokenStats(docSnap.data() as any);
         setIsLoading(false);
-      }, (error) => {
+      }, () => {
         setErrorMessage("Gagal memuat statistik. Pastikan koleksi 'ai_monitoring' sudah dibuat.");
         setIsLoading(false);
       }
@@ -74,7 +74,7 @@ export default function MonitoringAI() {
       setIsUpdatingLimit(true);
       try {
         await setDoc(doc(db, "ai_monitoring", "token_stats"), { limitBulanan: Number(limitBaru) }, { merge: true });
-      } catch (error) {
+      } catch {
         alert("Gagal memperbarui limit.");
       } finally {
         setIsUpdatingLimit(false);
@@ -88,7 +88,7 @@ export default function MonitoringAI() {
     try {
       await setDoc(doc(db, "ai_monitoring", "api_config"), aiConfig, { merge: true });
       alert("Konfigurasi Model berhasil diamankan!");
-    } catch (error) {
+    } catch {
       alert("Akses ditolak! Anda tidak memiliki izin Administrator.");
     } finally {
       setIsSavingConfig(false);
@@ -122,6 +122,12 @@ export default function MonitoringAI() {
         <h2 className={`text-xl font-bold mt-1 ${teachersFont.className}`}>Monitoring AI</h2>
         <p className="text-xs text-indigo-100 mt-1">Pantau alokasi token dan konfigurasi model LLM terpusat.</p>
       </div>
+
+      {errorMessage && (
+        <div role="alert" className="flex items-start gap-2 p-3 rounded-xl text-xs font-semibold bg-rose-50 border border-rose-200 text-rose-800">
+          <AlertTriangle size={15} className="shrink-0 mt-0.5" /> {errorMessage}
+        </div>
+      )}
 
       {/* KONFIGURASI ENGINE AI */}
       <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -168,12 +174,18 @@ export default function MonitoringAI() {
 
       {/* ALOKASI TOKEN */}
       <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl"><BrainCircuit size={20} /></div>
-          <div>
-            <h2 className={`text-base font-bold text-slate-800 ${teachersFont.className}`}>Alokasi Token Sistem</h2>
-            <p className="text-xs text-slate-400">Siklus penagihan dan penggunaan kuota bulan ini.</p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-5 gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl"><BrainCircuit size={20} /></div>
+            <div>
+              <h2 className={`text-base font-bold text-slate-800 ${teachersFont.className}`}>Alokasi Token Sistem</h2>
+              <p className="text-xs text-slate-400">Siklus penagihan dan penggunaan kuota bulan ini.</p>
+            </div>
           </div>
+          <button onClick={handleUpdateLimit} disabled={isUpdatingLimit} className="w-full md:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50">
+            {isUpdatingLimit ? <Loader2 size={15} className="animate-spin" /> : <SlidersHorizontal size={15} />}
+            <span>Ubah Batas Bulanan</span>
+          </button>
         </div>
 
         <div className="space-y-2">
@@ -184,7 +196,38 @@ export default function MonitoringAI() {
           <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden shadow-inner">
             <motion.div initial={{ width: 0 }} animate={{ width: `${persentaseToken}%` }} transition={{ duration: 1 }} className={`h-full ${getProgressColor()}`} />
           </div>
+          <div className="flex justify-between items-center text-xs pt-2 mt-1 border-t border-slate-100">
+            <span className="font-medium text-slate-500 flex items-center gap-1.5"><DollarSign size={14} className="text-emerald-500"/> Estimasi biaya bulan ini</span>
+            <span className="font-mono font-bold text-emerald-600">${estimasiBiayaDinamis.toFixed(2)}</span>
+          </div>
         </div>
+      </div>
+
+      {/* RIWAYAT PENGGUNAAN AI */}
+      <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl"><Activity size={20} /></div>
+          <div>
+            <h2 className={`text-base font-bold text-slate-800 ${teachersFont.className}`}>Riwayat Aktivitas AI Terbaru</h2>
+            <p className="text-xs text-slate-400">15 pemanggilan model terakhir yang tercatat.</p>
+          </div>
+        </div>
+
+        {aiLogs.length === 0 ? (
+          <p className="text-xs text-slate-400 italic text-center py-6 bg-slate-50 rounded-xl border border-slate-100">Belum ada aktivitas AI yang tercatat.</p>
+        ) : (
+          <div className="flex flex-col divide-y divide-slate-100">
+            {aiLogs.map((log) => (
+              <div key={log.id} className="flex items-center justify-between gap-3 py-2.5 text-xs">
+                <span className="font-semibold text-slate-700 truncate">{log.aksi || log.deskripsi || log.model || "Pemanggilan model"}</span>
+                <div className="flex items-center gap-3 shrink-0">
+                  {typeof log.tokens === "number" && <span className="font-mono text-slate-500">{log.tokens.toLocaleString("id-ID")} tok</span>}
+                  <span className="text-slate-400">{log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString("id-ID") : "—"}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
     </motion.div>

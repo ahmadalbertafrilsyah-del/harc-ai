@@ -9,7 +9,7 @@ import { Teachers } from "next/font/google";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase"; 
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { collection, onSnapshot, query, where, orderBy, limit, doc } from "firebase/firestore";
+import { collection, onSnapshot, query, where, doc } from "firebase/firestore";
 import Link from "next/link";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
@@ -33,87 +33,108 @@ export default function LembagaBeranda() {
     const dateOptions: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     setCurrentDate(new Date().toLocaleDateString('id-ID', dateOptions));
 
+    const waktuMs = (m: any) => {
+      const t = m.createdAt || m.timestamp; // generator menulis createdAt
+      if (!t) return 0;
+      if (typeof t.toMillis === "function") return t.toMillis();
+      if (t.seconds) return t.seconds * 1000;
+      return typeof t === "number" ? t : 0;
+    };
+
     const auth = getAuth();
+    let unsubProfil: (() => void) | undefined;
+    let unsubGuru: (() => void) | undefined;
+    let unsubSiswa: (() => void) | undefined;
+    let unsubModulTrigger: (() => void) | undefined;
+    let unsubModul: (() => void) | undefined;
+
+    const bersihkanListenerData = () => {
+      unsubGuru?.(); unsubGuru = undefined;
+      unsubSiswa?.(); unsubSiswa = undefined;
+      unsubModulTrigger?.(); unsubModulTrigger = undefined;
+      unsubModul?.(); unsubModul = undefined;
+    };
+
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        const unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap: any) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            const npsn = data.npsn || data.instansi; 
-            const namaLembaga = data.namaLembaga || data.namaInstansi || `NPSN: ${npsn}`;
-            
-            setNamaInstansi(namaLembaga);
+      unsubProfil?.();
+      unsubProfil = undefined;
+      bersihkanListenerData();
 
-            if (npsn) {
-              // 1. Hitung Total Guru
-              const qGuru = query(collection(db, "users"), where("role", "==", "guru"), where("npsn", "==", npsn));
-              const unsubGuru = onSnapshot(qGuru, (snap) => setStats(prev => ({ ...prev, totalGuru: snap.size })));
+      if (!user) {
+        setNamaInstansi("");
+        setStats({ totalGuru: 0, totalSiswa: 0, totalModul: 0, menungguValidasi: 0 });
+        setLogAktivitas([]);
+        setIsLoading(false);
+        return;
+      }
 
-              // 2. Hitung Total Siswa
-              const qSiswa = query(collection(db, "users"), where("role", "==", "siswa"), where("npsn", "==", npsn));
-              const unsubSiswa = onSnapshot(qSiswa, (snap) => setStats(prev => ({ ...prev, totalSiswa: snap.size })));
+      unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap: any) => {
+        if (!docSnap.exists()) return;
+        const data = docSnap.data();
+        const npsn = data.npsn || data.instansi;
+        const namaLembaga = data.namaLembaga || data.namaInstansi || `NPSN: ${npsn}`;
 
-              // 3. Data Modul & Aktivitas Guru
-              let unsubModul: (() => void) | null = null;
-              const waktuMs = (m: any) => {
-                const t = m.createdAt || m.timestamp; // generator menulis createdAt
-                if (!t) return 0;
-                if (typeof t.toMillis === "function") return t.toMillis();
-                if (t.seconds) return t.seconds * 1000;
-                return typeof t === "number" ? t : 0;
-              };
+        setNamaInstansi(namaLembaga);
 
-              const unsubModulTrigger = onSnapshot(qGuru, (guruSnap) => {
-                const guruIds = guruSnap.docs.map(g => g.id);
-                const guruMap = new Map(guruSnap.docs.map(g => [g.id, g.data().nama]));
+        // Bersihkan listener data lama sebelum membuat yang baru (mencegah kebocoran)
+        bersihkanListenerData();
 
-                // Bersihkan listener modul sebelumnya agar tidak menumpuk (mencegah kebocoran)
-                if (unsubModul) { unsubModul(); unsubModul = null; }
+        if (npsn) {
+          // 1. Hitung Total Guru
+          const qGuru = query(collection(db, "users"), where("role", "==", "guru"), where("npsn", "==", npsn));
+          unsubGuru = onSnapshot(qGuru, (snap) => setStats(prev => ({ ...prev, totalGuru: snap.size })));
 
-                if (guruIds.length > 0) {
-                  // Karena Firebase 'in' max 10, untuk skala R&D kita filter di Client Side
-                  unsubModul = onSnapshot(collection(db, "modul_ajar"), (modulSnap) => {
-                    const modulSekolahIni = modulSnap.docs
-                      .map(d => ({ id: d.id, ...d.data() } as any))
-                      .filter(m => guruIds.includes(m.userId));
+          // 2. Hitung Total Siswa
+          const qSiswa = query(collection(db, "users"), where("role", "==", "siswa"), where("npsn", "==", npsn));
+          unsubSiswa = onSnapshot(qSiswa, (snap) => setStats(prev => ({ ...prev, totalSiswa: snap.size })));
 
-                    const menunggu = modulSekolahIni.filter(m => m.statusValidasi === "menunggu").length;
+          // 3. Data Modul & Aktivitas Guru
+          unsubModulTrigger = onSnapshot(qGuru, (guruSnap) => {
+            const guruIds = guruSnap.docs.map(g => g.id);
+            const guruMap = new Map(guruSnap.docs.map(g => [g.id, g.data().nama]));
 
-                    setStats(prev => ({
-                      ...prev,
-                      totalModul: modulSekolahIni.length,
-                      menungguValidasi: menunggu
-                    }));
+            // Bersihkan listener modul sebelumnya agar tidak menumpuk (mencegah kebocoran)
+            unsubModul?.(); unsubModul = undefined;
 
-                    // Generate Log Aktivitas Guru (Pembuatan Modul)
-                    const logGuru = modulSekolahIni.map(m => ({
-                      id: m.id,
-                      tipe: 'guru',
-                      aktor: guruMap.get(m.userId) || "Guru",
-                      aksi: `Membuat Modul Ajar: ${m.mapel || m.topik}`,
-                      waktu: waktuMs(m),
-                      status: m.statusValidasi
-                    }));
+            if (guruIds.length > 0) {
+              // Karena Firebase 'in' max 10, untuk skala R&D kita filter di Client Side
+              unsubModul = onSnapshot(collection(db, "modul_ajar"), (modulSnap) => {
+                const modulSekolahIni = modulSnap.docs
+                  .map(d => ({ id: d.id, ...d.data() } as any))
+                  .filter(m => guruIds.includes(m.userId));
 
-                    setLogAktivitas(logGuru.sort((a, b) => b.waktu - a.waktu).slice(0, 5));
-                    setIsLoading(false);
-                  });
-                } else {
-                  setIsLoading(false);
-                }
+                const menunggu = modulSekolahIni.filter(m => m.statusValidasi === "menunggu").length;
+
+                setStats(prev => ({
+                  ...prev,
+                  totalModul: modulSekolahIni.length,
+                  menungguValidasi: menunggu
+                }));
+
+                // Generate Log Aktivitas Guru (Pembuatan Modul Ajar)
+                const logGuru = modulSekolahIni.map(m => ({
+                  id: m.id,
+                  tipe: 'guru',
+                  aktor: guruMap.get(m.userId) || "Guru",
+                  aksi: `Membuat Modul Ajar: ${m.mapel || m.topik}`,
+                  waktu: waktuMs(m),
+                  status: m.statusValidasi
+                }));
+
+                setLogAktivitas(logGuru.sort((a, b) => b.waktu - a.waktu).slice(0, 5));
+                setIsLoading(false);
               });
-
-              return () => { unsubGuru(); unsubSiswa(); unsubModulTrigger(); if (unsubModul) unsubModul(); };
             } else {
               setIsLoading(false);
             }
-          }
-        });
-        return () => unsubProfil();
-      }
+          });
+        } else {
+          setIsLoading(false);
+        }
+      });
     });
 
-    return () => unsubscribeAuth();
+    return () => { unsubscribeAuth(); unsubProfil?.(); bersihkanListenerData(); };
   }, []);
 
   if (isLoading) {

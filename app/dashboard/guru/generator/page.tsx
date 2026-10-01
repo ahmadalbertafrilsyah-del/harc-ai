@@ -5,7 +5,7 @@ export const maxDuration = 240;
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Sparkles, BookOpen, Settings, FileText, Bot, Loader2, History, FileDown,
+  BookOpen, Settings, FileText, Bot, Loader2, History, FileDown,
   Printer, Coins, Link2, Trash2, CalendarDays, X, FileSpreadsheet, Cloud,
   Stamp, CheckCircle2, CloudOff, ImageIcon, AlertTriangle, ExternalLink, Shapes,
   Pencil, Library, Zap, Users2
@@ -895,12 +895,12 @@ export default function GeneratorBahanAjar() {
                     remarkPlugins={[remarkGfm]}
                     rehypePlugins={[rehypeRaw]}
                     components={{
-                      table: ({ node, ...props }) => (
+                      table: ({ ...props }) => (
                         <div className={isLandscape ? "w-full overflow-x-auto" : "table-wrapper"}>
                           <table className={isLandscape ? "promes-table" : ""} {...props} />
                         </div>
                       ),
-                      th: ({ node, children, ...props }) => {
+                      th: ({ children, ...props }) => {
                         const text = String(children).toLowerCase().trim();
                         let width = "auto";
                         let whiteSpace = "normal";
@@ -913,11 +913,11 @@ export default function GeneratorBahanAjar() {
                         else if (isLandscape) whiteSpace = "nowrap";
                         return <th style={{ width, whiteSpace: whiteSpace as any, padding: isLandscape ? "4px 2px" : "6px 10px" }} {...props}>{children}</th>;
                       },
-                      td: ({ node, children, ...props }) => (
+                      td: ({ children, ...props }) => (
                         <td style={{ padding: isLandscape ? "4px 2px" : "6px 10px", fontSize: isLandscape ? "9pt" : "inherit" }} {...props}>{children}</td>
                       ),
                       /* eslint-disable-next-line @next/next/no-img-element */
-                      img: ({ node, ...props }) => <img {...props} alt={props.alt || ""} loading="lazy" />,
+                      img: ({ ...props }) => <img {...props} alt={props.alt || ""} loading="lazy" />,
                     }}
                   >
                     {sanitasiHasil}

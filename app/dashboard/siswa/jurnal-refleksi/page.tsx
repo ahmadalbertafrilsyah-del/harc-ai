@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { PenTool, Save, Loader2, Calendar, CheckCircle2, AlertCircle } from "lucide-react";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, query, where, onSnapshot, orderBy, serverTimestamp } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 export default function JurnalRefleksi() {
   const [jurnal, setJurnal] = useState("");
@@ -15,21 +15,32 @@ export default function JurnalRefleksi() {
 
   useEffect(() => {
     const auth = getAuth();
-    if (auth.currentUser) {
+    let unsubSnapshot: (() => void) | undefined;
+
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
+      // Bersihkan listener lama saat status auth berubah.
+      unsubSnapshot?.();
+      unsubSnapshot = undefined;
+
+      if (!user) {
+        setRiwayat([]);
+        return;
+      }
+
       const q = query(
-        collection(db, "jurnal_siswa"), 
-        where("userId", "==", auth.currentUser.uid), 
+        collection(db, "jurnal_siswa"),
+        where("userId", "==", user.uid),
         orderBy("timestamp", "desc")
       );
-      
-      const unsubscribe = onSnapshot(q, (snap) => {
+
+      unsubSnapshot = onSnapshot(q, (snap) => {
         setRiwayat(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       }, (error) => {
         console.error("Gagal memuat riwayat jurnal:", error);
       });
+    });
 
-      return () => unsubscribe();
-    }
+    return () => { unsubAuth(); unsubSnapshot?.(); };
   }, []);
 
   const handleSimpan = async () => {

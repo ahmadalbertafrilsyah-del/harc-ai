@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { User, ShieldCheck, Database, Trash2, AlertTriangle, CheckCircle2, Loader2, Info, Save, Hash } from "lucide-react";
+import { User, ShieldCheck, Database, Trash2, AlertTriangle, Loader2, Info, Save, Hash } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase"; 
@@ -63,7 +63,7 @@ export default function PengaturanSiswa() {
       await updateDoc(doc(db, "users", userUid), { nisn: formData.nisn });
       setProfil({ ...profil, nisn: formData.nisn });
       alert("Profil berhasil diperbarui!");
-    } catch (error) {
+    } catch {
       alert("Gagal menyimpan profil.");
     } finally {
       setIsSavingProfil(false);
@@ -78,7 +78,7 @@ export default function PengaturanSiswa() {
       await updateDoc(doc(db, "users", userUid), { aiDataConsent: newConsentStatus });
       setIsConsented(newConsentStatus);
       alert(newConsentStatus ? "Terima kasih! Kamu telah menyetujui penggunaan data." : "Persetujuan dicabut.");
-    } catch (error) {
+    } catch {
       alert("Terjadi kesalahan sistem.");
     } finally {
       setIsSaving(false);
@@ -101,7 +101,7 @@ export default function PengaturanSiswa() {
       });
       await Promise.all(deletePromises);
       alert("Seluruh jejak interaksi AI milikmu telah dibersihkan.");
-    } catch (error) {
+    } catch {
       alert("Gagal menghapus data.");
     } finally {
       setIsDeleting(false);

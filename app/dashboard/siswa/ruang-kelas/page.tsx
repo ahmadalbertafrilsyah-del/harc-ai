@@ -2,12 +2,11 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search, BookOpen, Key, Plus, Loader2, Users, CheckCircle2, ChevronLeft,
-  FileText, ArrowRight, Activity, Clock, Target, Send, AlertTriangle, Lightbulb, Sparkles
+  BookOpen, Key, Plus, Loader2, Users, CheckCircle2, ChevronLeft,
+  ArrowRight, Activity, Clock, Target, Send, Lightbulb, Sparkles
 } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query, where, doc, getDoc, getDocs, updateDoc, arrayUnion, increment, addDoc, serverTimestamp } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
@@ -62,7 +61,6 @@ function soalKeHtml(teks: string): string {
 }
 
 export default function RuangKelasSiswa() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [kelasSaya, setKelasSaya] = useState<any[]>([]);
   const [userUid, setUserUid] = useState<string | null>(null);
@@ -351,7 +349,7 @@ export default function RuangKelasSiswa() {
       await updateDoc(doc(db, "manajemen_kelas", kelasDoc.id), { peserta: arrayUnion(userUid), siswa: increment(1) });
       alert(`Berhasil bergabung ke kelas ${kelasData.nama}!`);
       setKodeKelas("");
-    } catch (error) { alert("Terjadi kesalahan sistem."); } finally { setIsJoining(false); }
+    } catch { alert("Terjadi kesalahan sistem."); } finally { setIsJoining(false); }
   };
 
   if (isLoading) return <div className="w-full h-[60vh] flex items-center justify-center"><Loader2 size={40} className="animate-spin text-emerald-600" /></div>;

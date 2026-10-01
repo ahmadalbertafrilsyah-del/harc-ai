@@ -1,10 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { 
-  Users, Server, BrainCircuit, Activity, AlertTriangle, 
-  CheckCircle2, Loader2, Database, ShieldCheck, AlertCircle, 
-  BellRing, ArrowRight, Zap, Clock, HardDrive, Cpu, Check
+import {
+  Users, Server, BrainCircuit, Activity, AlertTriangle,
+  Loader2, Database, AlertCircle,
+  BellRing, ArrowRight, Clock, HardDrive, Cpu, Check
 } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect } from "react";
@@ -34,25 +34,30 @@ export default function BerandaAdmin() {
     const dateOptions: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     setCurrentDate(new Date().toLocaleDateString('id-ID', dateOptions));
 
+    const handleError = (label: string) => (error: any) => {
+      console.error(`Gagal memuat ${label}:`, error);
+      setIsLoading(false);
+    };
+
     const qGuru = query(collection(db, "users"), where("role", "==", "guru"));
     const unsubGuru = onSnapshot(qGuru, (snapshot) => {
       setSystemStats(prev => ({ ...prev, totalGuru: snapshot.size }));
-    });
+    }, handleError("data guru"));
 
     const qSiswa = query(collection(db, "users"), where("role", "==", "siswa"));
     const unsubSiswa = onSnapshot(qSiswa, (snapshot) => {
       setSystemStats(prev => ({ ...prev, totalSiswa: snapshot.size }));
-    });
+    }, handleError("data siswa"));
 
     const qPending = query(collection(db, "pengajuan_akun"), where("status", "==", "pending"));
     const unsubPending = onSnapshot(qPending, (snapshot) => {
       setPengajuanPending(snapshot.size);
-    });
+    }, handleError("data pengajuan"));
 
     const qModul = query(collection(db, "modul_ajar"));
     const unsubModul = onSnapshot(qModul, (snapshot) => {
       setSystemStats(prev => ({ ...prev, totalModul: snapshot.size }));
-    });
+    }, handleError("data modul"));
 
     const unsubToken = onSnapshot(doc(db, "ai_monitoring", "token_stats"), (docSnap) => {
       if (docSnap.exists()) {
@@ -60,14 +65,14 @@ export default function BerandaAdmin() {
         setSystemStats(prev => ({ ...prev, aiTokens: data.tokenTerpakai || 0 }));
         if (data.statusEngine) setStatusEngine(data.statusEngine);
       }
-    });
+    }, handleError("statistik token"));
 
     const qLog = query(collection(db, "ai_logs"), orderBy("timestamp", "desc"), limit(5));
     const unsubLog = onSnapshot(qLog, (snapshot) => {
       const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setAktivitasTerbaru(logs);
-      setIsLoading(false); 
-    });
+      setIsLoading(false);
+    }, handleError("log aktivitas"));
 
     return () => {
       unsubGuru(); unsubSiswa(); unsubPending(); unsubModul(); unsubToken(); unsubLog();
@@ -110,9 +115,15 @@ export default function BerandaAdmin() {
       <div className="md:hidden bg-gradient-to-br from-indigo-900 to-indigo-700 rounded-2xl p-5 text-white shadow-md relative overflow-hidden">
         <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-xl"></div>
         <span className="text-xs font-medium text-indigo-200 uppercase tracking-wider">Status Server</span>
-        <h2 className={`text-2xl font-bold mt-1 ${teachersFont.className}`}>{statusEngine} & Responsif</h2>
+        <h2 className={`text-2xl font-bold mt-1 ${teachersFont.className}`}>
+          {statusEngine.toLowerCase() === "online" ? `${statusEngine} & Responsif` : statusEngine}
+        </h2>
         <div className="mt-3 flex items-center gap-2 bg-white/15 w-fit px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">
-          <Check size={14} className="text-emerald-400" /> Sistem Normal
+          {statusEngine.toLowerCase() === "online" ? (
+            <><Check size={14} className="text-emerald-400" /> Sistem Normal</>
+          ) : (
+            <><AlertTriangle size={14} className="text-amber-400" /> Sistem Terganggu</>
+          )}
         </div>
       </div>
 
@@ -296,23 +307,23 @@ export default function BerandaAdmin() {
               </h2>
             </header>
             <div className="p-5 space-y-5">
+              {/* Firebase Database: halaman ini hanya ter-render setelah data berhasil dimuat, jadi koneksi DB pasti aktif */}
               <div>
-                <div className="flex justify-between items-center mb-1.5">
+                <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><HardDrive size={14} className="text-slate-400"/> Firebase Database</span>
-                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 flex items-center gap-1"><Check size={10} strokeWidth={3}/> Optimal</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                  <div className="bg-emerald-500 h-2 rounded-full" style={{width: '95%'}}></div>
+                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 flex items-center gap-1"><Check size={10} strokeWidth={3}/> Terhubung</span>
                 </div>
               </div>
-              
+
+              {/* Mesin LLM Utama: status pill mengikuti statusEngine nyata dari Firestore */}
               <div>
-                <div className="flex justify-between items-center mb-1.5">
+                <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><Cpu size={14} className="text-slate-400"/> Mesin LLM Utama</span>
-                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 flex items-center gap-1"><Check size={10} strokeWidth={3}/> {statusEngine}</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                  <div className="bg-blue-600 h-2 rounded-full" style={{width: '100%'}}></div>
+                  {statusEngine.toLowerCase() === "online" ? (
+                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 flex items-center gap-1"><Check size={10} strokeWidth={3}/> {statusEngine}</span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 flex items-center gap-1"><AlertTriangle size={10}/> {statusEngine}</span>
+                  )}
                 </div>
               </div>
 

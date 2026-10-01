@@ -8,11 +8,11 @@ import {
 import { Teachers } from "next/font/google";
 import { useEffect, useRef, useState } from "react";
 
-import { db, storage } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
+import { unggahKeCloudinary } from "@/lib/cloudinary";
 import KopSurat from "@/components/KopSurat";
 import { KOP_KOSONG, normalisasiKop, type KopLembaga } from "@/lib/kop";
 
@@ -74,15 +74,15 @@ export default function PengaturanKopLembaga() {
     setLogoDiunggah(posisi);
     setPesan(null);
     try {
-      const path = `kop/${uid}/${posisi}-${Date.now()}`;
-      const berkas = storageRef(storage, path);
-      await uploadBytes(berkas, file);
-      const url = await getDownloadURL(berkas);
-      setKop((prev) => ({ ...prev, [posisi]: url }));
+      const hasil = await unggahKeCloudinary(file, {
+        folder: `kop/${uid}`,
+        resourceType: "image",
+      });
+      setKop((prev) => ({ ...prev, [posisi]: hasil.url }));
       setPesan({ tipe: "sukses", teks: "Logo terunggah. Jangan lupa tekan Simpan Kop." });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Gagal mengunggah logo:", error);
-      setPesan({ tipe: "error", teks: "Gagal mengunggah logo. Periksa koneksi atau aturan Firebase Storage." });
+      setPesan({ tipe: "error", teks: error?.message || "Gagal mengunggah logo. Periksa koneksi internet." });
     } finally {
       setLogoDiunggah(null);
     }

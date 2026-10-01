@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BarChart3, TrendingUp, Users, Target, BrainCircuit, Activity, AlertCircle, Loader2, Info } from "lucide-react";
+import { BarChart3, TrendingUp, Users, Target, BrainCircuit, Activity, Loader2, Info } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase"; 
@@ -12,13 +12,11 @@ const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"
 
 export default function AnalitikGuru() {
   const [isLoading, setIsLoading] = useState(true);
-  const [userUid, setUserUid] = useState<string | null>(null);
-  const [dataSiswa, setDataSiswa] = useState<any[]>([]);
   const [statistik, setStatistik] = useState({ rataNilai: 0, totalSiswa: 0, rataBantuanAI: 0, persentaseMandiri: 0, persentaseBerkembang: 0, persentasePerluBimbingan: 0 });
 
   useEffect(() => {
     const auth = getAuth();
-    onAuthStateChanged(auth, (user) => { if (user) { setUserUid(user.uid); fetchAnalitik(); } else { setIsLoading(false); } });
+    onAuthStateChanged(auth, (user) => { if (user) { fetchAnalitik(); } else { setIsLoading(false); } });
   }, []);
 
   const fetchAnalitik = () => {
@@ -26,8 +24,8 @@ export default function AnalitikGuru() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       try {
         const validData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(item => item !== null);
-        setDataSiswa(validData); kalkulasiStatistik(validData);
-      } catch (error) {} finally { setIsLoading(false); }
+        kalkulasiStatistik(validData);
+      } catch {} finally { setIsLoading(false); }
     });
     return unsubscribe;
   };

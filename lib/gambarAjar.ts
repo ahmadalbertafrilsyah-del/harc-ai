@@ -20,9 +20,8 @@
  */
 
 import { getAuth } from "firebase/auth";
-import { ref as storageRef, uploadString, getDownloadURL } from "firebase/storage";
 
-import { storage } from "@/lib/firebase";
+import { unggahDataUrlKeCloudinary } from "@/lib/cloudinary";
 
 export const PENANDA_GAMBAR = /\[GAMBAR:\s*([\s\S]*?)\]/g;
 
@@ -79,9 +78,9 @@ export type ProgresGambar = { selesai: number; total: number; deskripsi: string 
 /**
  * Mengganti setiap penanda [GAMBAR: ...] dengan gambar hasil model.
  *
- * Gambar diunggah ke Firebase Storage lalu ditulis sebagai Markdown image,
- * sehingga ikut tersimpan di Firestore sebagai URL pendek (bukan base64 yang
- * akan menembus batas 1 MB per dokumen).
+ * Gambar diunggah ke Cloudinary lalu ditulis sebagai Markdown image, sehingga
+ * ikut tersimpan di Firestore sebagai URL pendek (bukan base64 yang akan
+ * menembus batas 1 MB per dokumen).
  *
  * Bila satu gambar gagal dibuat, penandanya diganti keterangan teks biasa agar
  * dokumen tetap utuh dan guru tahu bagian mana yang perlu gambar manual.
@@ -118,9 +117,11 @@ export async function lengkapiGambarRaster(
       const data = await res.json();
       if (!res.ok || !data.dataUrl) throw new Error(data.error || "Gambar tidak terbentuk.");
 
-      const berkas = storageRef(storage, `gambar-ajar/${user.uid}/${Date.now()}-${i}.png`);
-      await uploadString(berkas, data.dataUrl, "data_url");
-      hasilPerDeskripsi.set(deskripsi, await getDownloadURL(berkas));
+      const hasil = await unggahDataUrlKeCloudinary(data.dataUrl, {
+        folder: `gambar-ajar/${user.uid}`,
+        resourceType: "image",
+      });
+      hasilPerDeskripsi.set(deskripsi, hasil.url);
       berhasil++;
     } catch (error: any) {
       pesanGagal.push(`"${deskripsi.slice(0, 60)}": ${error?.message || "gagal"}`);

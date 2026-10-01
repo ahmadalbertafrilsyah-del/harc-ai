@@ -64,9 +64,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const timer = setInterval(updateTime, 1000);
 
     const auth = getAuth();
+    let unsubProfil: (() => void) | undefined;
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      unsubProfil?.();
+      unsubProfil = undefined;
       if (user) {
-        const unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
+        unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
             setProfil({
@@ -75,11 +78,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             });
           }
         });
-        return () => unsubProfil();
       }
     });
 
-    return () => { clearInterval(timer); unsubscribeAuth(); };
+    return () => { clearInterval(timer); unsubscribeAuth(); unsubProfil?.(); };
   }, []);
 
   const handleLogout = async () => {
@@ -154,7 +156,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center">
                 <Server size={18} className="text-white" />
               </div>
-              <span className="text-xl font-bold text-[#1e293b] tracking-wide ml-1 font-sans">Admin Inti</span>
+              <span className={`text-xl font-bold text-[#1e293b] tracking-wide ml-1 ${teachersFont.className}`}>Admin Inti</span>
             </div>
           </div>
 

@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Teachers, Lato } from "next/font/google";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  LayoutDashboard, BookOpen, MessageCircle, PenTool, BarChart, 
-  LogOut, Bell, UserCircle, Settings, Clock, ChevronLeft, 
+import {
+  LayoutDashboard, BookOpen, MessageCircle, PenTool, BarChart,
+  LogOut, Settings, Clock, ChevronLeft,
   ChevronRight, GraduationCap, Sparkles, Menu, X
 } from "lucide-react";
 import { db } from "@/lib/firebase"; 
@@ -23,10 +23,7 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  
-  const [showNotif, setShowNotif] = useState(false);
-  const [notifCount, setNotifCount] = useState(0); 
-  
+
   const [profil, setProfil] = useState({
     namaLengkap: "Memuat...",
     kelas: "Siswa",
@@ -62,9 +59,12 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
     const timer = setInterval(updateTime, 1000); 
 
     const auth = getAuth();
+    let unsubProfil: (() => void) | undefined;
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      unsubProfil?.();
+      unsubProfil = undefined;
       if (user) {
-        const unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
+        unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
             setProfil({
@@ -75,14 +75,12 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
             });
           }
         });
-
-        return () => unsubProfil();
       } else {
         window.location.href = "/login";
       }
     });
 
-    return () => { clearInterval(timer); unsubscribeAuth(); };
+    return () => { clearInterval(timer); unsubscribeAuth(); unsubProfil?.(); };
   }, []);
 
   // FUNGSI LOGOUT YANG BENAR
@@ -192,13 +190,6 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
                   <Sparkles size={12} className="text-amber-500" />
                   <span className="text-[10px] font-bold">{profil.poin} XP</span>
                 </div>
-
-                <div className="relative">
-                  <button onClick={() => setShowNotif(!showNotif)} className={`relative p-2 rounded-full transition-colors ${showNotif ? 'bg-emerald-50 text-emerald-600' : 'text-slate-500 hover:text-slate-800'}`}>
-                    <Bell size={22} strokeWidth={2} />
-                    {notifCount > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 border-2 border-white rounded-full animate-pulse"></span>}
-                  </button>
-                </div>
               </div>
             </div>
           </div>
@@ -219,15 +210,8 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
               </div>
             </div>
 
-            <div className="relative">
-              <button onClick={() => setShowNotif(!showNotif)} className={`relative p-2.5 rounded-full transition-colors ${showNotif ? 'bg-emerald-50 text-emerald-600' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}>
-                <Bell size={22} strokeWidth={2} />
-                {notifCount > 0 && <span className="absolute top-1 right-1 w-3 h-3 bg-rose-500 border-2 border-white rounded-full animate-pulse"></span>}
-              </button>
-            </div>
-
             <div className="w-px h-6 bg-slate-200 mx-1"></div>
-            
+
             <Link href="/dashboard/siswa/pengaturan">
               <div className="flex items-center gap-3 cursor-pointer group hover:bg-slate-50 p-1.5 pr-3 rounded-xl transition-colors">
                 <div className="text-right">
@@ -245,33 +229,6 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
             </Link>
           </div>
           
-          {/* Kotak Notifikasi Overlay */}
-          <AnimatePresence>
-            {showNotif && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowNotif(false)}></div>
-                <motion.div 
-                  initial={{ opacity: 0, y: -10, scale: 0.95 }} 
-                  animate={{ opacity: 1, y: 0, scale: 1 }} 
-                  exit={{ opacity: 0, scale: 0.95 }} 
-                  className="absolute right-4 top-16 mt-1 w-72 md:w-80 bg-white rounded-2xl shadow-xl border border-slate-200/80 z-50 overflow-hidden transform origin-top-right"
-                >
-                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                    <span className="text-sm font-bold text-slate-800">Pemberitahuan</span>
-                    {notifCount > 0 && <span className="text-[10px] bg-rose-100 text-rose-600 font-bold px-2 py-0.5 rounded-full">{notifCount} Baru</span>}
-                  </div>
-                  <div className="max-h-[60vh] overflow-y-auto">
-                    <div className="p-8 text-center text-slate-400">
-                      <Bell size={28} className="mx-auto mb-3 opacity-20" />
-                      <p className="text-xs font-bold text-slate-500">Kosong</p>
-                      <p className="text-[10px] mt-1">Tidak ada pemberitahuan baru.</p>
-                    </div>
-                  </div>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-
         </header>
 
         <div className="flex-1 overflow-auto p-4 md:p-6 lg:p-8 bg-[#f8fafc] pb-24 md:pb-6">

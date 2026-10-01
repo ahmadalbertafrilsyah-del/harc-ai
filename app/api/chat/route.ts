@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     try {
       // Verifikasi token menggunakan Firebase Admin
       decodedToken = await adminAuth.verifyIdToken(idToken);
-    } catch (error) {
+    } catch {
       return NextResponse.json(
         { error: "Sesi tidak valid atau telah kedaluwarsa. Silakan login ulang." }, 
         { status: 401 }
