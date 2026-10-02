@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   LayoutDashboard, MessageSquare, Users, Activity, LogOut, Settings, Clock, 
   ChevronLeft, ChevronRight, Server, ShieldCheck, Database,
-  BrainCircuit, Menu, X, ScrollText
+  BrainCircuit, Menu, X, ScrollText, Coins
 } from "lucide-react";
 
 import { db } from "@/lib/firebase"; 
@@ -36,6 +36,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: "Manajemen Pengguna", icon: Users, path: "/dashboard/admin/pengguna" },
     { name: "Korpus Standar", icon: ShieldCheck, path: "/dashboard/admin/korpus" },
     { name: "Konfigurasi AI", icon: BrainCircuit, path: "/dashboard/admin/konfigurasi-ai" },
+    { name: "Komersialisasi Token", icon: Coins, path: "/dashboard/admin/token" },
     { name: "Monitoring AI", icon: Activity, path: "/dashboard/admin/monitoring" },
     { name: "Logs Aktivitas", icon: ScrollText, path: "/dashboard/admin/logs" },
     { name: "Pengaturan Chat Bot", icon: MessageSquare, path: "/dashboard/admin/pengaturan-bot" },
@@ -51,6 +52,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const moreMenuItems = [
     { name: "Master Data", icon: Database, path: "/dashboard/admin/master-data" },
+    { name: "Token", icon: Coins, path: "/dashboard/admin/token" },
     { name: "Monitoring AI", icon: Activity, path: "/dashboard/admin/monitoring" },
     { name: "Logs Aktivitas", icon: ScrollText, path: "/dashboard/admin/logs" },
     { name: "Pengaturan", icon: Settings, path: "/dashboard/admin/pengaturan" },
@@ -107,7 +109,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const tanggal = currentTime.toLocaleDateString("id-ID", { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
-    <div className={`min-h-screen bg-[#f8fafc] flex ${latoFont.className}`}>
+    <div className={`h-[100dvh] overflow-hidden bg-[#f8fafc] flex ${latoFont.className}`}>
       
       <aside className={`hidden md:flex flex-col bg-[#0f172a] text-slate-100 transition-all duration-300 z-50 border-r border-slate-800 relative ${isSidebarCollapsed ? "w-[80px]" : "w-[240px]"}`}>
         <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="absolute -right-3 top-20 bg-[#0f172a] border border-slate-700 text-slate-300 hover:text-white rounded-full p-1 z-50 shadow-md transition-colors" aria-label="Toggle Sidebar">

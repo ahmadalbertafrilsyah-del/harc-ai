@@ -158,8 +158,9 @@ export default function MonitoringAI() {
             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Pilihan Model (Pisahkan dgn koma)</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><ListFilter size={15} className="text-slate-400" /></div>
-              <input type="text" value={aiConfig.availableModels} onChange={(e) => setAiConfig({...aiConfig, availableModels: e.target.value})} placeholder="gemini-1.5-flash, gemini-1.5-pro" className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400" />
+              <input type="text" value={aiConfig.availableModels} onChange={(e) => setAiConfig({...aiConfig, availableModels: e.target.value})} placeholder="gemini-2.5-flash=Harc-AI Flash, gemini-2.5-pro=Harc-AI Pro" className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400" />
             </div>
+            <p className="text-[10px] text-slate-400 mt-1 leading-snug">Nama tampilan ke pengguna otomatis jadi &quot;Harc-AI ...&quot;. Untuk mengatur sendiri, pakai format <span className="font-mono">id=Nama</span>, mis. <span className="font-mono">gemini-2.5-flash=Harc-AI Flash</span>.</p>
           </div>
 
           <div className="md:col-span-2">

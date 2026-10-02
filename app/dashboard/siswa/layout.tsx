@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, BookOpen, MessageCircle, PenTool, BarChart,
   LogOut, Settings, Clock, ChevronLeft,
-  ChevronRight, GraduationCap, Sparkles, Menu, X
+  ChevronRight, GraduationCap, Sparkles, Menu, X, Coins
 } from "lucide-react";
 import { db } from "@/lib/firebase"; 
 import { getAuth, onAuthStateChanged, signOut } from "firebase/auth"; // Tambahkan signOut di sini
@@ -37,6 +37,7 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
     { name: "Asisten AI", icon: MessageCircle, path: "/dashboard/siswa/asisten" },
     { name: "Jurnal Refleksi", icon: PenTool, path: "/dashboard/siswa/jurnal-refleksi" },
     { name: "Raport", icon: BarChart, path: "/dashboard/siswa/raport" },
+    { name: "Beli Token", icon: Coins, path: "/dashboard/siswa/beli-token" },
     { name: "Pengaturan", icon: Settings, path: "/dashboard/siswa/pengaturan" },
   ];
 
@@ -49,6 +50,7 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
 
   const moreMenuItems = [
     { name: "Jurnal", icon: PenTool, path: "/dashboard/siswa/jurnal-refleksi" },
+    { name: "Beli Token", icon: Coins, path: "/dashboard/siswa/beli-token" },
     { name: "Pengaturan", icon: Settings, path: "/dashboard/siswa/pengaturan" },
   ];
 
@@ -111,7 +113,7 @@ export default function SiswaLayout({ children }: { children: React.ReactNode })
   const tanggal = currentTime.toLocaleDateString("id-ID", { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
-    <div className={`min-h-screen bg-[#f8fafc] flex ${latoFont.className}`}>
+    <div className={`h-[100dvh] overflow-hidden bg-[#f8fafc] flex ${latoFont.className}`}>
       
       {/* SIDEBAR DESKTOP */}
       <aside className={`hidden md:flex flex-col bg-[#064e3b] text-emerald-50 transition-all duration-300 z-50 border-r border-emerald-900 relative ${isSidebarCollapsed ? "w-[80px]" : "w-[240px]"}`}>

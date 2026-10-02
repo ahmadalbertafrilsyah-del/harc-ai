@@ -39,6 +39,7 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
     { name: "Validasi Bahan Ajar", icon: FileCheck2, path: "/dashboard/guru/validasi" },
     { name: "Analisis Hasil", icon: BarChart4, path: "/dashboard/guru/analitik" },
     { name: "Asisten", icon: MessageSquare, path: "/dashboard/guru/chat" },
+    { name: "Beli Token", icon: Coins, path: "/dashboard/guru/beli-token" },
     { name: "Profil", icon: UserCircle, path: "/dashboard/guru/profil" },
     { name: "Pengaturan", icon: Settings, path: "/dashboard/guru/pengaturan" },
   ];
@@ -55,6 +56,7 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
     { name: "Asisten", icon: MessageSquare, path: "/dashboard/guru/chat" },
     { name: "Validasi", icon: FileCheck2, path: "/dashboard/guru/validasi" },
     { name: "Analitik", icon: BarChart4, path: "/dashboard/guru/analitik" },
+    { name: "Beli Token", icon: Coins, path: "/dashboard/guru/beli-token" },
     { name: "Pengaturan", icon: Settings, path: "/dashboard/guru/pengaturan" },
   ];
 
@@ -107,7 +109,7 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
   const tanggal = currentTime.toLocaleDateString("id-ID", { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
-    <div className={`min-h-screen bg-[#f8fafc] flex ${latoFont.className}`}>
+    <div className={`h-[100dvh] overflow-hidden bg-[#f8fafc] flex ${latoFont.className}`}>
       
       {/* SIDEBAR DESKTOP */}
       <aside className={`hidden md:flex flex-col bg-[#1e3a8a] text-blue-100 transition-all duration-300 z-50 border-r border-blue-900 relative ${isSidebarCollapsed ? "w-[80px]" : "w-[240px]"}`}>
@@ -153,10 +155,11 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
       <main className="flex-1 flex flex-col min-w-0 h-[100dvh] overflow-hidden pb-[70px] md:pb-0 relative">
         <header className="h-16 bg-white border-b border-slate-200/80 flex items-center justify-between px-4 md:px-6 shrink-0 z-30">
           <div className="flex items-center w-full md:w-auto">
-            <div className="hidden md:flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full text-amber-700">
+            <Link href="/dashboard/guru/beli-token" title="Beli token" className="hidden md:flex items-center gap-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 px-3 py-1.5 rounded-full text-amber-700 transition-colors">
               <Coins size={14} className="text-amber-500" />
-              <span className="text-xs font-bold">{profil.aiTokens} Token</span>
-            </div>
+              <span className="text-xs font-bold">{profil.aiTokens.toLocaleString("id-ID")} Token</span>
+              <span className="text-xs font-bold bg-amber-500 text-white w-4 h-4 flex items-center justify-center rounded-full leading-none">+</span>
+            </Link>
 
             <div className="md:hidden flex items-center justify-between w-full">
               <div className="flex items-center gap-2">
@@ -165,10 +168,11 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
                 </div>
                 <span className="text-xl font-bold text-[#1e293b] tracking-wide ml-1 font-sans">HARC-AI</span>
               </div>
-              <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full text-amber-700">
+              <Link href="/dashboard/guru/beli-token" className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full text-amber-700">
                 <Coins size={12} className="text-amber-500" />
-                <span className="text-[10px] font-bold">{profil.aiTokens}</span>
-              </div>
+                <span className="text-[10px] font-bold">{profil.aiTokens.toLocaleString("id-ID")}</span>
+                <span className="text-[10px] font-bold bg-amber-500 text-white w-3.5 h-3.5 flex items-center justify-center rounded-full leading-none">+</span>
+              </Link>
             </div>
           </div>
 

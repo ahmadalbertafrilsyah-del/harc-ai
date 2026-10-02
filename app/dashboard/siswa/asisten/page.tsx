@@ -11,6 +11,7 @@ import remarkGfm from "remark-gfm";
 import { db } from "@/lib/firebase"; 
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, getDocs, collection, addDoc, updateDoc, serverTimestamp, setDoc, onSnapshot, query, orderBy, deleteDoc, where } from "firebase/firestore";
+import { labelModel, idModel } from "@/lib/modelAI";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -223,7 +224,7 @@ export default function ChatbotGuruGeminiStyle() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${idToken}` },
-        body: JSON.stringify({ model: selectedModel, messages: apiMessages })
+        body: JSON.stringify({ model: idModel(selectedModel), messages: apiMessages })
       });
 
       const data = await response.json();
@@ -238,7 +239,7 @@ export default function ChatbotGuruGeminiStyle() {
 
         if (tokenUsed > 0) {
           await addDoc(collection(db, "ai_logs"), {
-            aksi: `Chat (${selectedModel})`, pengguna: userName, role: "guru", status: "Sukses",
+            aksi: `Chat (${idModel(selectedModel)})`, pengguna: userName, role: "siswa", status: "Sukses",
             latensi: Date.now() - startTime, tokenDipakai: tokenUsed, timestamp: serverTimestamp()
           });
         }
@@ -261,7 +262,7 @@ export default function ChatbotGuruGeminiStyle() {
   };
 
   return (
-    <div className="absolute top-[80px] left-0 right-0 bottom-[70px] md:bottom-0 flex overflow-hidden bg-white md:bg-[#f8fafc] z-20">
+    <div className="absolute top-16 left-0 right-0 bottom-[70px] md:bottom-0 flex overflow-hidden bg-white md:bg-[#f8fafc] z-20">
       
       {/* SIDEBAR RIWAYAT CHAT */}
       <div className={`absolute md:relative z-40 bg-white/95 backdrop-blur-md md:bg-white border-r border-slate-200 h-full flex flex-col w-64 shrink-0 transition-transform duration-300 shadow-xl md:shadow-none ${isSidebarOpen ? 'translate-x-0 md:ml-0' : '-translate-x-full md:translate-x-0 md:-ml-64'}`}>
@@ -317,11 +318,11 @@ export default function ChatbotGuruGeminiStyle() {
         <div className="flex-1 overflow-y-auto px-2 md:px-8 pt-16 pb-6 bg-white md:bg-transparent [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="max-w-4xl mx-auto">
             {messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center mt-10 md:mt-24 animate-in fade-in duration-700 px-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl flex items-center justify-center shadow-lg mb-6">
-                  <Sparkles className="text-white w-8 h-8" />
+              <div className="flex flex-col items-center justify-center text-center mt-8 md:mt-16 animate-in fade-in duration-700 px-4">
+                <div className="w-11 h-11 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-md mb-4">
+                  <Sparkles className="text-white w-5 h-5" />
                 </div>
-                <h2 className={`text-2xl md:text-4xl font-bold text-slate-800 mb-3 ${teachersFont.className}`}>Halo, {userName}</h2>
+                <h2 className={`text-xl md:text-3xl font-bold text-slate-800 mb-2 ${teachersFont.className}`}>Halo, {userName}</h2>
                 <p className="text-slate-500 max-w-md mx-auto leading-relaxed text-sm">
                   Mari merancang perangkat ajar. Saya telah disinkronkan dengan Korpus Kebudayaan sekolah Anda.
                 </p>
@@ -409,7 +410,7 @@ export default function ChatbotGuruGeminiStyle() {
                 </button>
                 <div className="flex items-center gap-1.5 md:gap-2 relative" ref={dropdownRef}>
                   <button type="button" onClick={() => setShowModelDropdown(!showModelDropdown)} disabled={availableModels.length === 0 || isTyping} className="flex items-center gap-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 px-2 md:px-3 py-1.5 rounded-full transition-colors text-[10px] md:text-[11px] font-bold uppercase tracking-wider">
-                    <span className="truncate max-w-[80px] md:max-w-xs">{selectedModel.split('/').pop() || 'Model'}</span> <ChevronUp size={14} className={`transition-transform ${showModelDropdown ? 'rotate-180' : ''}`} />
+                    <span className="truncate max-w-[90px] md:max-w-xs normal-case">{selectedModel ? labelModel(selectedModel) : 'Model'}</span> <ChevronUp size={14} className={`transition-transform ${showModelDropdown ? 'rotate-180' : ''}`} />
                   </button>
                   <AnimatePresence>
                     {showModelDropdown && (
@@ -417,7 +418,7 @@ export default function ChatbotGuruGeminiStyle() {
                         <div className="px-4 pb-2 mb-2 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Engine AI Terdaftar</div>
                         {availableModels.map(model => (
                           <button key={model} type="button" onClick={() => { setSelectedModel(model); setShowModelDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-[13px] md:text-sm hover:bg-slate-50 transition-colors flex items-center justify-between ${selectedModel === model ? 'text-blue-600 font-bold bg-blue-50/50' : 'text-slate-700'}`}>
-                            <span className="truncate">{model.split('/').pop()}</span>
+                            <span className="truncate">{labelModel(model)}</span>
                             {selectedModel === model && <CheckCircle2 size={14} className="shrink-0" />}
                           </button>
                         ))}

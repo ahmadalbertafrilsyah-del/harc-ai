@@ -454,7 +454,8 @@ export default function LoginPage() {
           instansi: regNPSN,
           role: roleDiajukan,
           status: "Aktif",
-          aiTokens: roleDiajukan === "lembaga" ? 50000 : 10000,
+          aiTokens:
+            roleDiajukan === "lembaga" ? 0 : roleDiajukan === "guru" ? 20000 : 10000,
           timestamp: serverTimestamp(),
         };
 

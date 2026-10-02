@@ -104,9 +104,13 @@ export default function ManajemenPenggunaAdmin() {
       };
 
       if (roleReq === "lembaga") {
-        dataBaru.aiTokens = 50000;
-        dataBaru.namaLembaga = pengajuan.namaLembaga || pengajuan.namaInstansi || ""; 
-        dataBaru.namaInstansi = pengajuan.namaLembaga || pengajuan.namaInstansi || ""; 
+        // Lembaga tidak memakai AI, jadi tanpa alokasi token.
+        dataBaru.aiTokens = 0;
+        dataBaru.namaLembaga = pengajuan.namaLembaga || pengajuan.namaInstansi || "";
+        dataBaru.namaInstansi = pengajuan.namaLembaga || pengajuan.namaInstansi || "";
+      } else if (roleReq === "guru") {
+        dataBaru.aiTokens = 20000;
+        dataBaru.spesialisasi = pengajuan.spesialisasi || "Pendidik";
       } else {
         dataBaru.aiTokens = 10000;
         dataBaru.spesialisasi = pengajuan.spesialisasi || "Pendidik";

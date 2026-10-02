@@ -108,7 +108,7 @@ export default function LembagaLayout({ children }: { children: React.ReactNode 
   const tanggal = currentTime.toLocaleDateString("id-ID", { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
-    <div className={`min-h-screen bg-[#f8fafc] flex ${latoFont.className}`}>
+    <div className={`h-[100dvh] overflow-hidden bg-[#f8fafc] flex ${latoFont.className}`}>
       
       {/* SIDEBAR DESKTOP */}
       <aside className={`hidden md:flex flex-col bg-[#2e1065] text-purple-100 transition-all duration-300 z-50 border-r border-purple-900 relative ${isSidebarCollapsed ? "w-[80px]" : "w-[240px]"}`}>
