@@ -109,7 +109,7 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
   const tanggal = currentTime.toLocaleDateString("id-ID", { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
-    <div className={`h-[100dvh] overflow-hidden bg-[#f8fafc] flex ${latoFont.className}`}>
+    <div className={`fixed inset-0 overflow-hidden bg-[#f8fafc] flex ${latoFont.className}`}>
       
       {/* SIDEBAR DESKTOP */}
       <aside className={`hidden md:flex flex-col bg-[#1e3a8a] text-blue-100 transition-all duration-300 z-50 border-r border-blue-900 relative ${isSidebarCollapsed ? "w-[80px]" : "w-[240px]"}`}>
@@ -152,8 +152,8 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
       </aside>
 
       {/* KONTEN UTAMA (Diperbaiki tinggi h-[100dvh]) */}
-      <main className="flex-1 flex flex-col min-w-0 h-[100dvh] overflow-hidden pb-[70px] md:pb-0 relative">
-        <header className="h-16 bg-white border-b border-slate-200/80 flex items-center justify-between px-4 md:px-6 shrink-0 z-30">
+      <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
+        <header className="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/70 flex items-center justify-between px-4 md:px-6 shrink-0 z-30 shadow-[0_1px_12px_-6px_rgba(15,23,42,0.18)]">
           <div className="flex items-center w-full md:w-auto">
             <Link href="/dashboard/guru/beli-token" title="Beli token" className="hidden md:flex items-center gap-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 px-3 py-1.5 rounded-full text-amber-700 transition-colors">
               <Coins size={14} className="text-amber-500" />
@@ -162,16 +162,19 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
             </Link>
 
             <div className="md:hidden flex items-center justify-between w-full">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center">
-                  <UserCircle size={18} className="text-white" />
+              <Link href="/dashboard/guru/beranda" className="flex items-center gap-2.5">
+                <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl flex items-center justify-center shadow-sm shadow-blue-600/30">
+                  <BrainCircuit size={19} className="text-white" strokeWidth={2.2} />
                 </div>
-                <span className="text-xl font-bold text-[#1e293b] tracking-wide ml-1 font-sans">HARC-AI</span>
-              </div>
-              <Link href="/dashboard/guru/beli-token" className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full text-amber-700">
-                <Coins size={12} className="text-amber-500" />
-                <span className="text-[10px] font-bold">{profil.aiTokens.toLocaleString("id-ID")}</span>
-                <span className="text-[10px] font-bold bg-amber-500 text-white w-3.5 h-3.5 flex items-center justify-center rounded-full leading-none">+</span>
+                <div className="flex flex-col leading-none">
+                  <span className="text-lg font-extrabold text-slate-800 tracking-tight font-sans">HARC-AI</span>
+                  <span className="text-[10px] font-semibold text-slate-400 tracking-wide mt-0.5">Portal Guru</span>
+                </div>
+              </Link>
+              <Link href="/dashboard/guru/beli-token" className="flex items-center gap-1.5 bg-gradient-to-r from-amber-50 to-amber-100/60 border border-amber-200/80 pl-2.5 pr-1 py-1 rounded-full text-amber-700 shadow-sm active:scale-95 transition-transform">
+                <Coins size={13} className="text-amber-500" />
+                <span className="text-[11px] font-bold tabular-nums">{profil.aiTokens.toLocaleString("id-ID")}</span>
+                <span className="text-xs font-bold bg-amber-500 text-white w-5 h-5 flex items-center justify-center rounded-full leading-none shadow-sm">+</span>
               </Link>
             </div>
           </div>
@@ -205,8 +208,8 @@ export default function GuruLayout({ children }: { children: React.ReactNode }) 
           </div>
         </header>
 
-        {/* Diperbaiki padding bawah menjadi pb-6 agar pas dan rapat */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-[#f8fafc] pb-6">
+        {/* Area scroll: sisakan ruang untuk bottom-nav (70px) + safe-area di mobile */}
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 md:p-6 lg:p-8 bg-[#f8fafc] pb-[calc(70px+env(safe-area-inset-bottom)+1rem)] md:pb-6">
           {children}
         </div>
       </main>
