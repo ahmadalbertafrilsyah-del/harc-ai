@@ -15,6 +15,8 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { unggahKeCloudinary } from "@/lib/cloudinary";
 import KopSurat from "@/components/KopSurat";
 import { KOP_KOSONG, normalisasiKop, type KopLembaga } from "@/lib/kop";
+import { MemuatHalaman } from "@/components/Memuat";
+import { tampilkanNotifikasi } from "@/lib/notifikasiPwa";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -80,6 +82,7 @@ export default function PengaturanKopLembaga() {
       });
       setKop((prev) => ({ ...prev, [posisi]: hasil.url }));
       setPesan({ tipe: "sukses", teks: "Logo terunggah. Jangan lupa tekan Simpan Kop." });
+      tampilkanNotifikasi({ tipe: "sukses", judul: "Logo Terunggah", pesan: "Jangan lupa tekan tombol Simpan Kop." });
     } catch (error: any) {
       console.error("Gagal mengunggah logo:", error);
       setPesan({ tipe: "error", teks: error?.message || "Gagal mengunggah logo. Periksa koneksi internet." });
@@ -103,6 +106,11 @@ export default function PengaturanKopLembaga() {
         instansi: kop.npsn,
       });
       setPesan({ tipe: "sukses", teks: "Kop lembaga tersimpan. Semua guru dengan NPSN ini otomatis memakainya." });
+      tampilkanNotifikasi({
+        tipe: "sukses",
+        judul: "Kop Lembaga Tersimpan",
+        pesan: "Semua guru di lembaga ini otomatis memakai kop terbaru.",
+      });
     } catch (error) {
       console.error("Gagal menyimpan kop:", error);
       setPesan({ tipe: "error", teks: "Gagal menyimpan kop lembaga." });
@@ -112,12 +120,7 @@ export default function PengaturanKopLembaga() {
   };
 
   if (isLoading) {
-    return (
-      <div className="w-full max-w-5xl mx-auto space-y-4 animate-pulse" role="status" aria-label="Memuat kop lembaga">
-        <div className="h-20 rounded-2xl bg-slate-200" />
-        <div className="h-[420px] rounded-2xl bg-slate-200" />
-      </div>
-    );
+    return <MemuatHalaman label="Memuat Kop Lembaga..." />;
   }
 
   return (

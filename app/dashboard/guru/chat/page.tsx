@@ -6,7 +6,7 @@ import { Teachers } from "next/font/google";
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { TitikMengetik } from "@/components/Memuat";
+import { TitikMengetik, LogoBrand } from "@/components/Memuat";
 
 const CONTOH_PROMPT = [
   { ikon: PenLine, teks: "Buatkan tujuan pembelajaran untuk materi ekosistem kelas 7." },
@@ -285,7 +285,7 @@ export default function ChatbotGuruGeminiStyle() {
   };
 
   return (
-    <div className="absolute top-16 left-0 right-0 bottom-[70px] md:bottom-0 flex overflow-hidden bg-white md:bg-[#f8fafc] z-20">
+    <div className="absolute top-16 left-0 right-0 bottom-[calc(68px+env(safe-area-inset-bottom))] md:bottom-0 flex overflow-hidden bg-white md:bg-[#f8fafc] z-20">
       
       {/* SIDEBAR RIWAYAT CHAT */}
       <div className={`absolute md:relative z-40 bg-white/95 backdrop-blur-md md:bg-white border-r border-slate-200 h-full flex flex-col w-64 shrink-0 transition-transform duration-300 shadow-xl md:shadow-none ${isSidebarOpen ? 'translate-x-0 md:ml-0' : '-translate-x-full md:translate-x-0 md:-ml-64'}`}>
@@ -342,9 +342,7 @@ export default function ChatbotGuruGeminiStyle() {
           <div className="max-w-4xl mx-auto">
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center text-center mt-8 md:mt-16 animate-in fade-in duration-700 px-4">
-                <div className="w-11 h-11 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-md mb-4">
-                  <Sparkles className="text-white w-5 h-5" />
-                </div>
+                <LogoBrand size={48} className="mb-4 shadow-md" />
                 <h2 className={`text-xl md:text-3xl font-bold text-slate-800 mb-2 ${teachersFont.className}`}>Halo, {userName}</h2>
                 <p className="text-slate-500 max-w-md mx-auto leading-relaxed text-sm">
                   Mari merancang perangkat ajar. Saya telah disinkronkan dengan Korpus Kebudayaan sekolah Anda.

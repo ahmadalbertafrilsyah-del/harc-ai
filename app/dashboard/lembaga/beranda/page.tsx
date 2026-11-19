@@ -2,15 +2,17 @@
 
 import { motion } from "framer-motion";
 import { 
-  Users, GraduationCap, BookOpen, Activity, Loader2, ArrowRight, 
+  Users, GraduationCap, BookOpen, Activity, ArrowRight, 
   CheckCircle2, Clock, AlertTriangle, FileText, FileCheck2, BellRing 
 } from "lucide-react";
 import { Teachers } from "next/font/google";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase"; 
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { collection, onSnapshot, query, where, doc } from "firebase/firestore";
 import Link from "next/link";
+import { MemuatHalaman } from "@/components/Memuat";
+import { kirimNotifikasiPwa } from "@/lib/notifikasiPwa";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -27,6 +29,7 @@ export default function LembagaBeranda() {
   });
 
   const [logAktivitas, setLogAktivitas] = useState<any[]>([]);
+  const menungguAwalRef = useRef<number | null>(null);
 
   useEffect(() => {
     // Tanggal untuk Aksesibilitas Screen Reader
@@ -104,6 +107,14 @@ export default function LembagaBeranda() {
                   .filter(m => guruIds.includes(m.userId));
 
                 const menunggu = modulSekolahIni.filter(m => m.statusValidasi === "menunggu").length;
+                if (menungguAwalRef.current !== null && menunggu > menungguAwalRef.current) {
+                  void kirimNotifikasiPwa({
+                    judul: "Perangkat Ajar Baru Menunggu ACC",
+                    isi: `Terdapat ${menunggu} perangkat pembelajaran menunggu validasi Anda.`,
+                    url: "/dashboard/lembaga/bahan-ajar",
+                  });
+                }
+                menungguAwalRef.current = menunggu;
 
                 setStats(prev => ({
                   ...prev,
@@ -138,106 +149,99 @@ export default function LembagaBeranda() {
   }, []);
 
   if (isLoading) {
-    return (
-      <div className="w-full h-[60vh] flex flex-col items-center justify-center text-purple-600" role="status" aria-live="polite">
-        <Loader2 size={40} className="animate-spin text-purple-600 mb-4" aria-hidden="true" />
-        <p className="font-bold text-lg text-slate-700 tracking-widest">Memuat Ekosistem...</p>
-        <p className="text-sm mt-1 text-slate-500">Mengambil data dari database instansi</p>
-        <span className="sr-only">Harap tunggu, dasbor sedang dimuat.</span>
-      </div>
-    );
+    return <MemuatHalaman label="Memuat Ekosistem..." subLabel="Mengambil data dari database instansi" />;
   }
 
   return (
-    <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto space-y-8 pb-10">
+    <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto space-y-5 md:space-y-7 pb-4">
       
       {/* Banner Utama - Aksesibel */}
-      <header className="bg-gradient-to-br from-[#2e1065] via-purple-900 to-indigo-900 rounded-3xl p-8 md:p-10 text-white shadow-lg shadow-purple-900/20 relative overflow-hidden" tabIndex={0}>
+      <header className="bg-gradient-to-br from-[#2e1065] via-purple-900 to-indigo-900 rounded-2xl md:rounded-3xl p-5 sm:p-7 md:p-10 text-white shadow-lg shadow-purple-900/20 relative overflow-hidden" tabIndex={0}>
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" aria-hidden="true"></div>
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <p className="text-purple-200 text-sm md:text-base font-medium mb-1">Pusat Komando Institusi,</p>
-            <h1 className={`text-3xl md:text-4xl font-bold mb-2 ${teachersFont.className}`}>
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5 md:gap-6">
+          <div className="min-w-0">
+            <p className="text-purple-200 text-xs sm:text-sm md:text-base font-medium mb-1">Pusat Komando Institusi,</p>
+            <h1 className={`text-2xl sm:text-3xl md:text-4xl font-bold mb-2 break-words ${teachersFont.className}`}>
               Dasbor {namaInstansi}
             </h1>
-            <p className="text-purple-200/90 max-w-xl text-sm md:text-base leading-relaxed mt-2">
+            <p className="text-purple-200/90 max-w-xl text-xs sm:text-sm md:text-base leading-relaxed mt-2">
               Pantau aktivitas pendidik, sebaran siswa, dan kualitas bahan ajar secara terpusat untuk memastikan ekosistem belajar yang optimal.
             </p>
           </div>
-          <div className="bg-white/10 backdrop-blur-md border border-white/20 px-5 py-3 rounded-2xl text-center flex flex-col justify-center min-w-[150px]">
-            <p className="text-xs text-purple-100 font-medium uppercase tracking-wider mb-1">Tanggal Sistem</p>
-            <p className="text-sm font-bold text-white">{currentDate}</p>
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 px-4 sm:px-5 py-3 rounded-2xl text-center flex flex-col justify-center w-full md:w-auto md:min-w-[160px] shrink-0">
+            <p className="text-[10px] sm:text-xs text-purple-100 font-medium uppercase tracking-wider mb-0.5 sm:mb-1">Tanggal Sistem</p>
+            <p className="text-xs sm:text-sm font-bold text-white">{currentDate}</p>
           </div>
         </div>
       </header>
 
       {/* Notifikasi Tindakan Cepat */}
       {stats.menungguValidasi > 0 && (
-        <section aria-labelledby="alert-validasi" className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm" role="alert" aria-live="assertive">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-amber-100 text-amber-600 rounded-xl shrink-0 mt-0.5" aria-hidden="true">
-              <BellRing size={24} />
+        <section aria-labelledby="alert-validasi" className="bg-amber-50 border border-amber-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm" role="alert" aria-live="assertive">
+          <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+            <div className="p-2.5 sm:p-3 bg-amber-100 text-amber-600 rounded-xl shrink-0 mt-0.5" aria-hidden="true">
+              <BellRing size={22} />
             </div>
-            <div>
-              <h2 id="alert-validasi" className="text-base font-bold text-amber-900">Tindakan Diperlukan: Validasi Dokumen</h2>
-              <p className="text-sm text-amber-800 mt-1">
+            <div className="min-w-0">
+              <h2 id="alert-validasi" className="text-sm sm:text-base font-bold text-amber-900">Tindakan Diperlukan: Validasi Dokumen</h2>
+              <p className="text-xs sm:text-sm text-amber-800 mt-1">
                 Terdapat <strong className="text-amber-900 bg-amber-200/60 px-2 py-0.5 rounded">{stats.menungguValidasi}</strong> modul ajar / bahan ajar baru yang menunggu persetujuan (ACC) dari Anda sebelum bisa diakses siswa.
               </p>
             </div>
           </div>
-          <Link href="/dashboard/lembaga/bahan-ajar" className="shrink-0 focus:outline-none focus:ring-2 focus:ring-amber-500 rounded-xl">
-            <button className="w-full sm:w-auto px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm" aria-label={`Tinjau ${stats.menungguValidasi} dokumen sekarang`}>
-              <FileCheck2 size={18} aria-hidden="true" /> Tinjau Sekarang
+          <Link href="/dashboard/lembaga/bahan-ajar" className="w-full sm:w-auto shrink-0 focus:outline-none focus:ring-2 focus:ring-amber-500 rounded-xl">
+            <button className="w-full sm:w-auto px-5 py-3 bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm" aria-label={`Tinjau ${stats.menungguValidasi} dokumen sekarang`}>
+              <FileCheck2 size={17} aria-hidden="true" /> Tinjau Sekarang
             </button>
           </Link>
         </section>
       )}
 
-      {/* Kartu Metrik - Aksesibel */}
-      <section aria-label="Metrik Utama Institusi" className="grid grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
+      {/* Kartu Metrik - Aksesibel & Simetris */}
+      <section aria-label="Metrik Utama Institusi" className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
         
-        <article className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-purple-300 focus-within:ring-2 focus-within:ring-purple-500 transition-all group flex flex-col h-full relative overflow-hidden" tabIndex={0}>
-          <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity" aria-hidden="true"><Users size={80}/></div>
-          <div className="flex justify-between items-start mb-4 relative z-10">
-            <div className="p-3 bg-purple-50 text-purple-700 rounded-xl group-hover:scale-110 transition-transform" aria-hidden="true"><Users size={24} /></div>
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">Pendidik</span>
+        <article className="bg-white p-4 sm:p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-purple-300 focus-within:ring-2 focus-within:ring-purple-500 transition-all group flex flex-col h-full relative overflow-hidden" tabIndex={0}>
+          <div className="hidden sm:block absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity" aria-hidden="true"><Users size={80}/></div>
+          <div className="flex justify-between items-start gap-2 mb-3 sm:mb-4 relative z-10">
+            <div className="p-2.5 sm:p-3 bg-purple-50 text-purple-700 rounded-xl group-hover:scale-110 transition-transform shrink-0" aria-hidden="true"><Users size={20} /></div>
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md border border-slate-200 truncate">Pendidik</span>
           </div>
-          <h2 className={`text-4xl font-black text-slate-900 mb-1 relative z-10 ${teachersFont.className}`}>
+          <h2 className={`text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 mb-1 relative z-10 tabular-nums ${teachersFont.className}`}>
             <span className="sr-only">Total pendidik terdaftar adalah </span>{stats.totalGuru}
           </h2>
-          <p className="text-xs text-slate-600 font-medium mb-5 relative z-10">Guru terdaftar di institusi ini</p>
-          <Link href="/dashboard/lembaga/guru" className="mt-auto flex items-center text-sm font-bold text-purple-700 hover:text-purple-900 gap-1.5 pt-4 border-t border-slate-100 focus:outline-none focus:underline" aria-label="Buka halaman kelola data guru">
-            Kelola Guru <ArrowRight size={16} aria-hidden="true"/>
+          <p className="text-[11px] sm:text-xs text-slate-600 font-medium mb-4 sm:mb-5 relative z-10">Guru terdaftar di institusi ini</p>
+          <Link href="/dashboard/lembaga/guru" className="mt-auto flex items-center text-xs sm:text-sm font-bold text-purple-700 hover:text-purple-900 gap-1.5 pt-3 sm:pt-4 border-t border-slate-100 focus:outline-none focus:underline" aria-label="Buka halaman kelola data guru">
+            Kelola Guru <ArrowRight size={15} aria-hidden="true"/>
           </Link>
         </article>
       
-        <article className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-blue-300 focus-within:ring-2 focus-within:ring-blue-500 transition-all group flex flex-col h-full relative overflow-hidden" tabIndex={0}>
-          <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity" aria-hidden="true"><GraduationCap size={80}/></div>
-          <div className="flex justify-between items-start mb-4 relative z-10">
-            <div className="p-3 bg-blue-50 text-blue-700 rounded-xl group-hover:scale-110 transition-transform" aria-hidden="true"><GraduationCap size={24} /></div>
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">Siswa</span>
+        <article className="bg-white p-4 sm:p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-blue-300 focus-within:ring-2 focus-within:ring-blue-500 transition-all group flex flex-col h-full relative overflow-hidden" tabIndex={0}>
+          <div className="hidden sm:block absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity" aria-hidden="true"><GraduationCap size={80}/></div>
+          <div className="flex justify-between items-start gap-2 mb-3 sm:mb-4 relative z-10">
+            <div className="p-2.5 sm:p-3 bg-blue-50 text-blue-700 rounded-xl group-hover:scale-110 transition-transform shrink-0" aria-hidden="true"><GraduationCap size={20} /></div>
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md border border-slate-200 truncate">Siswa</span>
           </div>
-          <h2 className={`text-4xl font-black text-slate-900 mb-1 relative z-10 ${teachersFont.className}`}>
+          <h2 className={`text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 mb-1 relative z-10 tabular-nums ${teachersFont.className}`}>
             <span className="sr-only">Total siswa terdaftar adalah </span>{stats.totalSiswa}
           </h2>
-          <p className="text-xs text-slate-600 font-medium mb-5 relative z-10">Peserta didik aktif tersinkronisasi</p>
-          <Link href="/dashboard/lembaga/siswa" className="mt-auto flex items-center text-sm font-bold text-blue-700 hover:text-blue-900 gap-1.5 pt-4 border-t border-slate-100 focus:outline-none focus:underline" aria-label="Buka halaman kelola data siswa">
-            Kelola Siswa <ArrowRight size={16} aria-hidden="true"/>
+          <p className="text-[11px] sm:text-xs text-slate-600 font-medium mb-4 sm:mb-5 relative z-10">Peserta didik aktif tersinkronisasi</p>
+          <Link href="/dashboard/lembaga/siswa" className="mt-auto flex items-center text-xs sm:text-sm font-bold text-blue-700 hover:text-blue-900 gap-1.5 pt-3 sm:pt-4 border-t border-slate-100 focus:outline-none focus:underline" aria-label="Buka halaman kelola data siswa">
+            Kelola Siswa <ArrowRight size={15} aria-hidden="true"/>
           </Link>
         </article>
       
-        <article className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-emerald-300 focus-within:ring-2 focus-within:ring-emerald-500 transition-all group flex flex-col h-full col-span-2 lg:col-span-1 relative overflow-hidden" tabIndex={0}>
-          <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity" aria-hidden="true"><BookOpen size={80}/></div>
-          <div className="flex justify-between items-start mb-4 relative z-10">
-            <div className="p-3 bg-emerald-50 text-emerald-700 rounded-xl group-hover:scale-110 transition-transform" aria-hidden="true"><BookOpen size={24} /></div>
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">Dokumen</span>
+        <article className="bg-white p-4 sm:p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-emerald-300 focus-within:ring-2 focus-within:ring-emerald-500 transition-all group flex flex-col h-full col-span-2 lg:col-span-1 relative overflow-hidden" tabIndex={0}>
+          <div className="hidden sm:block absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity" aria-hidden="true"><BookOpen size={80}/></div>
+          <div className="flex justify-between items-start gap-2 mb-3 sm:mb-4 relative z-10">
+            <div className="p-2.5 sm:p-3 bg-emerald-50 text-emerald-700 rounded-xl group-hover:scale-110 transition-transform shrink-0" aria-hidden="true"><BookOpen size={20} /></div>
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md border border-slate-200 truncate">Dokumen</span>
           </div>
-          <h2 className={`text-4xl font-black text-slate-900 mb-1 relative z-10 ${teachersFont.className}`}>
+          <h2 className={`text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 mb-1 relative z-10 tabular-nums ${teachersFont.className}`}>
             <span className="sr-only">Total dokumen bahan ajar adalah </span>{stats.totalModul}
           </h2>
-          <p className="text-xs text-slate-600 font-medium mb-5 relative z-10">Bahan ajar & soal digenerate AI</p>
-          <Link href="/dashboard/lembaga/bahan-ajar" className="mt-auto flex items-center text-sm font-bold text-emerald-700 hover:text-emerald-900 gap-1.5 pt-4 border-t border-slate-100 focus:outline-none focus:underline" aria-label="Buka halaman tinjauan dokumen">
-            Tinjau Dokumen <ArrowRight size={16} aria-hidden="true"/>
+          <p className="text-[11px] sm:text-xs text-slate-600 font-medium mb-4 sm:mb-5 relative z-10">Bahan ajar & soal digenerate AI</p>
+          <Link href="/dashboard/lembaga/bahan-ajar" className="mt-auto flex items-center text-xs sm:text-sm font-bold text-emerald-700 hover:text-emerald-900 gap-1.5 pt-3 sm:pt-4 border-t border-slate-100 focus:outline-none focus:underline" aria-label="Buka halaman tinjauan dokumen">
+            Tinjau Dokumen <ArrowRight size={15} aria-hidden="true"/>
           </Link>
         </article>
 
@@ -245,9 +249,9 @@ export default function LembagaBeranda() {
 
       {/* Bagian Log Aktivitas */}
       <section aria-labelledby="log-heading" className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
-        <header className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-          <h2 id="log-heading" className={`text-lg font-bold text-slate-900 flex items-center gap-2 ${teachersFont.className}`}>
-            <Activity size={20} className="text-purple-600" aria-hidden="true" /> Log Aktivitas Ekosistem
+        <header className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <h2 id="log-heading" className={`text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2 ${teachersFont.className}`}>
+            <Activity size={20} className="text-purple-600 shrink-0" aria-hidden="true" /> Log Aktivitas Ekosistem
           </h2>
         </header>
         
@@ -255,35 +259,37 @@ export default function LembagaBeranda() {
           {logAktivitas.length > 0 ? (
             <ul className="divide-y divide-slate-50" role="list">
               {logAktivitas.map((log: any, idx: number) => (
-                <li key={log.id || idx} className="p-4 hover:bg-slate-50 transition-colors flex items-start gap-4 rounded-xl focus-within:ring-2 focus-within:ring-purple-100 outline-none" tabIndex={0}>
-                  <div className="mt-0.5 shrink-0" aria-hidden="true">
-                    {log.tipe === 'guru' ? (
-                      <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl border border-purple-100"><FileText size={18}/></div>
-                    ) : (
-                      <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl border border-blue-100"><Users size={18}/></div>
-                    )}
+                <li key={log.id || idx} className="p-3 sm:p-4 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-4 rounded-xl focus-within:ring-2 focus-within:ring-purple-100 outline-none" tabIndex={0}>
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="mt-0.5 shrink-0" aria-hidden="true">
+                      {log.tipe === 'guru' ? (
+                        <div className="p-2 sm:p-2.5 bg-purple-50 text-purple-600 rounded-xl border border-purple-100"><FileText size={17}/></div>
+                      ) : (
+                        <div className="p-2 sm:p-2.5 bg-blue-50 text-blue-600 rounded-xl border border-blue-100"><Users size={17}/></div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs sm:text-sm font-bold text-slate-800 break-words">{log.aksi}</p>
+                      <p className="text-[11px] sm:text-xs text-slate-600 mt-1">
+                        Oleh: <strong className="text-slate-800">{log.aktor}</strong> • 
+                        <span className="text-slate-500 ml-1">
+                          {log.waktu ? `${new Date(log.waktu).toLocaleDateString('id-ID', {day:'2-digit', month:'short'})} • ${new Date(log.waktu).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})} WIB` : 'Baru saja'}
+                        </span>
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-slate-800">{log.aksi}</p>
-                    <p className="text-xs text-slate-600 mt-1">
-                      Oleh: <strong className="text-slate-800">{log.aktor}</strong> • 
-                      <span className="text-slate-500 ml-1">
-                        {log.waktu ? `${new Date(log.waktu).toLocaleDateString('id-ID', {day:'2-digit', month:'short'})} • ${new Date(log.waktu).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})} WIB` : 'Baru saja'}
-                      </span>
-                    </p>
-                  </div>
-                  <div className="shrink-0 hidden md:block" aria-hidden="true">
+                  <div className="shrink-0 pl-11 sm:pl-0" aria-hidden="true">
                     {log.status === "disetujui" ? (
-                       <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200 flex items-center gap-1"><CheckCircle2 size={12}/> Disetujui</span>
+                       <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200 inline-flex items-center gap-1"><CheckCircle2 size={12}/> Disetujui</span>
                     ) : log.status === "menunggu" ? (
-                       <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200 flex items-center gap-1"><Clock size={12}/> Menunggu</span>
+                       <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded border border-amber-200 inline-flex items-center gap-1"><Clock size={12}/> Menunggu</span>
                     ) : null}
                   </div>
                 </li>
               ))}
             </ul>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full min-h-[250px] text-slate-500">
+            <div className="flex flex-col items-center justify-center h-full min-h-[220px] text-slate-500 px-4">
               <AlertTriangle size={36} className="mb-4 text-slate-300" aria-hidden="true" />
               <p className="text-base font-bold text-slate-700">Belum ada aktivitas terekam.</p>
               <p className="text-sm mt-1 text-center max-w-sm">Riwayat pembuatan modul ajar oleh guru dan pendaftaran siswa akan muncul di sini.</p>

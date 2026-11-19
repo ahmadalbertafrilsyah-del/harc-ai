@@ -12,6 +12,7 @@ import { useState, useEffect } from "react";
 // IMPORT FIREBASE REAL-TIME
 import { db } from "@/lib/firebase"; 
 import { collection, onSnapshot, doc, addDoc, deleteDoc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { MemuatHalaman } from "@/components/Memuat";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -143,16 +144,11 @@ export default function KorpusStandarAdmin() {
   });
 
   if (isLoading) {
-    return (
-      <div className="w-full h-[70vh] flex flex-col items-center justify-center text-slate-500" role="status">
-        <Loader2 size={36} className="animate-spin text-indigo-600 mb-3" />
-        <p className="text-xs font-bold text-slate-700">Memuat Pangkalan Data AI...</p>
-      </div>
-    );
+    return <MemuatHalaman label="Memuat Pangkalan Data AI..." />;
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-7xl mx-auto space-y-5 pb-12">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-7xl mx-auto space-y-5 pb-4">
       
       {/* HEADER DESKTOP */}
       <header className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-5">
@@ -445,34 +441,58 @@ export default function KorpusStandarAdmin() {
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-              <table className="w-full text-xs md:text-sm">
-                <thead className="bg-slate-50/80 text-slate-400 uppercase text-[10px] font-bold border-b border-slate-200">
-                  <tr>
-                    <th className="px-5 py-3 text-left">Kategori</th>
-                    <th className="px-5 py-3 text-left">Detail Aturan</th>
-                    <th className="px-5 py-3 text-center">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {daftarBatasan.length > 0 ? daftarBatasan.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-5 py-3.5 font-bold text-indigo-700">{item.kategori}</td>
-                      <td className="px-5 py-3.5 text-slate-700">{item.aturan}</td>
-                      <td className="px-5 py-3.5 text-center">
-                        <button onClick={() => handleHapusBatasan(item.id)} className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-2 rounded-xl transition-all inline-flex items-center justify-center">
-                           <Trash2 size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  )) : (
+              {/* Mobile Card View */}
+              <div className="block md:hidden p-3 space-y-2.5 bg-slate-50/30">
+                {daftarBatasan.length > 0 ? daftarBatasan.map((item) => (
+                  <div key={item.id} className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <span className="inline-block px-2.5 py-0.5 bg-indigo-50 text-indigo-700 rounded-lg text-[10px] font-bold uppercase border border-indigo-100">
+                        {item.kategori}
+                      </span>
+                      <p className="text-xs text-slate-700 leading-relaxed break-words">{item.aturan}</p>
+                    </div>
+                    <button onClick={() => handleHapusBatasan(item.id)} className="shrink-0 p-2 text-slate-400 hover:text-rose-600 bg-slate-50 rounded-xl" aria-label="Hapus aturan">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                )) : (
+                  <div className="px-4 py-10 text-center text-slate-400 text-xs bg-white rounded-xl border border-slate-200">
+                    Belum ada aturan batasan AI yang tersimpan.
+                  </div>
+                )}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-xs md:text-sm">
+                  <thead className="bg-slate-50/80 text-slate-400 uppercase text-[10px] font-bold border-b border-slate-200">
                     <tr>
-                      <td colSpan={3} className="px-5 py-10 text-center text-slate-400 text-xs">
-                        Belum ada aturan batasan AI yang tersimpan.
-                      </td>
+                      <th className="px-5 py-3 text-left">Kategori</th>
+                      <th className="px-5 py-3 text-left">Detail Aturan</th>
+                      <th className="px-5 py-3 text-center">Aksi</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {daftarBatasan.length > 0 ? daftarBatasan.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-5 py-3.5 font-bold text-indigo-700 whitespace-nowrap">{item.kategori}</td>
+                        <td className="px-5 py-3.5 text-slate-700">{item.aturan}</td>
+                        <td className="px-5 py-3.5 text-center">
+                          <button onClick={() => handleHapusBatasan(item.id)} className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-2 rounded-xl transition-all inline-flex items-center justify-center">
+                             <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan={3} className="px-5 py-10 text-center text-slate-400 text-xs">
+                          Belum ada aturan batasan AI yang tersimpan.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </motion.div>
         )}

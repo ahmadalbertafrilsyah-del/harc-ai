@@ -2,15 +2,17 @@
 
 import { motion } from "framer-motion";
 import {
-  BookOpen, Target, Sparkles, TrendingUp, Loader2, ArrowRight, Activity,
-  GraduationCap, ClipboardList, Award, CalendarDays, ChevronRight, type LucideIcon,
+  BookOpen, Target, Sparkles, TrendingUp, ArrowRight, Activity,
+  GraduationCap, ClipboardList, Award, CalendarDays, ChevronRight, Trophy, Zap, type LucideIcon,
 } from "lucide-react";
 import { Teachers } from "next/font/google";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "@/lib/firebase";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { collection, onSnapshot, query, where, doc } from "firebase/firestore";
 import Link from "next/link";
+import { MemuatHalaman } from "@/components/Memuat";
+import { kirimNotifikasiPwa } from "@/lib/notifikasiPwa";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -43,17 +45,24 @@ export default function BerandaSiswa() {
   const [riwayat, setRiwayat] = useState<Riwayat[]>([]);
   const [semuaUjian, setSemuaUjian] = useState<Ujian[]>([]);
   const [waktuSapaan] = useState(sapaan);
+  const jumlahTugasAwalRef = useRef<number | null>(null);
 
   // Profil & kelas yang diikuti
   useEffect(() => {
+    let unsubProfil: (() => void) | undefined;
+    let unsubKelas: (() => void) | undefined;
+    let unsubRiwayat: (() => void) | undefined;
     const unsubAuth = onAuthStateChanged(getAuth(), (user) => {
+      unsubProfil?.(); unsubProfil = undefined;
+      unsubKelas?.(); unsubKelas = undefined;
+      unsubRiwayat?.(); unsubRiwayat = undefined;
       if (!user) { setIsLoading(false); return; }
 
-      const unsubProfil = onSnapshot(doc(db, "users", user.uid), (snap) => {
+      unsubProfil = onSnapshot(doc(db, "users", user.uid), (snap) => {
         if (snap.exists()) setProfil(snap.data());
       });
 
-      const unsubKelas = onSnapshot(
+      unsubKelas = onSnapshot(
         query(collection(db, "manajemen_kelas"), where("peserta", "array-contains", user.uid)),
         (snap) => {
           setKelas(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Kelas)));
@@ -61,14 +70,12 @@ export default function BerandaSiswa() {
         }
       );
 
-      const unsubRiwayat = onSnapshot(
+      unsubRiwayat = onSnapshot(
         query(collection(db, "jawaban_siswa"), where("uid", "==", user.uid)),
         (snap) => setRiwayat(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Riwayat)))
       );
-
-      return () => { unsubProfil(); unsubKelas(); unsubRiwayat(); };
     });
-    return () => unsubAuth();
+    return () => { unsubAuth(); unsubProfil?.(); unsubKelas?.(); unsubRiwayat?.(); };
   }, []);
 
   // Asesmen di seluruh kelas yang diikuti (untuk menghitung tugas aktif)
@@ -95,6 +102,18 @@ export default function BerandaSiswa() {
     [semuaUjian, idSelesai]
   );
 
+  useEffect(() => {
+    if (isLoading) return;
+    if (jumlahTugasAwalRef.current !== null && tugasAktif.length > jumlahTugasAwalRef.current) {
+      void kirimNotifikasiPwa({
+        judul: "Asesmen Baru Tersedia!",
+        isi: `Ada ${tugasAktif.length} asesmen aktif di Ruang Kelas yang siap kamu kerjakan.`,
+        url: "/dashboard/siswa/ruang-kelas",
+      });
+    }
+    jumlahTugasAwalRef.current = tugasAktif.length;
+  }, [tugasAktif.length, isLoading]);
+
   const riwayatTerbaru = useMemo(
     () => [...riwayat].sort((a, b) => waktuMs(b.timestamp) - waktuMs(a.timestamp)).slice(0, 4),
     [riwayat]
@@ -107,11 +126,7 @@ export default function BerandaSiswa() {
   }, [kelas]);
 
   if (isLoading) {
-    return (
-      <div className="w-full h-[60vh] flex items-center justify-center">
-        <Loader2 size={38} className="animate-spin text-emerald-600" />
-      </div>
-    );
+    return <MemuatHalaman label="Memuat Portal Belajar..." subLabel="Menyiapkan kelas dan asesmen aktif" />;
   }
 
   return (
@@ -149,34 +164,80 @@ export default function BerandaSiswa() {
               )}
             </p>
 
-            <div className="flex flex-wrap items-center gap-2.5 mt-4">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2.5 mt-4">
               <Link
                 href="/dashboard/siswa/ruang-kelas"
-                className="min-h-[42px] bg-white text-emerald-800 hover:bg-emerald-50 px-4 rounded-xl font-bold text-[13px] shadow-sm transition-colors flex items-center gap-1.5 active:scale-[0.97]"
+                className="min-h-[44px] bg-white text-emerald-800 hover:bg-emerald-50 px-3 sm:px-4 rounded-xl font-bold text-xs sm:text-[13px] shadow-sm transition-colors flex items-center justify-center gap-1.5 active:scale-[0.97]"
               >
-                <BookOpen size={16} /> Masuk Ruang Kelas
+                <BookOpen size={15} className="shrink-0" /> <span className="truncate">Ruang Kelas</span>
+              </Link>
+              <Link
+                href="/dashboard/siswa/latihan"
+                className="min-h-[44px] bg-amber-400 hover:bg-amber-300 text-amber-950 px-3 sm:px-4 rounded-xl font-extrabold text-xs sm:text-[13px] shadow-sm transition-colors flex items-center justify-center gap-1.5 active:scale-[0.97]"
+              >
+                <Trophy size={15} className="shrink-0" /> <span className="truncate">Arena Latihan</span>
               </Link>
               <Link
                 href="/dashboard/siswa/raport"
-                className="min-h-[42px] bg-white/10 hover:bg-white/20 border border-white/20 text-white px-4 rounded-xl font-bold text-[13px] transition-colors flex items-center gap-1.5 active:scale-[0.97]"
+                className="col-span-2 sm:col-span-1 min-h-[44px] bg-white/10 hover:bg-white/20 border border-white/20 text-white px-3 sm:px-4 rounded-xl font-bold text-xs sm:text-[13px] transition-colors flex items-center justify-center gap-1.5 active:scale-[0.97]"
               >
-                <Award size={16} /> Lihat Raport
+                <Award size={15} className="shrink-0" /> <span className="truncate">Lihat Raport</span>
               </Link>
             </div>
           </div>
 
-          {/* Kartu XP */}
-          <div className="shrink-0 w-full lg:w-auto">
-            <div className="bg-white/10 border border-white/15 rounded-2xl px-5 py-4 text-center backdrop-blur-sm min-w-[150px]">
-              <Sparkles size={24} className="mx-auto text-amber-300 mb-1.5" />
-              <p className="text-[10px] text-emerald-100/80 uppercase tracking-widest font-bold">Total Poin</p>
-              <p className={`text-3xl font-black text-amber-300 leading-none mt-1 ${teachersFont.className}`}>
-                {profil.xpPoints || 0}<span className="text-sm font-bold text-amber-200/80 ml-0.5">XP</span>
-              </p>
-            </div>
-          </div>
+          {/* Kartu XP & Gelar Prestasi */}
+          {(() => {
+            const xp = Number(profil.xpPoints) || 0;
+            const tier =
+              xp >= 1500 ? { nama: "Maestro HARC", target: 2500 }
+              : xp >= 800 ? { nama: "Juara Utama", target: 1500 }
+              : xp >= 400 ? { nama: "Bintang Kelas", target: 800 }
+              : xp >= 150 ? { nama: "Penjelajah Ilmu", target: 400 }
+              : { nama: "Pelajar Pemula", target: 150 };
+            const persen = Math.min(100, Math.round((xp / tier.target) * 100));
+            return (
+              <div className="shrink-0 w-full lg:w-auto">
+                <div className="bg-white/10 border border-white/15 rounded-2xl px-5 py-4 text-center backdrop-blur-sm min-w-[180px]">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-200 border border-amber-300/30 mb-1.5">
+                    <Sparkles size={11} className="text-amber-300" /> {tier.nama}
+                  </span>
+                  <p className={`text-3xl font-black text-amber-300 leading-none mt-1 ${teachersFont.className}`}>
+                    {xp}<span className="text-sm font-bold text-amber-200/80 ml-0.5">XP</span>
+                  </p>
+                  <div className="w-full h-1.5 rounded-full bg-black/25 overflow-hidden mt-3">
+                    <div className="h-full bg-amber-300 transition-all duration-500" style={{ width: `${persen}%` }} />
+                  </div>
+                  <p className="text-[9.5px] text-emerald-100/75 mt-1 font-medium">Target naik level: {tier.target} XP</p>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </section>
+
+      {/* Banner Promo Arena Latihan */}
+      <Link
+        href="/dashboard/siswa/latihan"
+        className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-50 via-white to-emerald-50 border border-amber-200/80 shadow-sm hover:shadow-md hover:border-amber-300 transition-all"
+      >
+        <div className="flex items-center gap-3.5 min-w-0">
+          <span className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shadow-sm shrink-0">
+            <Zap size={20} />
+          </span>
+          <div className="min-w-0">
+            <p className={`text-sm sm:text-base font-bold text-slate-900 truncate ${teachersFont.className}`}>
+              Tingkatkan Skormu di Arena Latihan Mandiri!
+            </p>
+            <p className="text-[11.5px] sm:text-xs text-slate-500 truncate mt-0.5">
+              Kerjakan kuis interaktif AI dengan pembahasan instan &amp; raih peringkat teratas sekolah.
+            </p>
+          </div>
+        </div>
+        <span className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 group-hover:bg-amber-600 text-white text-xs font-bold shrink-0 transition-colors">
+          Buka Arena <ArrowRight size={14} />
+        </span>
+      </Link>
 
       {/* ============== STATISTIK ============== */}
       <section aria-label="Ringkasan belajar" className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">

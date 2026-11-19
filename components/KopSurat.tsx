@@ -12,6 +12,7 @@
  *   garis tebal, lalu garis tipis di bawahnya.
  */
 
+import { useState } from "react";
 import { barisAlamat, barisKontak, type KopLembaga } from "@/lib/kop";
 
 type Props = {
@@ -24,9 +25,14 @@ type Props = {
 };
 
 export default function KopSurat({ kop, judulDokumen, subJudul, ringkas = false }: Props) {
+  const [gagalKiriUrl, setGagalKiriUrl] = useState<string | null>(null);
+  const [gagalKananUrl, setGagalKananUrl] = useState<string | null>(null);
+
   const alamat = barisAlamat(kop);
   const kontak = barisKontak(kop);
-  const adaLogo = Boolean(kop.logoKiri || kop.logoKanan);
+  const tampilKiri = Boolean(kop.logoKiri && gagalKiriUrl !== kop.logoKiri);
+  const tampilKanan = Boolean(kop.logoKanan && gagalKananUrl !== kop.logoKanan);
+  const adaLogo = tampilKiri || tampilKanan;
 
   const selTengah: React.CSSProperties = {
     border: "none",
@@ -44,38 +50,56 @@ export default function KopSurat({ kop, judulDokumen, subJudul, ringkas = false 
   };
 
   return (
-    <div className="kop-surat" style={{ marginBottom: "18pt", pageBreakAfter: "avoid" }}>
+    <div className="kop-surat" style={{ marginBottom: "16pt", pageBreakAfter: "avoid", width: "100%", maxWidth: "100%" }}>
+      <style>{`
+        @media screen and (max-width: 640px) {
+          .kop-surat { margin-bottom: 12px !important; }
+          .kop-surat .kop-logo-cell { width: 44px !important; }
+          .kop-surat .kop-logo-empty { display: none !important; }
+          .kop-surat .kop-logo-img { width: 38px !important; height: 38px !important; }
+          .kop-surat .kop-center-cell { padding: 0 4px !important; }
+          .kop-surat .kop-naungan { font-size: 10px !important; line-height: 1.25 !important; }
+          .kop-surat .kop-nama { font-size: 13px !important; line-height: 1.25 !important; letter-spacing: 0.2px !important; }
+          .kop-surat .kop-meta { font-size: 9.5px !important; line-height: 1.3 !important; overflow-wrap: break-word; }
+          .kop-surat .kop-judul-wrap { margin-top: 10px !important; }
+          .kop-surat .kop-judul { font-size: 11.5px !important; }
+          .kop-surat .kop-subjudul { font-size: 10px !important; margin-top: 2px !important; }
+        }
+      `}</style>
       <table
         className="header-table"
-        style={{ width: "100%", borderCollapse: "collapse", border: "none", marginBottom: 0 }}
+        style={{ width: "100%", borderCollapse: "collapse", border: "none", marginBottom: 0, tableLayout: "auto" }}
       >
         <tbody>
           <tr>
             {adaLogo && !ringkas && (
-              <td style={selLogo}>
-                {kop.logoKiri && (
+              <td className={`kop-logo-cell ${!tampilKiri ? "kop-logo-empty" : ""}`} style={selLogo}>
+                {tampilKiri && (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={kop.logoKiri}
                     alt=""
+                    onError={() => setGagalKiriUrl(kop.logoKiri)}
+                    className="kop-logo-img"
                     style={{ width: "70px", height: "70px", objectFit: "contain" }}
                   />
                 )}
               </td>
             )}
 
-            <td style={selTengah}>
+            <td className="kop-center-cell" style={selTengah}>
               {kop.naungan && (
-                <div style={{ fontSize: "12pt", fontWeight: "bold", textTransform: "uppercase", lineHeight: 1.3 }}>
+                <div className="kop-naungan" style={{ fontSize: "12pt", fontWeight: "bold", textTransform: "uppercase", lineHeight: 1.3 }}>
                   {kop.naungan}
                 </div>
               )}
               {kop.naunganKedua && (
-                <div style={{ fontSize: "12pt", fontWeight: "bold", textTransform: "uppercase", lineHeight: 1.3 }}>
+                <div className="kop-naungan" style={{ fontSize: "12pt", fontWeight: "bold", textTransform: "uppercase", lineHeight: 1.3 }}>
                   {kop.naunganKedua}
                 </div>
               )}
               <div
+                className="kop-nama"
                 style={{
                   fontSize: ringkas ? "14pt" : "16pt",
                   fontWeight: "bold",
@@ -87,13 +111,13 @@ export default function KopSurat({ kop, judulDokumen, subJudul, ringkas = false 
                 {kop.namaLembaga || "........................................"}
               </div>
               {alamat && (
-                <div style={{ fontSize: "10pt", lineHeight: 1.35, marginTop: "2pt" }}>{alamat}</div>
+                <div className="kop-meta" style={{ fontSize: "10pt", lineHeight: 1.35, marginTop: "2pt" }}>{alamat}</div>
               )}
               {kontak && !ringkas && (
-                <div style={{ fontSize: "10pt", lineHeight: 1.35 }}>{kontak}</div>
+                <div className="kop-meta" style={{ fontSize: "10pt", lineHeight: 1.35 }}>{kontak}</div>
               )}
               {(kop.npsn || kop.akreditasi) && !ringkas && (
-                <div style={{ fontSize: "10pt", lineHeight: 1.35 }}>
+                <div className="kop-meta" style={{ fontSize: "10pt", lineHeight: 1.35 }}>
                   {kop.npsn && `NPSN: ${kop.npsn}`}
                   {kop.npsn && kop.akreditasi && " | "}
                   {kop.akreditasi && `Akreditasi: ${kop.akreditasi}`}
@@ -102,12 +126,14 @@ export default function KopSurat({ kop, judulDokumen, subJudul, ringkas = false 
             </td>
 
             {adaLogo && !ringkas && (
-              <td style={selLogo}>
-                {kop.logoKanan && (
+              <td className={`kop-logo-cell ${!tampilKanan ? "kop-logo-empty" : ""}`} style={selLogo}>
+                {tampilKanan && (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={kop.logoKanan}
                     alt=""
+                    onError={() => setGagalKananUrl(kop.logoKanan)}
+                    className="kop-logo-img"
                     style={{ width: "70px", height: "70px", objectFit: "contain" }}
                   />
                 )}
@@ -122,8 +148,9 @@ export default function KopSurat({ kop, judulDokumen, subJudul, ringkas = false 
       <div style={{ borderBottom: "1px solid #000", marginTop: "2px" }} />
 
       {judulDokumen && (
-        <div style={{ textAlign: "center", marginTop: "14pt" }}>
+        <div className="kop-judul-wrap" style={{ textAlign: "center", marginTop: "14pt" }}>
           <div
+            className="kop-judul"
             style={{
               fontSize: "13pt",
               fontWeight: "bold",
@@ -134,7 +161,7 @@ export default function KopSurat({ kop, judulDokumen, subJudul, ringkas = false 
           >
             {judulDokumen}
           </div>
-          {subJudul && <div style={{ fontSize: "11pt", marginTop: "3pt" }}>{subJudul}</div>}
+          {subJudul && <div className="kop-subjudul" style={{ fontSize: "11pt", marginTop: "3pt" }}>{subJudul}</div>}
         </div>
       )}
     </div>

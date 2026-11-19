@@ -9,12 +9,14 @@ import {
 } from "lucide-react";
 import { Teachers } from "next/font/google";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 import { db } from "@/lib/firebase";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { collection, onSnapshot, query, doc, deleteDoc, orderBy, where } from "firebase/firestore";
+import { MemuatHalaman } from "@/components/Memuat";
+import { kirimNotifikasiPwa } from "@/lib/notifikasiPwa";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -37,6 +39,8 @@ export default function BerandaGuru() {
   const [isLoading, setIsLoading] = useState(true);
   const [uid, setUid] = useState<string | null>(null);
   const [guruNama, setGuruNama] = useState("");
+  const [guruFoto, setGuruFoto] = useState("");
+  const [guruSpesialisasi, setGuruSpesialisasi] = useState("");
   const [waktuSapaan] = useState(sapaanSaatIni);
   const [npsnGuru, setNpsnGuru] = useState("");
   const [namaInstansi, setNamaInstansi] = useState("");
@@ -44,6 +48,7 @@ export default function BerandaGuru() {
   const [stats, setStats] = useState({ siswaAktif: 0, totalKelas: 0, rataRataKelas: 0 });
   const [antrean, setAntrean] = useState<AntreanItem[]>([]);
   const [dataStatistik, setDataStatistik] = useState<TitikGrafik[]>([]);
+  const jumlahAntreanAwalRef = useRef<number | null>(null);
 
   // Pantau sesi login
   useEffect(() => {
@@ -63,6 +68,8 @@ export default function BerandaGuru() {
       if (!docSnap.exists()) return;
       const data = docSnap.data();
       setGuruNama(data.nama || "Pendidik");
+      setGuruFoto(data.fotoUrl || "");
+      setGuruSpesialisasi(data.spesialisasi || "");
       setNpsnGuru(data.npsn || "");
       if (!data.npsn) setNamaInstansi(data.instansi || "");
       setStats((prev) => ({ ...prev, rataRataKelas: data.rataRataKelas || 0 }));
@@ -75,7 +82,18 @@ export default function BerandaGuru() {
 
     const unsubAntrean = onSnapshot(
       query(collection(db, "antrean_validasi"), orderBy("timestamp", "desc")),
-      (snapshot) => setAntrean(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
+      (snapshot) => {
+        const daftar = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        if (jumlahAntreanAwalRef.current !== null && daftar.length > jumlahAntreanAwalRef.current) {
+          void kirimNotifikasiPwa({
+            judul: "Tugas Baru Menunggu Tinjauan",
+            isi: `Ada ${daftar.length} berkas pada antrean evaluasi Anda.`,
+            url: "/dashboard/guru/beranda",
+          });
+        }
+        jumlahAntreanAwalRef.current = daftar.length;
+        setAntrean(daftar);
+      }
     );
 
     const unsubGrafik = onSnapshot(
@@ -124,7 +142,7 @@ export default function BerandaGuru() {
     }
   };
 
-  if (isLoading) return <BerandaSkeleton />;
+  if (isLoading) return <MemuatHalaman label="Memuat Portal Guru..." subLabel="Menyelaraskan data kelas dan analitik" />;
 
   return (
     <motion.div
@@ -146,10 +164,29 @@ export default function BerandaGuru() {
               </span>
             </span>
 
-            <p className="text-blue-200/80 text-xs sm:text-sm font-medium mt-3">{waktuSapaan},</p>
-            <h1 className={`text-xl sm:text-2xl lg:text-3xl font-bold text-white leading-tight break-words ${teachersFont.className}`}>
-              {guruNama}
-            </h1>
+            <div className="flex items-center gap-3.5 sm:gap-4 mt-3.5">
+              <Link
+                href="/dashboard/guru/profil"
+                title="Lihat & ubah foto profil"
+                className="shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-2xl overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 border-2 border-white/30 shadow-lg flex items-center justify-center text-white text-xl font-black ring-2 ring-blue-400/30 hover:scale-105 transition-transform"
+              >
+                {guruFoto ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={guruFoto} alt={guruNama || "Profil Guru"} className="w-full h-full object-cover" />
+                ) : (
+                  (guruNama || "G").charAt(0).toUpperCase()
+                )}
+              </Link>
+              <div className="min-w-0">
+                <p className="text-blue-200/80 text-xs sm:text-sm font-medium">{waktuSapaan},</p>
+                <h1 className={`text-xl sm:text-2xl lg:text-3xl font-bold text-white leading-tight break-words ${teachersFont.className}`}>
+                  {guruNama}
+                </h1>
+                {guruSpesialisasi && (
+                  <p className="text-[11px] sm:text-xs text-blue-200/80 font-medium truncate mt-0.5">{guruSpesialisasi}</p>
+                )}
+              </div>
+            </div>
 
             <p className="text-slate-300 text-[12px] sm:text-sm leading-relaxed mt-2">
               {antrean.length > 0 ? (
@@ -174,18 +211,24 @@ export default function BerandaGuru() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5 w-full lg:w-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 w-full lg:w-auto">
+              <Link
+                href="/dashboard/guru/generator"
+                className="min-h-[44px] bg-white text-blue-900 hover:bg-blue-50 px-3.5 rounded-xl font-extrabold text-xs sm:text-[13px] shadow-sm transition-colors flex items-center justify-center gap-1.5 active:scale-[0.97]"
+              >
+                <BookOpen size={15} /> Buat Modul
+              </Link>
               <Link
                 href="/dashboard/guru/asesmen"
-                className="min-h-[44px] bg-blue-600 hover:bg-blue-500 text-white px-4 rounded-xl font-bold text-xs sm:text-[13px] shadow-sm transition-colors flex items-center justify-center gap-1.5 active:scale-[0.97]"
+                className="min-h-[44px] bg-blue-600 hover:bg-blue-500 text-white px-3.5 rounded-xl font-bold text-xs sm:text-[13px] shadow-sm transition-colors flex items-center justify-center gap-1.5 active:scale-[0.97]"
               >
-                <FileWarning size={15} /> Evaluasi
+                <BrainCircuit size={15} /> Soal CBT
               </Link>
               <Link
                 href="/dashboard/guru/kelas"
-                className="min-h-[44px] bg-white/10 hover:bg-white/20 border border-white/20 text-white px-4 rounded-xl font-bold text-xs sm:text-[13px] transition-colors flex items-center justify-center gap-1.5 active:scale-[0.97]"
+                className="col-span-2 sm:col-span-1 min-h-[44px] bg-white/10 hover:bg-white/20 border border-white/20 text-white px-3.5 rounded-xl font-bold text-xs sm:text-[13px] transition-colors flex items-center justify-center gap-1.5 active:scale-[0.97]"
               >
-                <BookOpen size={15} /> Data Kelas
+                <Users size={15} /> Kelas &amp; Prestasi
               </Link>
             </div>
           </div>
@@ -200,9 +243,9 @@ export default function BerandaGuru() {
         <StatCard title="Rata-rata Nilai" value={stats.rataRataKelas} icon={Activity} color="emerald" trend="Akademik" delay={0.2} />
       </section>
 
-      {/* ============== AKSI CEPAT (MOBILE) ============== */}
-      <nav aria-label="Akses cepat" className="lg:hidden -mx-4 px-4 sm:-mx-6 sm:px-6">
-        <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1 snap-x snap-mandatory">
+      {/* ============== AKSI CEPAT (MOBILE & TABLET) ============== */}
+      <nav aria-label="Akses cepat" className="lg:hidden">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           <QuickAction href="/dashboard/guru/generator" icon={BookOpen} label="Bahan Ajar" />
           <QuickAction href="/dashboard/guru/asesmen" icon={BrainCircuit} label="Asesmen" />
           <QuickAction href="/dashboard/guru/validasi" icon={FileCheck2} label="Validasi" />
@@ -362,31 +405,15 @@ function QuickAction({ href, icon: Icon, label }: { href: string; icon: LucideIc
   return (
     <Link
       href={href}
-      className="snap-start shrink-0 min-h-[44px] flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3.5 text-xs font-bold text-slate-700 shadow-sm hover:border-blue-300 hover:bg-blue-50/40 active:scale-[0.97] transition-all"
+      className="min-h-[46px] flex items-center justify-between gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 shadow-sm hover:border-blue-300 hover:bg-blue-50/40 active:scale-[0.97] transition-all min-w-0"
     >
-      <span className="p-1 rounded-lg bg-blue-50 text-blue-600">
-        <Icon size={14} />
+      <span className="flex items-center gap-2 min-w-0">
+        <span className="p-1.5 rounded-lg bg-blue-50 text-blue-600 shrink-0">
+          <Icon size={14} />
+        </span>
+        <span className="truncate">{label}</span>
       </span>
-      {label}
-      <ChevronRight size={14} className="text-slate-300" />
+      <ChevronRight size={14} className="text-slate-300 shrink-0" />
     </Link>
-  );
-}
-
-function BerandaSkeleton() {
-  return (
-    <div className="max-w-7xl mx-auto w-full space-y-4 md:space-y-5 animate-pulse" role="status" aria-label="Memuat portal akademik">
-      <div className="h-44 sm:h-40 rounded-2xl md:rounded-3xl bg-slate-200" />
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 md:gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-[104px] sm:h-[124px] rounded-2xl bg-slate-200" />
-        ))}
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-5">
-        <div className="lg:col-span-2 h-[300px] sm:h-[360px] rounded-2xl bg-slate-200" />
-        <div className="h-[240px] lg:h-[360px] rounded-2xl bg-slate-200" />
-      </div>
-      <span className="sr-only">Memuat Portal Akademik...</span>
-    </div>
   );
 }

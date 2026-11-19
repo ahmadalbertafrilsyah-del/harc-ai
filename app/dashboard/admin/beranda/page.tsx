@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import {
   Users, Server, BrainCircuit, Activity, AlertTriangle,
-  Loader2, Database, AlertCircle,
+  Database, AlertCircle,
   BellRing, ArrowRight, Clock, HardDrive, Cpu, Check
 } from "lucide-react";
 import { Teachers } from "next/font/google";
@@ -12,6 +12,7 @@ import Link from "next/link";
 
 import { db } from "@/lib/firebase"; 
 import { doc, collection, onSnapshot, query, orderBy, limit, where } from "firebase/firestore";
+import { MemuatHalaman } from "@/components/Memuat";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -80,22 +81,11 @@ export default function BerandaAdmin() {
   }, []);
 
   if (isLoading) {
-    return (
-      <div className="w-full h-[70vh] flex flex-col items-center justify-center text-slate-600" role="status" aria-live="polite">
-        <motion.div 
-          animate={{ rotate: 360 }} 
-          transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-        >
-          <Loader2 size={40} className="text-indigo-600 mb-4" aria-hidden="true" />
-        </motion.div>
-        <p className="font-bold text-lg text-slate-800">Memuat Sistem...</p>
-        <p className="text-xs text-slate-500 mt-1">Menghubungkan ke database utama</p>
-      </div>
-    );
+    return <MemuatHalaman label="Memuat Sistem..." subLabel="Menghubungkan ke database utama" />;
   }
 
   return (
-    <motion.main initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-7xl mx-auto space-y-6 pb-12">
+    <motion.main initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-7xl mx-auto space-y-5 md:space-y-6 pb-4">
       
       {/* HEADER DESKTOP */}
       <header className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-5">
@@ -149,122 +139,84 @@ export default function BerandaAdmin() {
         </motion.section>
       )}
 
-      {/* METRIK UTAMA: DESKTOP (Grid Standar) */}
-      <section className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Pendidik</p>
-              <h3 className={`text-3xl font-black text-slate-800 mt-1 ${teachersFont.className}`}>{systemStats.totalGuru}</h3>
+      {/* METRIK UTAMA: SIMETRIS DI SEMUA UKURAN LAYAR (2x2 Mobile/Tablet, 1x4 Desktop) */}
+      <section aria-label="Metrik utama sistem" className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div className="flex justify-between items-start gap-2 mb-2.5 sm:mb-3">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider truncate">Total Pendidik</p>
+              <h3 className={`text-2xl sm:text-3xl font-black text-slate-800 mt-1 tabular-nums ${teachersFont.className}`}>{systemStats.totalGuru}</h3>
             </div>
-            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl"><Users size={20} /></div>
+            <div className="p-2 sm:p-2.5 bg-blue-50 text-blue-600 rounded-xl shrink-0"><Users size={18} /></div>
           </div>
-          <p className="text-xs text-slate-500">Akun aktif terdaftar</p>
+          <p className="text-[11px] sm:text-xs text-slate-500 truncate">Akun aktif terdaftar</p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Peserta Didik</p>
-              <h3 className={`text-3xl font-black text-slate-800 mt-1 ${teachersFont.className}`}>{systemStats.totalSiswa}</h3>
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div className="flex justify-between items-start gap-2 mb-2.5 sm:mb-3">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider truncate">Peserta Didik</p>
+              <h3 className={`text-2xl sm:text-3xl font-black text-slate-800 mt-1 tabular-nums ${teachersFont.className}`}>{systemStats.totalSiswa}</h3>
             </div>
-            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl"><Users size={20} /></div>
+            <div className="p-2 sm:p-2.5 bg-emerald-50 text-emerald-600 rounded-xl shrink-0"><Users size={18} /></div>
           </div>
-          <p className="text-xs text-slate-500">Siswa tersinkronisasi</p>
+          <p className="text-[11px] sm:text-xs text-slate-500 truncate">Siswa tersinkronisasi</p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Modul</p>
-              <h3 className={`text-3xl font-black text-slate-800 mt-1 ${teachersFont.className}`}>{systemStats.totalModul}</h3>
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div className="flex justify-between items-start gap-2 mb-2.5 sm:mb-3">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider truncate">Total Modul</p>
+              <h3 className={`text-2xl sm:text-3xl font-black text-slate-800 mt-1 tabular-nums ${teachersFont.className}`}>{systemStats.totalModul}</h3>
             </div>
-            <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl"><Database size={20} /></div>
+            <div className="p-2 sm:p-2.5 bg-purple-50 text-purple-600 rounded-xl shrink-0"><Database size={18} /></div>
           </div>
-          <p className="text-xs text-slate-500">Digenerate otomatis AI</p>
+          <p className="text-[11px] sm:text-xs text-slate-500 truncate">Digenerate otomatis AI</p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm relative overflow-hidden">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-indigo-100 shadow-sm relative overflow-hidden flex flex-col justify-between">
           <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-600"></div>
-          <div className="flex justify-between items-start mb-3 pl-2">
-            <div>
-              <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Token AI Terpakai</p>
-              <h3 className={`text-3xl font-black text-slate-800 mt-1 ${teachersFont.className}`}>
+          <div className="flex justify-between items-start gap-2 mb-2.5 sm:mb-3 pl-1.5 sm:pl-2">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs font-bold text-indigo-700 uppercase tracking-wider truncate">Token AI Terpakai</p>
+              <h3 className={`text-2xl sm:text-3xl font-black text-slate-800 mt-1 tabular-nums ${teachersFont.className}`}>
                 {systemStats.aiTokens >= 1000000 ? `${(systemStats.aiTokens / 1000000).toFixed(1)}M` : systemStats.aiTokens.toLocaleString('id-ID')}
               </h3>
             </div>
-            <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl"><BrainCircuit size={20} /></div>
+            <div className="p-2 sm:p-2.5 bg-indigo-50 text-indigo-600 rounded-xl shrink-0"><BrainCircuit size={18} /></div>
           </div>
-          <p className="text-xs text-slate-500 pl-2">Kapasitas API aktif</p>
+          <p className="text-[11px] sm:text-xs text-slate-500 pl-1.5 sm:pl-2 truncate">Kapasitas API aktif</p>
         </div>
       </section>
 
-      {/* METRIK UTAMA: MOBILE (Swipeable Cards ala App) */}
-      <div className="md:hidden">
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1">Metrik Utama</h3>
-        <div className="flex overflow-x-auto gap-3 pb-2 snap-x scrollbar-none" style={{ scrollbarWidth: 'none' }}>
-          <div className="snap-start shrink-0 w-36 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between h-32">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-blue-50 text-blue-600"><Users size={18} /></div>
-            <div>
-              <p className={`text-2xl font-black text-slate-800 ${teachersFont.className}`}>{systemStats.totalGuru}</p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pendidik</p>
-            </div>
-          </div>
-          <div className="snap-start shrink-0 w-36 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between h-32">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-emerald-50 text-emerald-600"><Users size={18} /></div>
-            <div>
-              <p className={`text-2xl font-black text-slate-800 ${teachersFont.className}`}>{systemStats.totalSiswa}</p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Siswa</p>
-            </div>
-          </div>
-          <div className="snap-start shrink-0 w-36 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between h-32">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-purple-50 text-purple-600"><Database size={18} /></div>
-            <div>
-              <p className={`text-2xl font-black text-slate-800 ${teachersFont.className}`}>{systemStats.totalModul}</p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Modul</p>
-            </div>
-          </div>
-          <div className="snap-start shrink-0 w-40 bg-white p-4 rounded-2xl shadow-sm border border-indigo-100 flex flex-col justify-between h-32 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-600"></div>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-indigo-50 text-indigo-600 pl-0.5"><BrainCircuit size={18} /></div>
-            <div className="pl-0.5">
-              <p className={`text-xl font-black text-slate-800 ${teachersFont.className}`}>
-                {systemStats.aiTokens >= 1000000 ? `${(systemStats.aiTokens / 1000000).toFixed(1)}M` : systemStats.aiTokens.toLocaleString('id-ID')}
-              </p>
-              <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Token AI</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* QUICK ACTIONS MOBILE */}
       <div className="md:hidden grid grid-cols-2 gap-3">
-        <Link href="/dashboard/admin/pengguna" className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3 active:scale-95 transition-transform">
-          <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl"><Users size={20} /></div>
-          <div>
-            <p className="text-xs font-bold text-slate-800">Pengguna</p>
-            <p className="text-[10px] text-slate-400">Kelola akun</p>
+        <Link href="/dashboard/admin/pengguna" className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3 active:scale-95 transition-transform">
+          <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl shrink-0"><Users size={19} /></div>
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-slate-800 truncate">Pengguna</p>
+            <p className="text-[10px] text-slate-400 truncate">Kelola akun</p>
           </div>
         </Link>
-        <Link href="/dashboard/admin/korpus" className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3 active:scale-95 transition-transform">
-          <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl"><Database size={20} /></div>
-          <div>
-            <p className="text-xs font-bold text-slate-800">Korpus AI</p>
-            <p className="text-[10px] text-slate-400">Database teks</p>
+        <Link href="/dashboard/admin/korpus" className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3 active:scale-95 transition-transform">
+          <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl shrink-0"><Database size={19} /></div>
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-slate-800 truncate">Korpus AI</p>
+            <p className="text-[10px] text-slate-400 truncate">Database teks</p>
           </div>
         </Link>
       </div>
 
       {/* LOG AKTIVITAS & KESEHATAN SISTEM */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         
         {/* LOG SISTEM */}
         <section className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden lg:col-span-2">
-          <header className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <header className="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
             <h2 className={`text-sm md:text-base font-bold text-slate-900 flex items-center gap-2 ${teachersFont.className}`}>
               <Activity size={18} className="text-indigo-600" /> Log Aktivitas AI Terbaru
             </h2>
-            <Link href="/dashboard/admin/logs" className="text-xs font-bold text-indigo-600 hover:underline">
+            <Link href="/dashboard/admin/logs" className="text-xs font-bold text-indigo-600 hover:underline shrink-0">
               Lihat Semua
             </Link>
           </header>
@@ -273,7 +225,7 @@ export default function BerandaAdmin() {
             {aktivitasTerbaru.length > 0 ? (
               <ul className="divide-y divide-slate-50">
                 {aktivitasTerbaru.map((log: any) => (
-                  <li key={log.id} className="p-3.5 hover:bg-slate-50 rounded-xl transition-colors flex items-center justify-between gap-3">
+                  <li key={log.id} className="p-3 sm:p-3.5 hover:bg-slate-50 rounded-xl transition-colors flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${log.status === "Sukses" || log.status === "sukses" ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
                         {log.status === "Sukses" || log.status === "sukses" ? <Check size={16} strokeWidth={3} /> : <AlertTriangle size={16} />}
@@ -290,7 +242,7 @@ export default function BerandaAdmin() {
                 ))}
               </ul>
             ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+              <div className="flex flex-col items-center justify-center py-14 text-slate-400">
                 <AlertCircle size={32} className="mb-2 opacity-50" />
                 <p className="text-xs font-medium">Belum ada aktivitas terekam.</p>
               </div>
@@ -298,37 +250,35 @@ export default function BerandaAdmin() {
           </div>
         </section>
 
-        {/* STATUS LAYANAN (DESKTOP) */}
-        <div className="hidden lg:flex flex-col space-y-6">
+        {/* STATUS LAYANAN (Tampil rapi di semua perangkat) */}
+        <div className="flex flex-col space-y-4">
           <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-1">
-            <header className="px-5 py-4 border-b border-slate-100 bg-slate-50">
-              <h2 className={`text-base font-bold text-slate-900 flex items-center gap-2 ${teachersFont.className}`}>
+            <header className="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-100 bg-slate-50">
+              <h2 className={`text-sm md:text-base font-bold text-slate-900 flex items-center gap-2 ${teachersFont.className}`}>
                 <Activity size={18} className="text-blue-600" /> Status Layanan Inti
               </h2>
             </header>
-            <div className="p-5 space-y-5">
-              {/* Firebase Database: halaman ini hanya ter-render setelah data berhasil dimuat, jadi koneksi DB pasti aktif */}
+            <div className="p-4 sm:p-5 space-y-4 sm:space-y-5">
               <div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><HardDrive size={14} className="text-slate-400"/> Firebase Database</span>
-                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 flex items-center gap-1"><Check size={10} strokeWidth={3}/> Terhubung</span>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><HardDrive size={14} className="text-slate-400 shrink-0"/> Firebase Database</span>
+                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 flex items-center gap-1 shrink-0"><Check size={10} strokeWidth={3}/> Terhubung</span>
                 </div>
               </div>
 
-              {/* Mesin LLM Utama: status pill mengikuti statusEngine nyata dari Firestore */}
               <div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><Cpu size={14} className="text-slate-400"/> Mesin LLM Utama</span>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><Cpu size={14} className="text-slate-400 shrink-0"/> Mesin LLM Utama</span>
                   {statusEngine.toLowerCase() === "online" ? (
-                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 flex items-center gap-1"><Check size={10} strokeWidth={3}/> {statusEngine}</span>
+                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 flex items-center gap-1 shrink-0"><Check size={10} strokeWidth={3}/> {statusEngine}</span>
                   ) : (
-                    <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 flex items-center gap-1"><AlertTriangle size={10}/> {statusEngine}</span>
+                    <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 flex items-center gap-1 shrink-0"><AlertTriangle size={10}/> {statusEngine}</span>
                   )}
                 </div>
               </div>
 
               <div className="flex items-center gap-2 pt-3 border-t border-slate-100 text-slate-400 text-xs">
-                <Clock size={14} />
+                <Clock size={14} className="shrink-0" />
                 <span>Sinkronisasi otomatis aktif</span>
               </div>
             </div>

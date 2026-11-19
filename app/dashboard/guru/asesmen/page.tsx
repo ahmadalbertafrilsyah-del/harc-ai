@@ -29,6 +29,7 @@ import EditorSoal from "@/components/asesmen/EditorSoal";
 import PanelCetak from "@/components/asesmen/PanelCetak";
 import PanelKoreksi from "@/components/asesmen/PanelKoreksi";
 import EditorDokumen from "@/components/EditorDokumen";
+import { MemuatHalaman, OverlayProses } from "@/components/Memuat";
 
 import { useKopLembaga, kopTerisi } from "@/lib/kop";
 import {
@@ -134,11 +135,17 @@ export default function ModulAsesmenGuru() {
   /* ----------------------------- MUAT DATA -------------------------- */
 
   useEffect(() => {
+    let unsubProfil: (() => void) | undefined;
+    let unsubRiwayat: (() => void) | undefined;
+    let unsubKelas: (() => void) | undefined;
     const unsub = onAuthStateChanged(getAuth(), (user) => {
+      unsubProfil?.(); unsubProfil = undefined;
+      unsubRiwayat?.(); unsubRiwayat = undefined;
+      unsubKelas?.(); unsubKelas = undefined;
       if (!user) { window.location.href = "/login"; return; }
       setUserUid(user.uid);
 
-      const unsubProfil = onSnapshot(doc(db, "users", user.uid), (snap) => {
+      unsubProfil = onSnapshot(doc(db, "users", user.uid), (snap) => {
         if (!snap.exists()) return;
         const data = snap.data();
         setUserName(data.nama || "Pendidik");
@@ -151,14 +158,14 @@ export default function ModulAsesmenGuru() {
         where("userId", "==", user.uid),
         orderBy("createdAt", "desc")
       );
-      const unsubRiwayat = onSnapshot(qRiwayat, (snapshot) => {
+      unsubRiwayat = onSnapshot(qRiwayat, (snapshot) => {
         const semua = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as any);
         setRiwayatAsesmen(semua.filter((d) => /Asesmen|Bank Soal|Kisi/.test(String(d.tipe || ""))));
         setModulAjarList(semua.filter((d) => /Modul Ajar|Bahan Ajar|LKPD|RPP/.test(String(d.tipe || ""))));
         setIsLoading(false);
       });
 
-      const unsubKelas = onSnapshot(
+      unsubKelas = onSnapshot(
         query(collection(db, "manajemen_kelas"), where("guruId", "==", user.uid)),
         (snap) => {
           const daftar = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as any);
@@ -166,10 +173,8 @@ export default function ModulAsesmenGuru() {
           setKelasAktifId((prev) => prev || daftar[0]?.id || "");
         }
       );
-
-      return () => { unsubProfil(); unsubRiwayat(); unsubKelas(); };
     });
-    return () => unsub();
+    return () => { unsub(); unsubProfil?.(); unsubRiwayat?.(); unsubKelas?.(); };
   }, []);
 
   // Daftar ujian mengikuti kelas terpilih.
@@ -491,6 +496,7 @@ export default function ModulAsesmenGuru() {
       const ref = await addDoc(collection(db, "bank_soal"), {
         kelasId: kelasAktifId,
         guruId: userUid,
+        npsn: npsnGuru || "",
         pengaturan: {
           judul: formUjian.judul.trim(),
           jenisUjian: formUjian.jenisUjian,
@@ -589,7 +595,7 @@ export default function ModulAsesmenGuru() {
     .replace(/\[TIPE:(.*?)\]\n?/gi, "**Tipe Soal:** $1\n\n")
     .replace(/\[KUNCI:([\s\S]*?)\]\n?/gi, "\n> **Kunci Jawaban:** $1\n\n");
 
-  if (isLoading) return <KerangkaMuat />;
+  if (isLoading) return <MemuatHalaman label="Memuat Pusat Asesmen..." />;
 
   return (
     <motion.main
@@ -654,7 +660,7 @@ export default function ModulAsesmenGuru() {
             Menyusun kisi-kisi & bank soal, menyelenggarakan E-Ujian (CBT), mencetak naskah dan LJK, hingga koreksi.
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
           <button onClick={() => setShowKoleksi(true)} className="flex-1 sm:flex-none min-h-[40px] flex items-center justify-center gap-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-3.5 rounded-xl text-xs font-bold shadow-sm transition-colors">
             <History size={14} /> Koleksi
           </button>
@@ -710,8 +716,8 @@ export default function ModulAsesmenGuru() {
                   <Bidang label="Mata Pelajaran">
                     <input type="text" required placeholder="Cth: Matematika" value={formData.mapel} onChange={(e) => setFormData({ ...formData, mapel: e.target.value })} className={gayaInput} />
                   </Bidang>
-                  <Bidang label="Kompetensi Dasar / Topik">
-                    <textarea required rows={3} placeholder="Materi atau KD yang akan diujikan..." value={formData.kompetensiDasar} onChange={(e) => setFormData({ ...formData, kompetensiDasar: e.target.value })} className={`${gayaInput} py-2.5 resize-y`} />
+                  <Bidang label="Capaian / Tujuan Pembelajaran / Topik">
+                    <textarea required rows={3} placeholder="Materi, TP, atau CP yang akan diujikan..." value={formData.kompetensiDasar} onChange={(e) => setFormData({ ...formData, kompetensiDasar: e.target.value })} className={`${gayaInput} py-2.5 resize-y`} />
                   </Bidang>
                 </div>
 
@@ -771,13 +777,13 @@ export default function ModulAsesmenGuru() {
                   {([
                     ["pg", "PG"], ["bs", "B/S"], ["jodoh", "Jodoh"], ["isian", "Isian"], ["uraian", "Esai"],
                   ] as const).map(([kunci, label]) => (
-                    <div key={kunci} className="text-center">
-                      <label className="block text-[10px] font-bold text-slate-600 mb-1.5">{label}</label>
+                    <div key={kunci} className="text-center min-w-0">
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1.5 truncate">{label}</label>
                       <input
                         type="number" min="0" inputMode="numeric"
                         value={jumlah[kunci]}
                         onChange={(e) => setJumlah({ ...jumlah, [kunci]: e.target.value })}
-                        className="w-full min-h-[42px] text-center border border-slate-300 rounded-lg text-[13px] font-bold outline-none focus:border-blue-500 bg-white"
+                        className="w-full min-h-[42px] px-1 text-center border border-slate-300 rounded-lg text-[13px] font-bold outline-none focus:border-blue-500 bg-white"
                       />
                     </div>
                   ))}
@@ -805,7 +811,7 @@ export default function ModulAsesmenGuru() {
                 </div>
               </div>
               {hasil && (
-                <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0 lg:flex-wrap">
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 w-full lg:w-auto">
                   <TombolEkspor onClick={handleDownloadWord} ikon={FileDown} label="Word" />
                   <TombolEkspor onClick={() => handleExportToGoogle("Docs")} ikon={Cloud} label="G-Docs" nuansa="blue" />
                   <TombolEkspor onClick={handlePrintPDF} ikon={Printer} label="Cetak PDF" />
@@ -830,7 +836,7 @@ export default function ModulAsesmenGuru() {
                   />
                   <button
                     onClick={() => setEditorBuka(true)}
-                    className="shrink-0 min-h-[40px] px-3.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors border shadow-sm bg-slate-900 hover:bg-slate-800 text-white border-slate-900"
+                    className="col-span-2 sm:col-span-1 shrink-0 min-h-[40px] px-3.5 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors border shadow-sm bg-slate-900 hover:bg-slate-800 text-white border-slate-900"
                   >
                     <Pencil size={15} /> Edit Dokumen
                   </button>
@@ -845,26 +851,18 @@ export default function ModulAsesmenGuru() {
               </div>
             )}
 
-            <div className="bg-slate-100 p-3 sm:p-5 md:p-8 relative min-h-[360px]">
+            <div className="bg-slate-100 p-2 sm:p-5 md:p-8 relative min-h-[360px]">
               {isGenerating ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/92 backdrop-blur-sm z-10 px-6 text-center">
-                  <div className="relative w-16 h-16 flex items-center justify-center mb-5">
-                    <div className="absolute inset-0 border-4 border-slate-200 rounded-full" />
-                    <div className="absolute inset-0 border-4 border-slate-800 rounded-full border-t-transparent animate-spin" />
-                    <Bot size={22} className="text-slate-800" />
-                  </div>
-                  <p className="font-bold text-slate-800 text-sm sm:text-base uppercase tracking-widest">
-                    {progresGambar ? "Membuat Ilustrasi..." : "Menyusun Soal & Kisi-Kisi..."}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-2 max-w-sm leading-relaxed">
-                    {progresGambar
-                      ? `Gambar ${Math.min(progresGambar.selesai + 1, progresGambar.total)} dari ${progresGambar.total}`
-                      : "Memastikan keselarasan sosiokultural pada setiap butir soal."}
-                  </p>
-                </div>
+                <OverlayProses
+                  judul={progresGambar ? "Membuat Ilustrasi..." : "Menyusun Soal & Kisi-Kisi..."}
+                  keterangan={progresGambar
+                    ? `Gambar ${Math.min(progresGambar.selesai + 1, progresGambar.total)} dari ${progresGambar.total}`
+                    : "Memastikan keselarasan sosiokultural pada setiap butir soal."}
+                  progres={progresGambar}
+                />
               ) : hasil ? (
-                <div className="bg-white shadow-lg border border-slate-300 p-4 sm:p-8 md:p-12 mx-auto max-w-4xl overflow-x-auto">
-                  <div ref={pdfRef} className="markdown-body">
+                <div className="bg-white shadow-lg border border-slate-300 rounded-xl sm:rounded-none p-3.5 sm:p-8 md:p-12 mx-auto w-full max-w-4xl overflow-hidden">
+                  <div ref={pdfRef} className="markdown-body w-full max-w-full">
                     <style>{gayaKanvas}</style>
                     {kontenHtml ? (
                       <div dangerouslySetInnerHTML={{ __html: bersihkanSvg(kontenHtml) }} />
@@ -1097,7 +1095,7 @@ export default function ModulAsesmenGuru() {
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm sm:p-4">
             <motion.div
               initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
-              className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+              className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90dvh] overflow-hidden"
             >
               <div className="flex justify-between items-center p-4 border-b border-slate-200 bg-slate-50">
                 <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2"><ClipboardList size={16} className="text-blue-600" /> Ujian Baru</h3>
@@ -1195,7 +1193,7 @@ function ModalBank({
         <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm sm:p-4">
           <motion.div
             initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
-            className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
+            className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[85dvh] overflow-hidden"
           >
             <div className="p-4 border-b border-slate-200 bg-gradient-to-br from-emerald-50 to-white flex items-start justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -1240,22 +1238,30 @@ const gayaInput =
   "w-full min-h-[44px] px-3 bg-white border border-slate-300 rounded-xl text-[13px] font-medium text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all";
 
 const gayaKanvas = `
-  .markdown-body { font-family: 'Times New Roman', Times, serif !important; font-size: 13px; line-height: 1.55 !important; color: #000; text-align: justify; }
-  @media (min-width: 768px) { .markdown-body { font-size: 12pt; } }
-  .markdown-body p { margin-bottom: 8pt; text-align: justify; }
-  .markdown-body table { width: 100%; border-collapse: collapse; margin-top: 12pt; margin-bottom: 12pt; word-wrap: break-word; }
-  .markdown-body th, .markdown-body td { border: 1pt solid #000; padding: 6pt 8pt; text-align: left; vertical-align: top; overflow-wrap: break-word; font-size: 11pt; }
+  .markdown-body { font-family: 'Times New Roman', Times, serif !important; font-size: 11.5px; line-height: 1.5 !important; color: #000; text-align: left; max-width: 100%; overflow-wrap: break-word; word-break: normal; }
+  @media (min-width: 640px) { .markdown-body { font-size: 13px; line-height: 1.55 !important; } }
+  @media (min-width: 768px) { .markdown-body { font-size: 12pt; text-align: justify; } }
+  .markdown-body p { margin-bottom: 6pt; }
+  @media (min-width: 640px) { .markdown-body p { margin-bottom: 8pt; } }
+  .markdown-body table { width: 100%; border-collapse: collapse; margin-top: 10pt; margin-bottom: 10pt; }
+  .markdown-body th, .markdown-body td { border: 1pt solid #000; padding: 4px 5px; text-align: left; vertical-align: top; overflow-wrap: break-word; word-break: normal; font-size: 10.5px; line-height: 1.4; }
+  @media (min-width: 640px) { .markdown-body th, .markdown-body td { padding: 6pt 8pt; font-size: 11pt; line-height: 1.5; } }
   .markdown-body th { background-color: #f2f2f2; font-weight: bold; text-align: center; }
   .markdown-body tr { page-break-inside: avoid; }
-  .markdown-body h1 { font-size: 1.16em; font-weight: bold; text-align: center; margin-bottom: 14pt; text-transform: uppercase; }
-  .markdown-body h2 { font-size: 1.06em; margin-top: 14pt; margin-bottom: 7pt; font-weight: bold; text-transform: uppercase; text-align: left; }
-  .markdown-body h3 { font-size: 1em; margin-top: 11pt; margin-bottom: 5pt; font-weight: bold; text-align: left; }
-  .markdown-body ul, .markdown-body ol { padding-left: 22pt; margin-bottom: 11pt; margin-top: 4pt; text-align: justify; }
-  .markdown-body li { margin-bottom: 4pt; text-align: justify; }
+  .markdown-body h1 { font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 10pt; text-transform: uppercase; }
+  .markdown-body h2 { font-size: 12px; margin-top: 12pt; margin-bottom: 6pt; font-weight: bold; text-transform: uppercase; text-align: left; }
+  .markdown-body h3 { font-size: 11.5px; margin-top: 9pt; margin-bottom: 4pt; font-weight: bold; text-align: left; }
+  @media (min-width: 640px) {
+    .markdown-body h1 { font-size: 1.16em; margin-bottom: 14pt; }
+    .markdown-body h2 { font-size: 1.06em; margin-top: 14pt; margin-bottom: 7pt; }
+    .markdown-body h3 { font-size: 1em; margin-top: 11pt; margin-bottom: 5pt; }
+  }
+  .markdown-body ul, .markdown-body ol { padding-left: 16px; margin-bottom: 9pt; margin-top: 3pt; }
+  @media (min-width: 640px) { .markdown-body ul, .markdown-body ol { padding-left: 22pt; margin-bottom: 11pt; } }
+  .markdown-body li { margin-bottom: 3pt; }
   .markdown-body blockquote { border-left: 4px solid #3b82f6; background-color: #eff6ff; padding: 8px 14px; margin-bottom: 14px; font-style: italic; color: #1e3a8a; border-radius: 4px; }
   .markdown-body img, .markdown-body svg { max-width: 100%; height: auto; display: block; margin: 10px auto; page-break-inside: avoid; }
-  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; margin-bottom: 12pt; }
-  @media (max-width: 768px) { .markdown-body table { min-width: 560px; } }
+  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-width: 100%; margin-bottom: 10pt; }
   .kop-surat table, .kop-surat td { border: none !important; }
 `;
 
@@ -1301,7 +1307,7 @@ function TombolEkspor({
     emerald: "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200",
   }[nuansa];
   return (
-    <button onClick={onClick} className={`shrink-0 min-h-[40px] px-3.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors border shadow-sm ${gaya}`}>
+    <button onClick={onClick} className={`shrink-0 min-h-[40px] px-3.5 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors border shadow-sm ${gaya}`}>
       <Ikon size={15} /> {label}
     </button>
   );
@@ -1461,7 +1467,7 @@ function ModalKoleksi({
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm sm:p-4">
           <motion.div
             initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
-            className="bg-white w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
+            className="bg-white w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[85dvh] overflow-hidden"
           >
             <div className="flex justify-between items-center p-4 border-b border-slate-200 bg-slate-50">
               <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2"><History size={16} className="text-blue-600" /> {judul}</h3>
@@ -1536,17 +1542,6 @@ function StatusKop({ kop, npsn, lembagaDitemukan }: { kop: any; npsn: string; le
       <p className="leading-relaxed">
         Kop resmi <span className="font-bold">{kop.namaLembaga}</span> terpasang otomatis pada naskah soal, kunci jawaban, dan LJK.
       </p>
-    </div>
-  );
-}
-
-function KerangkaMuat() {
-  return (
-    <div className="max-w-7xl mx-auto w-full space-y-4 animate-pulse" role="status" aria-label="Memuat pusat asesmen">
-      <div className="h-20 rounded-2xl bg-slate-200" />
-      <div className="h-11 rounded-xl bg-slate-200" />
-      <div className="h-[320px] rounded-2xl bg-slate-200" />
-      <div className="h-[220px] rounded-2xl bg-slate-200" />
     </div>
   );
 }

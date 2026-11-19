@@ -2,14 +2,16 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  BookOpen, Key, Plus, Loader2, Users, CheckCircle2, ChevronLeft,
-  ArrowRight, Activity, Clock, Target, Send, Lightbulb, Sparkles
+  BookOpen, Key, Plus, Loader2, Users, CheckCircle2, ChevronLeft, ChevronRight,
+  ArrowRight, Activity, Clock, Target, Send, Lightbulb, Sparkles, Flag, Trophy, XCircle
 } from "lucide-react";
+import Link from "next/link";
 import { Teachers } from "next/font/google";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query, where, doc, getDoc, getDocs, updateDoc, arrayUnion, increment, addDoc, serverTimestamp } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { MemuatHalaman } from "@/components/Memuat";
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -90,6 +92,21 @@ export default function RuangKelasSiswa() {
   const [jumlahBantuanAI, setJumlahBantuanAI] = useState(0);
   const [hintMap, setHintMap] = useState<Record<string, string>>({});
   const [hintLoading, setHintLoading] = useState<string | null>(null);
+  const [raguMap, setRaguMap] = useState<Record<string, boolean>>({});
+  const [modeFokus, setModeFokus] = useState(false);
+  const [indeksFokus, setIndeksFokus] = useState(0);
+  const [hasilSelesai, setHasilSelesai] = useState<{
+    ujian: any;
+    jawaban: Record<string, any>;
+    nilai: number;
+    benar: number;
+    salah: number;
+    uraianCount: number;
+    xpDidapat: number;
+    waktuMnt: number;
+    kemandirian: string;
+    autoSubmit: boolean;
+  } | null>(null);
 
   // Inisialisasi Data Kelas
   useEffect(() => {
@@ -166,6 +183,8 @@ export default function RuangKelasSiswa() {
   // ==========================================
   // LOGIKA TIMER & UJIAN
   // ==========================================
+  const submitUjianRef = useRef<(autoSubmit?: boolean) => void>(() => {});
+
   useEffect(() => {
     if (!ujianAktif || isTimeUp || isSubmittingUjian || timeLeft <= 0) return;
 
@@ -174,7 +193,7 @@ export default function RuangKelasSiswa() {
         if (prev <= 1) {
           clearInterval(timer);
           setIsTimeUp(true);
-          submitUjian(true); // Otomatis Kumpul Saat Waktu Habis
+          submitUjianRef.current(true); // Otomatis Kumpul Saat Waktu Habis
           return 0;
         }
         return prev - 1;
@@ -200,6 +219,9 @@ export default function RuangKelasSiswa() {
     setJumlahBantuanAI(0);
     setHintMap({});
     setHintLoading(null);
+    setRaguMap({});
+    setIndeksFokus(0);
+    setHasilSelesai(null);
   };
 
   // Meminta PETUNJUK (bukan jawaban) dari AI. Setiap permintaan menambah
@@ -246,7 +268,7 @@ export default function RuangKelasSiswa() {
     });
   };
 
-  const submitUjian = async (autoSubmit = false) => {
+  const submitUjian = useCallback(async (autoSubmit = false) => {
     if (!autoSubmit) {
       const konfirmasi = confirm("Apakah kamu yakin ingin mengumpulkan jawaban ini? Kamu tidak bisa mengulanginya lagi.");
       if (!konfirmasi) return;
@@ -293,6 +315,10 @@ export default function RuangKelasSiswa() {
       });
 
       const nilaiAkhirCBT = maxSkor > 0 ? Math.round((totalSkor / maxSkor) * 100) : 0;
+      const waktuMnt = Math.max(1, Math.round(((ujianAktif.pengaturan.waktuMenit * 60) - timeLeft) / 60));
+      const kemandirian = jumlahBantuanAI === 0 ? "Mandiri" : jumlahBantuanAI <= 2 ? "Berkembang" : "Perlu Pendampingan";
+      const xpDidapat = Math.max(10, Math.round(nilaiAkhirCBT * 0.5) + (jumlahBantuanAI === 0 ? 15 : 0));
+      const uraianCount = (ujianAktif.soal || []).filter((s: any) => s.tipe === "Uraian" || (s.tipe === "Isian Singkat" && !(s.kunci || "").trim())).length;
 
       await addDoc(collection(db, "jawaban_siswa"), {
         uid: userUid,
@@ -313,23 +339,43 @@ export default function RuangKelasSiswa() {
         status: "Selesai",
         timestamp: serverTimestamp(),
         metadataAnalitik: {
-          waktuSelesaiMnt: Math.round(((ujianAktif.pengaturan.waktuMenit * 60) - timeLeft) / 60),
-          totalBantuanAI: jumlahBantuanAI, // dibaca guru/analitik (rata-rata bantuan)
-          jumlahBantuanAI, // alias untuk kompatibilitas
-          statusKemandirian:
-            jumlahBantuanAI === 0 ? "Mandiri" : jumlahBantuanAI <= 2 ? "Berkembang" : "Perlu Pendampingan",
+          waktuSelesaiMnt: waktuMnt,
+          totalBantuanAI: jumlahBantuanAI,
+          jumlahBantuanAI,
+          statusKemandirian: kemandirian,
         }
       });
 
-      alert(autoSubmit ? "Waktu habis! Jawaban otomatis dikumpulkan." : "Jawaban berhasil dikumpulkan! Selamat.");
-      setUjianAktif(null); // Keluar dari mode CBT
+      if (userUid) {
+        try {
+          await updateDoc(doc(db, "users", userUid), { xpPoints: increment(xpDidapat) });
+        } catch { /* abaikan jika update XP gagal */ }
+      }
+
+      setHasilSelesai({
+        ujian: ujianAktif,
+        jawaban: { ...jawaban },
+        nilai: nilaiAkhirCBT,
+        benar,
+        salah,
+        uraianCount,
+        xpDidapat,
+        waktuMnt,
+        kemandirian,
+        autoSubmit,
+      });
+      setUjianAktif(null);
     } catch (error) {
       console.error("Gagal mengirim jawaban:", error);
       alert("Terjadi kesalahan jaringan. Coba klik kumpulkan lagi.");
     } finally {
       setIsSubmittingUjian(false);
     }
-  };
+  }, [activeClass, jawaban, jumlahBantuanAI, profilSiswa.nama, profilSiswa.nisn, timeLeft, ujianAktif, userUid]);
+
+  useEffect(() => {
+    submitUjianRef.current = submitUjian;
+  }, [submitUjian]);
 
   const handleGabungKelas = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -352,12 +398,133 @@ export default function RuangKelasSiswa() {
     } catch { alert("Terjadi kesalahan sistem."); } finally { setIsJoining(false); }
   };
 
-  if (isLoading) return <div className="w-full h-[60vh] flex items-center justify-center"><Loader2 size={40} className="animate-spin text-emerald-600" /></div>;
+  if (isLoading) return <MemuatHalaman label="Memuat Ruang Kelas..." />;
+
+  // ==========================================
+  // TAMPILAN 3B: HASIL & PEMBAHASAN UJIAN INTERAKTIF
+  // ==========================================
+  if (hasilSelesai) {
+    const soalTotal = hasilSelesai.ujian?.soal || [];
+    const nilai = hasilSelesai.nilai;
+    const predikat =
+      nilai >= 85 ? "Sangat Baik — Istimewa"
+      : nilai >= 75 ? "Tuntas — Kompeten"
+      : "Perlu Latihan Lanjutan";
+
+    return (
+      <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="max-w-3xl mx-auto space-y-5 pb-6">
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-700 via-teal-800 to-slate-900 text-white p-6 sm:p-8 shadow-xl text-center space-y-4">
+          <div className="pointer-events-none absolute -top-16 -right-16 w-56 h-56 rounded-full bg-amber-300/20 blur-3xl" aria-hidden="true" />
+          <div className="relative z-10 space-y-3">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-bold text-emerald-100">
+              <Trophy size={14} className="text-amber-300" /> {hasilSelesai.autoSubmit ? "Waktu Habis — Otomatis Dikumpulkan" : "Ujian Selesai Dikumpulkan"}
+            </span>
+            <h1 className={`text-xl sm:text-2xl font-bold ${teachersFont.className}`}>{hasilSelesai.ujian?.pengaturan?.judul}</h1>
+
+            <div className="w-24 h-24 mx-auto rounded-full bg-white text-emerald-800 flex flex-col items-center justify-center shadow-lg ring-4 ring-emerald-400/40">
+              <span className={`text-3xl font-black leading-none tabular-nums ${teachersFont.className}`}>{nilai}</span>
+              <span className="text-[9px] font-extrabold uppercase tracking-widest text-slate-400 mt-1">Nilai CBT</span>
+            </div>
+
+            <p className="text-sm font-bold text-emerald-200">{predikat}</p>
+            <div className="inline-flex items-center gap-2 bg-amber-400/20 border border-amber-300/40 text-amber-200 px-4 py-1.5 rounded-full text-xs font-black">
+              <Sparkles size={14} className="text-amber-300" /> +{hasilSelesai.xpDidapat} XP Prestasi Diperoleh
+            </div>
+          </div>
+        </section>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+          <div className="bg-white p-3.5 rounded-2xl border border-slate-200 text-center">
+            <p className="text-lg font-black text-emerald-600 tabular-nums">{hasilSelesai.benar}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase">Jawaban Benar</p>
+          </div>
+          <div className="bg-white p-3.5 rounded-2xl border border-slate-200 text-center">
+            <p className="text-lg font-black text-rose-600 tabular-nums">{hasilSelesai.salah}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase">Belum Tepat</p>
+          </div>
+          <div className="bg-white p-3.5 rounded-2xl border border-slate-200 text-center">
+            <p className="text-lg font-black text-blue-600 tabular-nums">{hasilSelesai.waktuMnt} mnt</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase">Durasi</p>
+          </div>
+          <div className="bg-white p-3.5 rounded-2xl border border-slate-200 text-center">
+            <p className="text-xs sm:text-sm font-black text-slate-800 mt-1 truncate">{hasilSelesai.kemandirian}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">Kemandirian</p>
+          </div>
+        </div>
+
+        {hasilSelesai.uraianCount > 0 && (
+          <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-800 font-medium">
+            Terdapat <strong>{hasilSelesai.uraianCount} soal uraian/isian terbuka</strong> yang akan diperiksa oleh guru untuk nilai akhir di Raport.
+          </div>
+        )}
+
+        {/* Tinjauan Kunci Jawaban */}
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 space-y-3">
+          <h2 className={`text-sm sm:text-base font-bold text-slate-800 ${teachersFont.className}`}>Tinjauan Jawabanmu</h2>
+          <div className="space-y-2.5">
+            {soalTotal.map((s: any, idx: number) => {
+              const j = hasilSelesai.jawaban[s.id];
+              const isObj = s.tipe === "PG" || s.tipe === "Benar/Salah";
+              const benar = isObj ? j === s.kunci : null;
+              return (
+                <div key={s.id || idx} className={`p-3.5 rounded-xl border text-xs space-y-1.5 ${
+                  benar === true ? "bg-emerald-50/40 border-emerald-200"
+                  : benar === false ? "bg-rose-50/40 border-rose-200"
+                  : "bg-slate-50 border-slate-200"
+                }`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-bold text-slate-800">Soal {idx + 1} ({s.tipe})</span>
+                    {benar === true && <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700"><CheckCircle2 size={12} /> Benar</span>}
+                    {benar === false && <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700"><XCircle size={12} /> Salah</span>}
+                  </div>
+                  {s.tipe !== "Jodohkan" && (
+                    <p className="text-[11.5px] text-slate-600">
+                      Jawabanmu: <strong className="text-slate-900">{j || "—"}</strong>
+                      {s.kunci ? <> • Kunci: <strong className="text-emerald-700">{s.kunci}</strong></> : null}
+                    </p>
+                  )}
+                  {s.pembahasan && (
+                    <p className="text-[11px] text-slate-600 bg-white/80 p-2 rounded-lg border border-slate-200/70">
+                      <strong>Pembahasan:</strong> {s.pembahasan}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setHasilSelesai(null)}
+            className="min-h-[48px] bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+          >
+            <ChevronLeft size={16} /> Kembali ke Ruang Kelas
+          </button>
+          <Link
+            href="/dashboard/siswa/latihan"
+            className="min-h-[48px] bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-colors"
+          >
+            <Trophy size={16} /> Latihan Mandiri di Arena
+          </Link>
+        </div>
+      </motion.div>
+    );
+  }
 
   // ==========================================
   // TAMPILAN 3: MODE E-UJIAN (CBT) AKTIF
   // ==========================================
   if (ujianAktif) {
+    const daftarSoal = ujianAktif.soal || [];
+    const soalDitampilkan = modeFokus ? daftarSoal.slice(indeksFokus, indeksFokus + 1) : daftarSoal;
+
+    const cekTerisi = (s: any) =>
+      s.tipe === "Jodohkan"
+        ? Boolean(jawaban[s.id] && Object.keys(jawaban[s.id]).length === s.pasangan?.length)
+        : Boolean(jawaban[s.id] !== undefined && jawaban[s.id] !== null && String(jawaban[s.id]).trim() !== "");
+
     return (
       <div className="fixed inset-0 z-[60] flex flex-col bg-slate-100">
 
@@ -391,37 +558,84 @@ export default function RuangKelasSiswa() {
             </div>
           </div>
 
-          {/* Bilah progres pengerjaan */}
-          <div className="flex items-center gap-2.5">
-            <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-              <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${progresUjian.persen}%` }} />
-            </div>
-            {jumlahBantuanAI > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full shrink-0">
-                <Sparkles size={11} /> {jumlahBantuanAI}
+          {/* Bilah progres + Navigator Soal */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-1 min-w-[140px]">
+              <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${progresUjian.persen}%` }} />
+              </div>
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 tabular-nums shrink-0">
+                {progresUjian.terisi}/{progresUjian.total}
               </span>
-            )}
-            <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 tabular-nums shrink-0">
-              {progresUjian.terisi}/{progresUjian.total} terjawab
-            </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              {jumlahBantuanAI > 0 && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                  <Sparkles size={11} /> {jumlahBantuanAI}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => setModeFokus((v) => !v)}
+                className={`text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-colors ${
+                  modeFokus ? "bg-blue-600 text-white border-blue-600" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                {modeFokus ? "Mode: 1 Soal" : "Mode: Semua Soal"}
+              </button>
+            </div>
+          </div>
+
+          {/* Pita Navigator Nomor Soal */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5 pb-0.5">
+            {daftarSoal.map((s: any, idx: number) => {
+              const terisi = cekTerisi(s);
+              const ragu = Boolean(raguMap[s.id]);
+              const aktif = modeFokus && indeksFokus === idx;
+              return (
+                <button
+                  key={s.id || idx}
+                  type="button"
+                  onClick={() => {
+                    if (modeFokus) {
+                      setIndeksFokus(idx);
+                    } else {
+                      document.getElementById(`soal-card-${idx}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }
+                  }}
+                  className={`w-7 h-7 rounded-lg text-[11px] font-bold shrink-0 border transition-all ${
+                    aktif ? "ring-2 ring-blue-500 ring-offset-1 " : ""
+                  }${
+                    ragu ? "bg-amber-100 border-amber-400 text-amber-800"
+                    : terisi ? "bg-emerald-500 border-emerald-600 text-white"
+                    : "bg-white border-slate-300 text-slate-600 hover:border-blue-400"
+                  }`}
+                >
+                  {idx + 1}
+                </button>
+              );
+            })}
           </div>
         </header>
 
         {/* Kanvas Soal */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 pb-10">
+        <main className="flex-1 overflow-y-auto p-3.5 sm:p-5 md:p-8 lg:p-10 pb-10">
           <div className="max-w-3xl mx-auto space-y-4 md:space-y-5">
-            {ujianAktif.soal?.map((soal: any, index: number) => {
-              
-              // Opsi Kanan untuk Jodohkan — urutan stabil (tidak berubah tiap render)
+            {soalDitampilkan.map((soal: any, loopIdx: number) => {
+              const index = modeFokus ? indeksFokus : loopIdx;
               const opsiKananAcak = soal.tipe === "Jodohkan" ? (petaOpsiJodohkan[soal.id] || []) : [];
+              const terisi = cekTerisi(soal);
+              const ragu = Boolean(raguMap[soal.id]);
 
               return (
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.04, 0.3) }}
+                  id={`soal-card-${index}`}
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(loopIdx * 0.04, 0.25) }}
                   key={soal.id}
                   className="bg-white p-4 sm:p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200"
                 >
-                  <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+                  <div className="flex items-center justify-between gap-2 mb-4 border-b border-slate-100 pb-3">
                     <div className="flex items-center gap-2.5">
                       <span className="w-8 h-8 rounded-xl bg-blue-600 text-white font-black text-sm flex items-center justify-center shadow-sm">
                         {index + 1}
@@ -430,12 +644,22 @@ export default function RuangKelasSiswa() {
                         {soal.tipe}
                       </span>
                     </div>
-                    {/* Indikator terisi */}
-                    {((soal.tipe !== "Jodohkan" && jawaban[soal.id]) || (soal.tipe === "Jodohkan" && jawaban[soal.id] && Object.keys(jawaban[soal.id]).length === soal.pasangan?.length)) && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                        <CheckCircle2 size={12} /> Terisi
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setRaguMap((prev) => ({ ...prev, [soal.id]: !prev[soal.id] }))}
+                        className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
+                          ragu ? "bg-amber-100 border-amber-300 text-amber-800" : "bg-slate-50 border-slate-200 text-slate-500 hover:bg-amber-50"
+                        }`}
+                      >
+                        <Flag size={11} /> {ragu ? "Ragu-ragu" : "Tandai"}
+                      </button>
+                      {terisi && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full">
+                          <CheckCircle2 size={12} /> Terisi
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Render Pertanyaan (mendukung gambar SVG dari guru/AI) */}
@@ -517,14 +741,14 @@ export default function RuangKelasSiswa() {
                         {soal.pasangan?.map((pas: any, pIdx: number) => {
                           const dipilih = jawaban[soal.id]?.[pas.kiri] || "";
                           return (
-                            <div key={pIdx} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                            <div key={pIdx} className="flex items-center gap-2 sm:gap-3 bg-white p-2.5 sm:p-3 rounded-xl border border-slate-200 shadow-sm">
                               <span className="shrink-0 w-6 h-6 rounded-lg bg-slate-100 text-slate-500 font-bold text-[11px] flex items-center justify-center">{pIdx + 1}</span>
-                              <div className="flex-1 text-[13.5px] font-semibold text-slate-800 leading-snug min-w-0">{pas.kiri}</div>
+                              <div className="flex-1 text-[13px] sm:text-[13.5px] font-semibold text-slate-800 leading-snug min-w-0 break-words">{pas.kiri}</div>
                               <select
                                 value={dipilih}
                                 onChange={(e) => handleJodohkanChange(soal.id, pas.kiri, e.target.value)}
                                 aria-label={`Pasangan untuk pernyataan ${pIdx + 1}`}
-                                className={`shrink-0 w-[88px] p-2.5 bg-white border text-sm font-bold rounded-lg outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors ${
+                                className={`shrink-0 w-[72px] sm:w-[88px] p-2 sm:p-2.5 bg-white border text-sm font-bold rounded-lg outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors ${
                                   dipilih ? "border-blue-400 text-blue-800 bg-blue-50/60" : "border-slate-300 text-slate-400"
                                 }`}
                               >
@@ -577,6 +801,30 @@ export default function RuangKelasSiswa() {
                 </motion.div>
               );
             })}
+
+            {modeFokus && daftarSoal.length > 1 && (
+              <div className="flex items-center justify-between gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={indeksFokus === 0}
+                  onClick={() => setIndeksFokus((i) => Math.max(0, i - 1))}
+                  className="min-h-[44px] px-4 rounded-xl bg-white border border-slate-300 text-slate-700 text-xs font-bold flex items-center gap-1.5 disabled:opacity-40"
+                >
+                  <ChevronLeft size={15} /> Sebelumnya
+                </button>
+                <span className="text-xs font-bold text-slate-500 tabular-nums">
+                  {indeksFokus + 1} / {daftarSoal.length}
+                </span>
+                <button
+                  type="button"
+                  disabled={indeksFokus + 1 >= daftarSoal.length}
+                  onClick={() => setIndeksFokus((i) => Math.min(daftarSoal.length - 1, i + 1))}
+                  className="min-h-[44px] px-4 rounded-xl bg-blue-600 text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-40"
+                >
+                  Selanjutnya <ChevronRight size={15} />
+                </button>
+              </div>
+            )}
           </div>
         </main>
 
@@ -594,26 +842,26 @@ export default function RuangKelasSiswa() {
   // ==========================================
   if (activeClass) {
     return (
-      <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="max-w-6xl mx-auto space-y-6 pb-28 lg:pb-10 relative">
-        <button onClick={() => { setActiveClass(null); setMateriTerbuka(null); }} className="flex items-center gap-2 text-slate-500 hover:text-emerald-600 transition-colors text-sm font-bold mb-2 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200 w-fit">
+      <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="max-w-6xl mx-auto space-y-5 md:space-y-6 pb-4 relative">
+        <button onClick={() => { setActiveClass(null); setMateriTerbuka(null); }} className="flex items-center gap-2 text-slate-500 hover:text-emerald-600 transition-colors text-xs sm:text-sm font-bold bg-white px-3.5 sm:px-4 py-2 rounded-xl shadow-sm border border-slate-200 w-fit">
           <ChevronLeft size={16} /> Kembali ke Daftar Kelas
         </button>
 
-        <div className="h-32 md:h-40 bg-gradient-to-r from-emerald-600 to-teal-800 rounded-2xl p-6 md:p-8 flex flex-col justify-end relative overflow-hidden shadow-md">
+        <div className="min-h-[7rem] md:h-40 bg-gradient-to-r from-emerald-600 to-teal-800 rounded-2xl p-5 sm:p-6 md:p-8 flex flex-col justify-end relative overflow-hidden shadow-md">
           <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
-          <div className="relative z-10">
-            <h1 className={`text-2xl md:text-4xl font-bold text-white mb-1 ${teachersFont.className}`}>{activeClass.nama}</h1>
-            <p className="text-emerald-100 font-medium text-sm flex items-center gap-2"><BookOpen size={14}/> {activeClass.mapel}</p>
+          <div className="relative z-10 min-w-0">
+            <h1 className={`text-xl sm:text-2xl md:text-4xl font-bold text-white mb-1 truncate ${teachersFont.className}`}>{activeClass.nama}</h1>
+            <p className="text-emerald-100 font-medium text-xs sm:text-sm flex items-center gap-2 truncate"><BookOpen size={14} className="shrink-0"/> {activeClass.mapel}</p>
           </div>
         </div>
 
         {/* Tab Kontrol Kelas */}
-        <div className="flex space-x-2 border-b border-slate-200">
-          <button onClick={() => setActiveTabDetail('materi')} className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-all ${activeTabDetail === 'materi' ? 'border-emerald-500 text-emerald-700 bg-emerald-50/50' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}>
-            <BookOpen size={16}/> Materi Pelajaran
+        <div className="flex gap-1.5 border-b border-slate-200 overflow-x-auto no-scrollbar">
+          <button onClick={() => setActiveTabDetail('materi')} className={`shrink-0 whitespace-nowrap flex items-center gap-2 px-4 sm:px-5 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all ${activeTabDetail === 'materi' ? 'border-emerald-500 text-emerald-700 bg-emerald-50/50' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}>
+            <BookOpen size={15}/> Materi Pelajaran
           </button>
-          <button onClick={() => setActiveTabDetail('asesmen')} className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-all ${activeTabDetail === 'asesmen' ? 'border-blue-500 text-blue-700 bg-blue-50/50' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}>
-            <Activity size={16}/> Tugas & Asesmen <span className="bg-blue-100 text-blue-700 py-0.5 px-2 rounded-full text-[10px] ml-1">{daftarUjian.length}</span>
+          <button onClick={() => setActiveTabDetail('asesmen')} className={`shrink-0 whitespace-nowrap flex items-center gap-2 px-4 sm:px-5 py-3 text-xs sm:text-sm font-bold border-b-2 transition-all ${activeTabDetail === 'asesmen' ? 'border-blue-500 text-blue-700 bg-blue-50/50' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}>
+            <Activity size={15}/> Tugas & Asesmen <span className="bg-blue-100 text-blue-700 py-0.5 px-2 rounded-full text-[10px] ml-0.5">{daftarUjian.length}</span>
           </button>
         </div>
 
@@ -641,14 +889,22 @@ export default function RuangKelasSiswa() {
 
             <div className="w-full lg:w-2/3">
               {materiTerbuka ? (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[70vh] lg:h-[calc(100vh-250px)]">
-                  <div className="p-4 md:p-5 border-b border-slate-100 bg-slate-50 flex items-center gap-3">
-                    <button onClick={() => setMateriTerbuka(null)} className="lg:hidden p-1.5 bg-white border border-slate-200 rounded-lg text-slate-500"><ChevronLeft size={16}/></button>
-                    <div><h3 className="font-bold text-slate-800 text-sm md:text-base">{materiTerbuka.materi || materiTerbuka.topik}</h3></div>
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[65dvh] lg:h-[calc(100dvh-250px)]">
+                  <div className="p-3.5 sm:p-4 md:p-5 border-b border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <button onClick={() => setMateriTerbuka(null)} className="lg:hidden p-1.5 bg-white border border-slate-200 rounded-lg text-slate-500 shrink-0"><ChevronLeft size={16}/></button>
+                      <h3 className="font-bold text-slate-800 text-sm md:text-base truncate">{materiTerbuka.materi || materiTerbuka.topik}</h3>
+                    </div>
+                    <Link
+                      href="/dashboard/siswa/asisten"
+                      className="shrink-0 inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      <Sparkles size={12} /> Tanya AI
+                    </Link>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-5 md:p-8 custom-scrollbar bg-white">
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-5 md:p-8 custom-scrollbar bg-white">
                     <div className="markdown-body max-w-none">
-                      <style>{`.markdown-body { font-family: 'Times New Roman', serif; font-size: 14px; line-height: 1.6; color: #1e293b; text-align: justify; }`}</style>
+                      <style>{`.markdown-body { font-family: 'Times New Roman', serif; font-size: 12.5px; line-height: 1.55; color: #1e293b; text-align: left; overflow-wrap: break-word; } @media (min-width: 640px) { .markdown-body { font-size: 14px; line-height: 1.6; text-align: justify; } } .markdown-body table { width: 100%; border-collapse: collapse; margin: 10px 0; } .markdown-body th, .markdown-body td { border: 1px solid #cbd5e1; padding: 5px 7px; font-size: 11px; text-align: left; }`}</style>
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{materiTerbuka.konten.replace(/<br\s*\/?>/gi, '\n\n')}</ReactMarkdown>
                     </div>
                   </div>
@@ -696,7 +952,7 @@ export default function RuangKelasSiswa() {
   // TAMPILAN 1: DAFTAR KELAS (HOME SISWA)
   // ==========================================
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto space-y-8 pb-28 md:pb-10 px-4 md:px-0">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto space-y-6 md:space-y-8 pb-4">
       <section className="relative overflow-hidden rounded-2xl md:rounded-3xl bg-gradient-to-br from-[#064e3b] via-emerald-900 to-slate-900 text-white shadow-lg shadow-emerald-950/10 border border-emerald-900/40">
         <div className="pointer-events-none absolute -top-20 -right-16 w-64 h-64 rounded-full bg-emerald-400/15 blur-3xl" aria-hidden="true" />
         <div className="pointer-events-none absolute inset-0 opacity-[0.06] [background-image:linear-gradient(white_1px,transparent_1px),linear-gradient(90deg,white_1px,transparent_1px)] [background-size:22px_22px]" aria-hidden="true" />

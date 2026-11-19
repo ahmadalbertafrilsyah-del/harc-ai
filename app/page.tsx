@@ -126,7 +126,7 @@ const TOKENS = `
 .geser-x::-webkit-scrollbar{ display:none; }
 
 html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
-body{ overflow-x:hidden; }
+body{ overflow-x:clip; }
 ::selection{ background:var(--brand); color:var(--brand-ink); }
 
 .focusable:focus-visible{
@@ -212,8 +212,8 @@ const alur = [
     ikon: LifeBuoy,
   },
   {
-    judul: "Siswa menulis jurnal refleksi",
-    isi: "Sebelum mengumpulkan, siswa mencatat kendala yang dialaminya. Catatan ini menjadi bagian dari penilaian.",
+    judul: "Siswa menerima umpan balik & XP",
+    isi: "Setelah selesai, skor dan pembahasan langsung tampil lengkap dengan perolehan XP prestasi serta evaluasi kemandirian.",
     ikon: NotebookPen,
   },
   {
@@ -283,7 +283,6 @@ export default function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [lewatHero, setLewatHero] = useState(false);
-  const [dimAktif, setDimAktif] = useState(0);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [loadingChat, setLoadingChat] = useState(false);
@@ -297,7 +296,6 @@ export default function LandingPage() {
 
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const dimRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
     const onScroll = () => {
@@ -335,21 +333,6 @@ export default function LandingPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-
-  const onGeserDimensi = () => {
-    const el = dimRef.current;
-    const kartu = el?.firstElementChild as HTMLElement | null;
-    if (!el || !kartu) return;
-    const langkah = kartu.offsetWidth + 16;
-    setDimAktif(Math.min(dimensi.length - 1, Math.round(el.scrollLeft / langkah)));
-  };
-
-  const keDimensi = (i: number) => {
-    const el = dimRef.current;
-    const kartu = el?.children[i] as HTMLElement | undefined;
-    if (!el || !kartu) return;
-    el.scrollTo({ left: kartu.offsetLeft - el.offsetLeft - 16, behavior: "smooth" });
-  };
 
   const kirim = async (teksMentah: string) => {
     const teks = teksMentah.trim();
@@ -419,20 +402,23 @@ export default function LandingPage() {
               : "border-transparent bg-transparent"
           }`}
         >
-          <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:h-[72px] sm:px-8">
-            <Link href="#beranda" className="focusable flex shrink-0 items-center gap-3">
-              <img src="/logo.png" alt="" aria-hidden="true" className="h-9 w-9 object-contain" />
+          <div className="mx-auto grid h-16 max-w-6xl grid-cols-[1fr_auto] items-center gap-3 px-4 sm:h-[72px] sm:px-8 lg:grid-cols-[1fr_auto_1fr]">
+            <Link href="#beranda" className="focusable flex shrink-0 items-center gap-2.5 justify-self-start sm:gap-3">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white p-1 shadow-xs ring-1 ring-black/5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.png" alt="" aria-hidden="true" className="h-full w-full object-contain" />
+              </span>
               <span className="leading-tight">
-                <span className="block text-[17px] font-semibold tracking-tight" style={judulSerif}>
+                <span className="block text-[16px] font-semibold tracking-tight sm:text-[17px]" style={judulSerif}>
                   HARC&#8209;AI
                 </span>
-                <span className="block text-[11px] text-[color:var(--ink-2)]">Mahatma Academy</span>
+                <span className="block text-[10.5px] text-[color:var(--ink-2)] sm:text-[11px]">Mahatma Academy</span>
               </span>
             </Link>
 
             <nav
               aria-label="Navigasi utama"
-              className="hidden items-center gap-1 rounded-full border border-[color:var(--line-soft)] bg-[color:var(--surface)]/70 p-1 lg:flex"
+              className="hidden items-center justify-self-center gap-1 rounded-full border border-[color:var(--line-soft)] bg-[color:var(--surface)]/70 p-1 lg:flex"
             >
               {NAV.map((item) => (
                 <a
@@ -445,7 +431,7 @@ export default function LandingPage() {
               ))}
             </nav>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-self-end gap-2">
               <button
                 type="button"
                 onClick={toggleTheme}
@@ -511,6 +497,7 @@ export default function LandingPage() {
               >
                 <div className="flex h-16 items-center justify-between border-b border-[color:var(--line-soft)] px-5">
                   <span className="flex items-center gap-2.5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/logo.png" alt="" aria-hidden="true" className="h-8 w-8 object-contain" />
                     <span className="text-[17px] font-medium" style={judulSerif}>
                       HARC&#8209;AI
@@ -590,7 +577,7 @@ export default function LandingPage() {
         <main id="konten">
           <section
             id="beranda"
-            className="relative -mt-16 overflow-hidden border-b border-[color:var(--line-soft)] pt-16 sm:-mt-[72px] sm:pt-[72px]"
+            className="relative -mt-16 overflow-x-clip border-b border-[color:var(--line-soft)] pt-16 sm:-mt-[72px] sm:pt-[72px]"
             aria-labelledby="judul-hero"
           >
             <div aria-hidden="true" className="pointer-events-none absolute inset-0">
@@ -599,24 +586,24 @@ export default function LandingPage() {
               <div className="cahaya cahaya-b -right-48 top-10 h-[460px] w-[460px] sm:h-[620px] sm:w-[620px]" />
             </div>
 
-            <div className="relative mx-auto grid max-w-6xl gap-12 px-4 pb-16 pt-10 sm:px-8 sm:pb-20 sm:pt-16 lg:grid-cols-12 lg:items-center lg:gap-14 lg:pb-28 lg:pt-20">
-              <div className="lg:col-span-7">
+            <div className="relative mx-auto grid max-w-6xl gap-10 px-4 pb-14 pt-8 sm:gap-12 sm:px-8 sm:pb-20 sm:pt-14 lg:grid-cols-12 lg:items-center lg:gap-14 lg:pb-28 lg:pt-20">
+              <div className="text-center lg:col-span-7 lg:text-left">
                 <motion.p
                   {...masuk(0)}
-                  className="mb-6 inline-flex items-center gap-2.5 rounded-full border border-[color:var(--line)] bg-[color:var(--surface)]/80 px-3.5 py-1.5 text-[12.5px] text-[color:var(--ink-2)] shadow-[var(--shadow-soft)] backdrop-blur sm:text-[13px]"
+                  className="mx-auto mb-5 inline-flex items-center gap-2 rounded-full border border-[color:var(--line)] bg-[color:var(--surface)]/85 px-3.5 py-1.5 text-[12px] text-[color:var(--ink-2)] shadow-[var(--shadow-soft)] backdrop-blur sm:mb-6 sm:gap-2.5 sm:text-[13px] lg:mx-0"
                 >
                   <span
                     aria-hidden="true"
                     className="titik-denyut h-1.5 w-1.5 rounded-full bg-[color:var(--accent)]"
                   />
                   <Sparkles size={13} className="text-[color:var(--accent)]" aria-hidden="true" />
-                  Asesmen sekolah berbasis AI
+                  Perangkat Ajar &amp; Asesmen AI
                 </motion.p>
 
                 <motion.h1
                   {...masuk(1)}
                   id="judul-hero"
-                  className="max-w-[15ch] text-[clamp(34px,9vw,60px)] font-normal leading-[1.08] tracking-[-0.025em]"
+                  className="mx-auto max-w-[16ch] text-[clamp(30px,8vw,58px)] font-normal leading-[1.1] tracking-[-0.025em] lg:mx-0"
                   style={judulSerif}
                 >
                   Menilai bahasa daerah tanpa mengabaikan{" "}
@@ -625,31 +612,30 @@ export default function LandingPage() {
 
                 <motion.p
                   {...masuk(2)}
-                  className="mt-6 max-w-[56ch] text-[15.5px] leading-[1.75] text-[color:var(--ink-2)] sm:text-[17px]"
+                  className="mx-auto mt-5 max-w-[54ch] text-[15px] leading-[1.75] text-[color:var(--ink-2)] sm:mt-6 sm:text-[17px] lg:mx-0"
                 >
-                  HARC-AI menyusun instrumen ujian, mendampingi siswa selama mengerjakan, dan
-                  merangkum hasilnya menjadi analitik yang bisa dibaca guru dalam hitungan menit.
-                  Dialek dan kearifan setempat diperlakukan sebagai jawaban yang sah, bukan
-                  kesalahan.
+                  HARC-AI menyusun perangkat ajar Kemendikdasmen dan Kemenag, soal interaktif,
+                  serta analitik prestasi siswa dalam hitungan menit. Dialek dan kearifan
+                  setempat diperlakukan sebagai jawaban yang sah, bukan kesalahan.
                 </motion.p>
 
                 <motion.div
                   {...masuk(3)}
-                  className="mt-9 grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 sm:flex sm:items-center sm:gap-4"
+                  className="mt-7 grid grid-cols-2 gap-2.5 max-[359px]:grid-cols-1 sm:mt-9 sm:flex sm:items-center sm:justify-center sm:gap-4 lg:justify-start"
                 >
                   <Link
                     href="/login"
-                    className="focusable group inline-flex items-center justify-center gap-2.5 rounded-xl bg-[color:var(--brand)] px-7 py-4 text-[15px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-lift)] transition-all duration-300 hover:-translate-y-0.5 active:scale-[.98] sm:py-3.5"
+                    className="focusable group inline-flex items-center justify-center gap-2 rounded-xl bg-[color:var(--brand)] px-4 py-3.5 text-[14px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-lift)] transition-all duration-300 hover:-translate-y-0.5 active:scale-[.98] sm:gap-2.5 sm:px-7 sm:text-[15px]"
                   >
                     Mulai evaluasi
                     <ArrowRight
-                      size={17}
+                      size={16}
                       className="transition-transform duration-300 group-hover:translate-x-1"
                     />
                   </Link>
                   <a
                     href="#alur"
-                    className="focusable inline-flex items-center justify-center gap-2 rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)]/80 px-6 py-4 text-[15px] text-[color:var(--ink)] backdrop-blur transition-colors duration-300 hover:bg-[color:var(--surface)] active:scale-[.98] sm:py-3.5"
+                    className="focusable inline-flex items-center justify-center gap-2 rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)]/80 px-4 py-3.5 text-[14px] text-[color:var(--ink)] backdrop-blur transition-colors duration-300 hover:bg-[color:var(--surface)] active:scale-[.98] sm:px-6 sm:text-[15px]"
                   >
                     Lihat cara kerja
                   </a>
@@ -657,11 +643,11 @@ export default function LandingPage() {
 
                 <motion.ul
                   {...masuk(4)}
-                  className="mt-8 flex flex-col gap-2.5 text-[13.5px] text-[color:var(--ink-2)] sm:flex-row sm:flex-wrap sm:gap-x-6"
+                  className="mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[12.5px] text-[color:var(--ink-2)] sm:mt-8 sm:gap-x-6 sm:text-[13.5px] lg:justify-start"
                 >
                   {jaminan.map((j) => (
-                    <li key={j} className="flex items-center gap-2">
-                      <CircleCheck size={16} className="shrink-0 text-[color:var(--accent)]" aria-hidden="true" />
+                    <li key={j} className="flex items-center gap-1.5 sm:gap-2">
+                      <CircleCheck size={15} className="shrink-0 text-[color:var(--accent)]" aria-hidden="true" />
                       {j}
                     </li>
                   ))}
@@ -669,31 +655,31 @@ export default function LandingPage() {
               </div>
 
               {/* Panel contoh hasil — memperlihatkan produknya, bukan ilustrasi */}
-              <div className="relative lg:col-span-5">
+              <div className="relative mx-auto w-full max-w-[440px] lg:col-span-5 lg:max-w-none">
                 <motion.figure
                   initial={{ opacity: 0, y: 22 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.65, delay: 0.24, ease: HALUS }}
                   className="relative overflow-hidden rounded-3xl border border-[color:var(--line)] bg-[color:var(--surface)] shadow-[var(--shadow-lift)]"
                 >
-                  <figcaption className="flex items-center justify-between border-b border-[color:var(--line-soft)] bg-[color:var(--surface-2)]/60 px-5 py-3.5 sm:px-6">
+                  <figcaption className="flex items-center justify-between border-b border-[color:var(--line-soft)] bg-[color:var(--surface-2)]/60 px-4 py-3 sm:px-6 sm:py-3.5">
                     <span className="flex items-center gap-2">
                       <span aria-hidden="true" className="flex gap-1.5">
                         <span className="h-2.5 w-2.5 rounded-full bg-[color:var(--line)]" />
                         <span className="h-2.5 w-2.5 rounded-full bg-[color:var(--line)]" />
                         <span className="h-2.5 w-2.5 rounded-full bg-[color:var(--line)]" />
                       </span>
-                      <span className="ml-2 text-[13.5px] font-medium">Ringkasan penilaian</span>
+                      <span className="ml-1.5 text-[13px] font-medium sm:ml-2 sm:text-[13.5px]">Ringkasan penilaian</span>
                     </span>
                     <span className="rounded-full bg-[color:var(--accent-soft)] px-2.5 py-1 text-[11px] text-[color:var(--accent)]">
                       Contoh
                     </span>
                   </figcaption>
 
-                  <div className="px-5 py-5 sm:px-6 sm:py-6">
+                  <div className="px-4 py-4 sm:px-6 sm:py-6">
                     {/* Skor rata-rata */}
-                    <div className="mb-6 flex items-center gap-5 rounded-2xl border border-[color:var(--line-soft)] bg-[color:var(--surface-2)]/50 p-4">
-                      <div className="relative h-[84px] w-[84px] shrink-0">
+                    <div className="mb-5 flex items-center gap-4 rounded-2xl border border-[color:var(--line-soft)] bg-[color:var(--surface-2)]/50 p-3.5 sm:mb-6 sm:gap-5 sm:p-4">
+                      <div className="relative h-[72px] w-[72px] shrink-0 sm:h-[84px] sm:w-[84px]">
                         <svg viewBox="0 0 80 80" className="h-full w-full -rotate-90" aria-hidden="true">
                           <defs>
                             <linearGradient id="gradasi-cincin" x1="0" y1="0" x2="1" y2="1">
@@ -807,20 +793,20 @@ export default function LandingPage() {
             aria-label="Cakupan penggunaan"
             className="border-b border-[color:var(--line-soft)] bg-[color:var(--bg-2)]"
           >
-            <div className="mx-auto grid max-w-6xl grid-cols-2 gap-3 px-4 py-8 sm:gap-4 sm:px-8 sm:py-10 md:grid-cols-4">
+            <div className="mx-auto grid max-w-6xl grid-cols-2 gap-3 px-4 py-7 sm:gap-4 sm:px-8 sm:py-10 md:grid-cols-4">
               {angka.map((a, i) => (
                 <motion.div
                   key={a.label}
                   {...muncul(i)}
-                  className="rounded-2xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] px-4 py-5 shadow-[var(--shadow-soft)] sm:px-6 sm:py-7"
+                  className="flex flex-col justify-between rounded-2xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] px-4 py-5 text-center shadow-[var(--shadow-soft)] sm:px-6 sm:py-7 md:text-left"
                 >
                   <p
-                    className="teks-gradasi text-[clamp(28px,7vw,40px)] leading-none tracking-tight"
+                    className="teks-gradasi text-[clamp(26px,7vw,40px)] leading-none tracking-tight"
                     style={judulSerif}
                   >
                     {a.nilai}
                   </p>
-                  <p className="mt-2.5 text-[12.5px] leading-snug text-[color:var(--ink-2)] sm:text-[13.5px]">
+                  <p className="mt-2.5 text-[12px] leading-snug text-[color:var(--ink-2)] sm:text-[13.5px]">
                     {a.label}
                   </p>
                 </motion.div>
@@ -833,8 +819,8 @@ export default function LandingPage() {
             className="scroll-mt-16 border-b border-[color:var(--line-soft)]"
             aria-labelledby="judul-dimensi"
           >
-            <div className="mx-auto max-w-6xl px-4 py-16 sm:px-8 sm:py-24">
-              <div className="max-w-[56ch]">
+            <div className="mx-auto max-w-6xl px-4 py-14 sm:px-8 sm:py-24">
+              <div className="mx-auto max-w-[56ch] text-center lg:mx-0 lg:text-left">
                 <motion.p
                   {...muncul(0)}
                   className="mb-3 text-[12.5px] font-medium uppercase tracking-[0.12em] text-[color:var(--accent)]"
@@ -844,14 +830,14 @@ export default function LandingPage() {
                 <motion.h2
                   {...muncul(0)}
                   id="judul-dimensi"
-                  className="text-[clamp(28px,6vw,42px)] font-normal leading-[1.15] tracking-[-0.02em]"
+                  className="text-[clamp(26px,6vw,42px)] font-normal leading-[1.15] tracking-[-0.02em]"
                   style={judulSerif}
                 >
                   Enam sudut untuk <span className="teks-gradasi italic">satu jawaban</span>
                 </motion.h2>
                 <motion.p
                   {...muncul(1)}
-                  className="mt-5 text-[15.5px] leading-[1.75] text-[color:var(--ink-2)] sm:text-[16.5px]"
+                  className="mt-4 text-[15px] leading-[1.75] text-[color:var(--ink-2)] sm:mt-5 sm:text-[16.5px]"
                 >
                   Setiap jawaban ditimbang dari enam sudut. Rinciannya terbuka, sehingga guru tahu
                   persis dari mana sebuah angka berasal dan di mana ia perlu dikoreksi.
@@ -860,53 +846,38 @@ export default function LandingPage() {
 
               <motion.ul
                 {...muncul(2)}
-                ref={dimRef}
-                onScroll={onGeserDimensi}
-                className="geser-x -mx-4 mt-10 flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 pb-4 sm:mx-0 sm:mt-12 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3"
+                className="mt-9 grid grid-cols-1 gap-3.5 sm:mt-12 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3"
               >
                 {dimensi.map((d, i) => {
                   const Ikon = d.ikon;
                   return (
                     <li
                       key={d.nama}
-                      className="kartu relative w-[80%] shrink-0 snap-start overflow-hidden rounded-3xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-6 shadow-[var(--shadow-soft)] min-[480px]:w-[62%] sm:w-auto sm:p-7"
+                      className="kartu relative flex items-start gap-4 overflow-hidden rounded-2xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-5 shadow-[var(--shadow-soft)] sm:block sm:rounded-3xl sm:p-7"
                     >
                       <span
                         aria-hidden="true"
-                        className="pointer-events-none absolute -right-3 -top-6 select-none text-[96px] leading-none text-[color:var(--line-soft)]"
+                        className="pointer-events-none absolute -right-2 -top-5 select-none text-[84px] leading-none text-[color:var(--line-soft)] sm:-right-3 sm:-top-6 sm:text-[96px]"
                         style={judulSerif}
                       >
                         {i + 1}
                       </span>
                       <span
                         aria-hidden="true"
-                        className="ikon-kartu relative mb-5 grid h-11 w-11 place-items-center rounded-xl bg-[color:var(--brand-soft)] text-[color:var(--brand)]"
+                        className="ikon-kartu relative grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[color:var(--brand-soft)] text-[color:var(--brand)] sm:mb-5"
                       >
                         <Ikon size={20} />
                       </span>
-                      <h3 className="relative mb-2.5 text-[19px] font-medium leading-snug" style={judulSerif}>
-                        {d.nama}
-                      </h3>
-                      <p className="relative text-[14.5px] leading-[1.7] text-[color:var(--ink-2)]">{d.isi}</p>
+                      <div className="relative min-w-0 flex-1">
+                        <h3 className="mb-1.5 text-[17.5px] font-medium leading-snug sm:mb-2.5 sm:text-[19px]" style={judulSerif}>
+                          {d.nama}
+                        </h3>
+                        <p className="text-[14px] leading-[1.65] text-[color:var(--ink-2)] sm:text-[14.5px] sm:leading-[1.7]">{d.isi}</p>
+                      </div>
                     </li>
                   );
                 })}
               </motion.ul>
-
-              <div className="mt-4 flex items-center justify-center gap-2 sm:hidden">
-                {dimensi.map((d, i) => (
-                  <button
-                    key={d.nama}
-                    type="button"
-                    onClick={() => keDimensi(i)}
-                    aria-label={`Tampilkan ${d.nama}`}
-                    aria-current={dimAktif === i}
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      dimAktif === i ? "w-6 bg-[color:var(--accent)]" : "w-2 bg-[color:var(--line)]"
-                    }`}
-                  />
-                ))}
-              </div>
             </div>
           </section>
 
@@ -915,8 +886,8 @@ export default function LandingPage() {
             className="scroll-mt-16 border-b border-[color:var(--line-soft)] bg-[color:var(--bg-2)]"
             aria-labelledby="judul-alur"
           >
-            <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-8 sm:py-24 lg:grid-cols-12 lg:gap-14">
-              <div className="lg:col-span-4">
+            <div className="mx-auto grid max-w-6xl gap-9 px-4 py-14 sm:gap-10 sm:px-8 sm:py-24 lg:grid-cols-12 lg:gap-14">
+              <div className="text-center lg:col-span-4 lg:text-left">
                 <div className="lg:sticky lg:top-28">
                   <motion.p
                     {...muncul(0)}
@@ -927,14 +898,14 @@ export default function LandingPage() {
                   <motion.h2
                     {...muncul(0)}
                     id="judul-alur"
-                    className="text-[clamp(28px,6vw,42px)] font-normal leading-[1.15] tracking-[-0.02em]"
+                    className="mx-auto max-w-[18ch] text-[clamp(26px,6vw,42px)] font-normal leading-[1.15] tracking-[-0.02em] lg:mx-0"
                     style={judulSerif}
                   >
                     Dari kompetensi dasar sampai nilai akhir
                   </motion.h2>
                   <motion.p
                     {...muncul(1)}
-                    className="mt-5 max-w-[44ch] text-[15.5px] leading-[1.75] text-[color:var(--ink-2)] sm:text-[16.5px]"
+                    className="mx-auto mt-4 max-w-[44ch] text-[15px] leading-[1.75] text-[color:var(--ink-2)] sm:mt-5 sm:text-[16.5px] lg:mx-0"
                   >
                     Empat tahap, dengan keputusan akhir selalu berada di tangan guru.
                   </motion.p>
@@ -945,7 +916,7 @@ export default function LandingPage() {
                 {/* Garis penghubung tahap */}
                 <span
                   aria-hidden="true"
-                  className="absolute bottom-10 left-[21px] top-10 w-px sm:left-[27px]"
+                  className="absolute bottom-10 left-[22px] top-10 w-px -translate-x-1/2 sm:left-[28px]"
                   style={{ background: "linear-gradient(var(--brand), var(--accent))", opacity: 0.35 }}
                 />
                 {alur.map((t, i) => {
@@ -954,7 +925,7 @@ export default function LandingPage() {
                     <motion.li
                       key={t.judul}
                       {...muncul(i)}
-                      className="relative grid grid-cols-[2.75rem_1fr] gap-x-3 sm:grid-cols-[3.5rem_1fr] sm:gap-x-5"
+                      className="relative grid grid-cols-[2.75rem_1fr] gap-x-3.5 sm:grid-cols-[3.5rem_1fr] sm:gap-x-5"
                     >
                       <span
                         aria-hidden="true"
@@ -962,14 +933,14 @@ export default function LandingPage() {
                       >
                         <Ikon size={19} />
                       </span>
-                      <div className="kartu rounded-2xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-5 shadow-[var(--shadow-soft)] sm:p-6">
-                        <p className="mb-1.5 text-[12px] font-medium uppercase tracking-[0.1em] text-[color:var(--ink-3)]">
+                      <div className="kartu rounded-2xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-4 shadow-[var(--shadow-soft)] sm:p-6">
+                        <p className="mb-1 text-[11.5px] font-medium uppercase tracking-[0.1em] text-[color:var(--ink-3)] sm:mb-1.5 sm:text-[12px]">
                           Tahap {i + 1}
                         </p>
-                        <h3 className="mb-2 text-[18.5px] font-medium leading-snug sm:text-[20px]" style={judulSerif}>
+                        <h3 className="mb-1.5 text-[17.5px] font-medium leading-snug sm:mb-2 sm:text-[20px]" style={judulSerif}>
                           {t.judul}
                         </h3>
-                        <p className="max-w-[58ch] text-[14.5px] leading-[1.75] text-[color:var(--ink-2)] sm:text-[15px]">
+                        <p className="max-w-[58ch] text-[14px] leading-[1.7] text-[color:var(--ink-2)] sm:text-[15px] sm:leading-[1.75]">
                           {t.isi}
                         </p>
                       </div>
@@ -985,21 +956,21 @@ export default function LandingPage() {
             className="pita scroll-mt-16 text-[color:var(--band-ink)]"
             aria-labelledby="judul-otoritas"
           >
-            <div className="mx-auto max-w-6xl px-4 py-16 sm:px-8 sm:py-24">
+            <div className="mx-auto max-w-6xl px-4 py-14 sm:px-8 sm:py-24">
               <h2 id="judul-otoritas" className="sr-only">
                 Peran guru
               </h2>
-              <blockquote className="relative max-w-[30ch]">
+              <blockquote className="relative mx-auto max-w-[30ch] text-center lg:mx-0 lg:text-left">
                 <span
                   aria-hidden="true"
-                  className="absolute -left-1 -top-10 select-none text-[110px] leading-none text-white/10 sm:-top-14 sm:text-[150px]"
+                  className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 select-none text-[96px] leading-none text-white/10 lg:left-0 lg:translate-x-0 sm:-top-14 sm:text-[150px]"
                   style={judulSerif}
                 >
                   &ldquo;
                 </span>
                 <motion.p
                   {...muncul(0)}
-                  className="relative text-[clamp(26px,6vw,44px)] font-normal leading-[1.25] tracking-[-0.02em]"
+                  className="relative text-[clamp(24px,6vw,44px)] font-normal leading-[1.25] tracking-[-0.02em]"
                   style={judulSerif}
                 >
                   Sistem ini menyiapkan bahan dan menghitung.{" "}
@@ -1008,23 +979,23 @@ export default function LandingPage() {
               </blockquote>
               <motion.p
                 {...muncul(1)}
-                className="mt-6 max-w-[56ch] text-[15.5px] leading-[1.75] text-[color:var(--band-ink-2)] sm:text-[16.5px]"
+                className="mx-auto mt-5 max-w-[56ch] text-center text-[15px] leading-[1.75] text-[color:var(--band-ink-2)] sm:mt-6 sm:text-[16.5px] lg:mx-0 lg:text-left"
               >
                 Guru menghemat waktu pemeriksaan tanpa menyerahkan kewenangan akademiknya.
               </motion.p>
 
-              <ul className="mt-10 grid gap-3 sm:mt-14 sm:grid-cols-3 sm:gap-5">
+              <ul className="mt-10 grid grid-cols-1 gap-3.5 sm:mt-14 md:grid-cols-3 md:gap-5">
                 {komitmen.map((k, i) => {
                   const Ikon = k.ikon;
                   return (
                     <motion.li
                       key={k.judul}
                       {...muncul(i)}
-                      className="flex gap-4 rounded-2xl border border-[color:var(--band-line)] bg-white/[0.04] p-5 backdrop-blur-sm sm:flex-col sm:gap-0 sm:p-6"
+                      className="flex items-start gap-4 rounded-2xl border border-[color:var(--band-line)] bg-white/[0.04] p-5 backdrop-blur-sm md:flex-col md:gap-0 md:p-6"
                     >
                       <span
                         aria-hidden="true"
-                        className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/10 text-[#8FD6C8] sm:mb-4"
+                        className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/10 text-[#8FD6C8] md:mb-4"
                       >
                         <Ikon size={18} />
                       </span>
@@ -1044,45 +1015,45 @@ export default function LandingPage() {
           </section>
 
           <section className="border-b border-[color:var(--line-soft)]">
-            <div className="mx-auto max-w-6xl px-4 py-14 sm:px-8 sm:py-20">
+            <div className="mx-auto max-w-6xl px-4 py-12 sm:px-8 sm:py-20">
               <motion.div
                 {...muncul(0)}
-                className="relative overflow-hidden rounded-3xl border border-[color:var(--line)] bg-[color:var(--surface)] p-7 shadow-[var(--shadow-lift)] sm:p-12"
+                className="relative overflow-hidden rounded-3xl border border-[color:var(--line)] bg-[color:var(--surface)] p-6 shadow-[var(--shadow-lift)] sm:p-10 md:p-12"
               >
                 <div aria-hidden="true" className="pointer-events-none absolute inset-0">
                   <div className="cahaya cahaya-b -right-24 -top-32 h-[380px] w-[380px]" />
                   <div className="cahaya cahaya-a -bottom-40 -left-20 h-[340px] w-[340px]" />
                 </div>
-                <div className="relative flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
+                <div className="relative flex flex-col gap-7 text-center md:flex-row md:items-center md:justify-between md:gap-8 md:text-left">
                   <div>
                     <h2
-                      className="max-w-[20ch] text-[clamp(26px,5.5vw,38px)] font-normal leading-[1.2] tracking-[-0.02em]"
+                      className="mx-auto max-w-[20ch] text-[clamp(24px,5.5vw,38px)] font-normal leading-[1.2] tracking-[-0.02em] md:mx-0"
                       style={judulSerif}
                     >
                       Ingin mencobanya di <span className="teks-gradasi">sekolah Anda?</span>
                     </h2>
-                    <p className="mt-4 max-w-[50ch] text-[15px] leading-[1.7] text-[color:var(--ink-2)] sm:text-[16px]">
+                    <p className="mx-auto mt-3.5 max-w-[50ch] text-[14.5px] leading-[1.7] text-[color:var(--ink-2)] sm:mt-4 sm:text-[16px] md:mx-0">
                       Masuk dengan akun sekolah, atau tanyakan dulu apa saja yang perlu disiapkan.
                     </p>
                   </div>
 
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center md:shrink-0">
+                  <div className="grid grid-cols-2 gap-2.5 max-[359px]:grid-cols-1 sm:flex sm:items-center sm:justify-center sm:gap-3 md:shrink-0 md:justify-start">
                     <Link
                       href="/login"
-                      className="focusable group inline-flex items-center justify-center gap-2.5 rounded-xl bg-[color:var(--brand)] px-7 py-4 text-[15px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-lift)] transition-all duration-300 hover:-translate-y-0.5 active:scale-[.98] sm:py-3.5"
+                      className="focusable group inline-flex items-center justify-center gap-2 rounded-xl bg-[color:var(--brand)] px-4 py-3.5 text-[14px] font-medium text-[color:var(--brand-ink)] shadow-[var(--shadow-lift)] transition-all duration-300 hover:-translate-y-0.5 active:scale-[.98] sm:gap-2.5 sm:px-7 sm:text-[15px]"
                     >
                       Masuk portal
                       <ArrowRight
-                        size={17}
+                        size={16}
                         className="transition-transform duration-300 group-hover:translate-x-1"
                       />
                     </Link>
                     <button
                       type="button"
                       onClick={() => setChatOpen(true)}
-                      className="focusable inline-flex items-center justify-center gap-2 rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] px-6 py-4 text-[15px] text-[color:var(--ink)] transition-colors duration-300 hover:bg-[color:var(--surface-2)] active:scale-[.98] sm:py-3.5"
+                      className="focusable inline-flex items-center justify-center gap-2 rounded-xl border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-3.5 text-[14px] text-[color:var(--ink)] transition-colors duration-300 hover:bg-[color:var(--surface-2)] active:scale-[.98] sm:px-6 sm:text-[15px]"
                     >
-                      <MessageCircle size={17} className="text-[color:var(--accent)]" />
+                      <MessageCircle size={16} className="text-[color:var(--accent)]" />
                       Tanya asisten
                     </button>
                   </div>
@@ -1092,10 +1063,13 @@ export default function LandingPage() {
           </section>
         </main>
 
-        <footer className="mx-auto max-w-6xl px-4 pb-28 pt-10 text-[13px] text-[color:var(--ink-2)] sm:px-8 sm:pb-10">
-          <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="" aria-hidden="true" className="h-9 w-9 object-contain" />
+        <footer className="mx-auto max-w-6xl px-4 pb-24 pt-9 text-[13px] text-[color:var(--ink-2)] sm:px-8 sm:pb-10 sm:pt-10">
+          <div className="flex flex-col items-center gap-6 text-center md:flex-row md:items-center md:justify-between md:text-left">
+            <div className="flex items-center gap-3 text-left">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white p-1 shadow-xs ring-1 ring-black/5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.png" alt="" aria-hidden="true" className="h-full w-full object-contain" />
+              </span>
               <span>
                 <span className="block text-[15px] text-[color:var(--ink)]" style={judulSerif}>
                   Mahatma Academy
@@ -1103,7 +1077,7 @@ export default function LandingPage() {
                 <span className="block text-[12px]">for Sustainable Education</span>
               </span>
             </div>
-            <nav aria-label="Navigasi kaki" className="flex flex-wrap gap-x-6 gap-y-3">
+            <nav aria-label="Navigasi kaki" className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2.5 md:justify-end">
               {NAV.map((item) => (
                 <a
                   key={item.href}
@@ -1118,7 +1092,7 @@ export default function LandingPage() {
               </Link>
             </nav>
           </div>
-          <p className="mt-8 border-t border-[color:var(--line-soft)] pt-6 text-[12.5px]">
+          <p className="mt-7 border-t border-[color:var(--line-soft)] pt-5 text-center text-[12.5px] md:mt-8 md:pt-6 md:text-left">
             © 2026 Mahatma Academy. Platform asesmen HARC-AI.
           </p>
         </footer>

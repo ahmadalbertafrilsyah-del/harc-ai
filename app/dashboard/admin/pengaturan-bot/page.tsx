@@ -6,6 +6,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { Bot, Save, Loader2, Info, Battery, UploadCloud, FileText, Trash2 } from "lucide-react";
 
 import { unggahKeCloudinary } from "@/lib/cloudinary";
+import { MemuatHalaman } from "@/components/Memuat";
 
 export default function PengaturanBotAdmin() {
   const [systemPrompt, setSystemPrompt] = useState("");
@@ -110,25 +111,25 @@ export default function PengaturanBotAdmin() {
   };
 
   if (isLoading) {
-    return <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-[#1e3a8a]" /></div>;
+    return <MemuatHalaman label="Memuat Pengaturan Bot..." />;
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <div className="flex items-center gap-4">
-          <div className="p-3.5 bg-amber-100 text-amber-600 rounded-2xl shadow-sm border border-amber-200">
-            <Bot size={32} />
+    <div className="max-w-5xl mx-auto space-y-5 pb-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <div className="p-3 sm:p-3.5 bg-amber-100 text-amber-600 rounded-2xl shadow-sm border border-amber-200 shrink-0">
+            <Bot size={28} />
           </div>
-          <div>
-            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Pengaturan Chatbot Publik</h1>
-            <p className="text-sm text-slate-500 font-medium">Atur batasan, kuota harian, dan basis pengetahuan asisten AI.</p>
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">Pengaturan Chatbot Publik</h1>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium">Atur batasan, kuota harian, dan basis pengetahuan asisten AI.</p>
           </div>
         </div>
         <button
           onClick={() => handleSave()}
           disabled={isSaving || isUploading}
-          className="bg-[#1e3a8a] hover:bg-blue-800 disabled:bg-slate-400 text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 shadow-lg shadow-blue-900/20"
+          className="w-full sm:w-auto justify-center bg-[#1e3a8a] hover:bg-blue-800 disabled:bg-slate-400 text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 shadow-lg shadow-blue-900/20 shrink-0"
         >
           {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
           {isSaving ? 'Menyimpan...' : 'Simpan Pengaturan'}
@@ -237,7 +238,7 @@ export default function PengaturanBotAdmin() {
                   </div>
                   <button 
                     onClick={() => handleDeleteDoc(doc.path)}
-                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all shrink-0"
                     title="Hapus Dokumen"
                   >
                     <Trash2 size={14} />

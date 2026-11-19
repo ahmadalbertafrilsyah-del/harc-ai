@@ -17,14 +17,19 @@ export default function ManajemenSiswaLembaga() {
 
   useEffect(() => {
     const auth = getAuth();
+    let unsubProfil: (() => void) | undefined;
+    let unsubSiswa: (() => void) | undefined;
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      unsubProfil?.(); unsubProfil = undefined;
+      unsubSiswa?.(); unsubSiswa = undefined;
       if (user) {
-        const unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
+        unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
             const npsn = data.npsn || data.instansi; // Kunci Relasi (NPSN)
             setNamaInstansi(data.namaLembaga || data.namaInstansi || `NPSN: ${npsn}`); 
 
+            unsubSiswa?.(); unsubSiswa = undefined;
             if (npsn) {
               // Tarik data siswa berbasis NPSN
               const qSiswa = query(
@@ -33,19 +38,17 @@ export default function ManajemenSiswaLembaga() {
                 where("npsn", "==", npsn) 
               );
               
-              const unsubSiswa = onSnapshot(qSiswa, (snapshot) => {
-                const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                setDaftarSiswa(data);
+              unsubSiswa = onSnapshot(qSiswa, (snapshot) => {
+                const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setDaftarSiswa(list);
               });
-              return () => unsubSiswa();
             }
           }
         });
-        return () => unsubProfil();
       }
     });
 
-    return () => unsubscribeAuth();
+    return () => { unsubscribeAuth(); unsubProfil?.(); unsubSiswa?.(); };
   }, []);
 
   const filteredSiswa = daftarSiswa.filter(siswa => 
@@ -54,17 +57,17 @@ export default function ManajemenSiswaLembaga() {
   );
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto space-y-6 pb-16 px-4 md:px-6">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto space-y-5 md:space-y-6 pb-4">
       
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-5">
-        <div>
-          <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>Data Siswa Terdaftar</h1>
-          <p className="text-slate-500 text-sm mt-1.5">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-4 md:pb-5">
+        <div className="min-w-0">
+          <h1 className={`text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>Data Siswa Terdaftar</h1>
+          <p className="text-slate-500 text-xs sm:text-sm mt-1.5">
             Daftar seluruh peserta didik yang terasosiasi dengan <strong>{namaInstansi}</strong>.
           </p>
         </div>
         <div className="flex items-center gap-2 bg-white border border-slate-300 px-3 py-2.5 rounded-xl w-full md:w-72 shadow-sm">
-          <Search size={16} className="text-slate-400" />
+          <Search size={16} className="text-slate-400 shrink-0" />
           <input 
             type="text" 
             value={searchQuery}
@@ -75,8 +78,44 @@ export default function ManajemenSiswaLembaga() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mt-4">
-        <div className="overflow-x-auto custom-scrollbar">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        {/* Mobile Card View */}
+        <div className="block md:hidden p-3 space-y-3 bg-slate-50/30">
+          {filteredSiswa.length > 0 ? filteredSiswa.map((siswa) => (
+            <div key={siswa.id} className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm space-y-2.5">
+              <div className="flex items-start justify-between gap-2.5">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 bg-purple-100 text-purple-700 font-bold rounded-lg flex items-center justify-center shrink-0">
+                    {siswa.nama ? siswa.nama.charAt(0).toUpperCase() : "S"}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-800 text-sm truncate">{siswa.nama}</p>
+                    <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 truncate"><Mail size={10} className="shrink-0"/> {siswa.email}</p>
+                  </div>
+                </div>
+                {siswa.status === 'Aktif' || !siswa.status ? (
+                  <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-md border bg-emerald-50 text-emerald-700 border-emerald-200 inline-flex items-center gap-1 shrink-0">
+                    <UserCheck size={11}/> Aktif
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-md border bg-rose-50 text-rose-700 border-rose-200 inline-flex items-center gap-1 shrink-0">
+                    <UserX size={11}/> Diblokir
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 pt-2 border-t border-slate-100 truncate">{namaInstansi}</p>
+            </div>
+          )) : (
+            <div className="py-12 px-4 text-center text-slate-400 bg-white rounded-xl border border-slate-200">
+              <GraduationCap size={36} className="mx-auto text-slate-300 mb-2.5" />
+              <p className="font-bold text-sm text-slate-600">Tidak ada siswa ditemukan</p>
+              <p className="text-xs mt-1">Belum ada siswa yang mendaftar menggunakan NPSN yang sama dengan lembaga Anda.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-widest text-slate-500 font-bold">

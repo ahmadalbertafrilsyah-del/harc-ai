@@ -1,16 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, FormEvent } from "react";
+import React, { useState, useEffect, useMemo, FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Users, Plus, Loader2, Key, ArrowLeft, CheckCircle2, X,
-  CalendarDays, Save, Trash2, FileSpreadsheet, ArrowDownToLine,
-  SlidersHorizontal,
+  Save, Trash2, ArrowDownToLine, SlidersHorizontal, Trophy, Target, Award,
 } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { db } from "@/lib/firebase"; 
-import { collection, onSnapshot, query, addDoc, serverTimestamp, deleteDoc, doc, where, getDoc, setDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, addDoc, serverTimestamp, doc, where, getDoc, setDoc } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { MemuatHalaman } from "@/components/Memuat";
+import { tampilkanNotifikasi } from "@/lib/notifikasiPwa";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -19,7 +20,6 @@ export default function ManajemenKelas() {
   const [kelasData, setKelasData] = useState<any[]>([]);
   const [userUid, setUserUid] = useState<string | null>(null);
   const [guruNpsn, setGuruNpsn] = useState<string>("");
-  const [guruNama, setGuruNama] = useState<string>("");
   const [daftarSiswaGlobal, setDaftarSiswaGlobal] = useState<any[]>([]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,21 +27,11 @@ export default function ManajemenKelas() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [selectedClass, setSelectedClass] = useState<any | null>(null);
-  const [activeTab, setActiveTab] = useState("siswa"); 
+  const [activeTab, setActiveTab] = useState<"siswa" | "prestasi" | "rekap">("siswa");
 
-  // === STATE ADMINISTRASI (ABSENSI & JURNAL) ===
-  const [tanggal, setTanggal] = useState(new Date().toISOString().split('T')[0]);
-  const [absensi, setAbsensi] = useState<Record<string, string>>({});
-  const [isSubmittingAbsen, setIsSubmittingAbsen] = useState(false);
-  const [statusPesanAbsen, setStatusPesanAbsen] = useState<{tipe: "sukses"|"error", teks: string} | null>(null);
-  const [isRiwayatAbsenOpen, setIsRiwayatAbsenOpen] = useState(false);
-  const [riwayatAbsenData, setRiwayatAbsenData] = useState<any[]>([]);
-
-  const [jurnal, setJurnal] = useState({ materi: "", kegiatan: "", hambatan: "", solusi: "" });
-  const [isSubmittingJurnal, setIsSubmittingJurnal] = useState(false);
-  const [statusPesanJurnal, setStatusPesanJurnal] = useState<{tipe: "sukses"|"error", teks: string} | null>(null);
-  const [isRiwayatJurnalOpen, setIsRiwayatJurnalOpen] = useState(false);
-  const [riwayatJurnalData, setRiwayatJurnalData] = useState<any[]>([]); 
+  // === STATE PRESTASI & ASESMEN KELAS ===
+  const [ujianKelas, setUjianKelas] = useState<any[]>([]);
+  const [jawabanKelas, setJawabanKelas] = useState<any[]>([]);
 
   // === STATE REKAP NILAI ===
   const [kkm, setKkm] = useState(75); 
@@ -55,26 +45,35 @@ export default function ManajemenKelas() {
   // === 1. TARIK DATA AWAL ===
   useEffect(() => {
     const auth = getAuth();
+    let unsubProfil: (() => void) | undefined;
+    let unsubKelas: (() => void) | undefined;
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      unsubProfil?.(); unsubProfil = undefined;
+      unsubKelas?.(); unsubKelas = undefined;
       if (user) {
         setUserUid(user.uid);
-        onSnapshot(doc(db, "users", user.uid), (docSnap) => { if(docSnap.exists()){ setGuruNpsn(docSnap.data().npsn || docSnap.data().instansi || ""); setGuruNama(docSnap.data().nama || ""); }});
-        onSnapshot(query(collection(db, "manajemen_kelas"), where("guruId", "==", user.uid)), (snapshot) => {
+        unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap) => { if(docSnap.exists()){ setGuruNpsn(docSnap.data().npsn || docSnap.data().instansi || ""); }});
+        unsubKelas = onSnapshot(query(collection(db, "manajemen_kelas"), where("guruId", "==", user.uid)), (snapshot) => {
           setKelasData(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
           setIsLoading(false);
         });
+      } else {
+        setIsLoading(false);
       }
     });
-    return () => unsubscribeAuth();
+    return () => { unsubscribeAuth(); unsubProfil?.(); unsubKelas?.(); };
   }, []);
 
   useEffect(() => {
-    if (guruNpsn) {
-      onSnapshot(query(collection(db, "users"), where("role", "==", "siswa"), where("npsn", "==", guruNpsn)), (snap) => setDaftarSiswaGlobal(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-    }
+    if (!guruNpsn) return;
+    const unsub = onSnapshot(
+      query(collection(db, "users"), where("role", "==", "siswa"), where("npsn", "==", guruNpsn)),
+      (snap) => setDaftarSiswaGlobal(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    );
+    return () => unsub();
   }, [guruNpsn]);
 
-  // === 2. FETCH REKAP NILAI & ABSENSI ===
+  // === 2. FETCH REKAP NILAI & PRESTASI ASESMEN ===
   useEffect(() => {
     const fetchRekapNilai = async () => {
       if (!selectedClass) return;
@@ -96,41 +95,17 @@ export default function ManajemenKelas() {
   }, [selectedClass, daftarSiswaGlobal]);
 
   useEffect(() => {
-    const fetchAbsensi = async () => {
-      if (!selectedClass || !tanggal) return;
-      try {
-        let currentAbsen: Record<string, string> = {};
-        const siswaKelas = daftarSiswaGlobal.filter(s => selectedClass.peserta?.includes(s.id) || s.kelas === selectedClass.nama);
-        siswaKelas.forEach(s => currentAbsen[s.id] = "Hadir");
-        const absenSnap = await getDoc(doc(db, "absensi_siswa", `${selectedClass.id}_${tanggal}`));
-        if (absenSnap.exists() && absenSnap.data().dataKehadiran) { currentAbsen = { ...currentAbsen, ...absenSnap.data().dataKehadiran }; }
-        setAbsensi(currentAbsen);
-      } catch {}
-    };
-    fetchAbsensi();
-  }, [selectedClass, tanggal, daftarSiswaGlobal]);
-
-  useEffect(() => {
-    if (selectedClass && isRiwayatAbsenOpen) {
-      const q = query(collection(db, "absensi_siswa"), where("kelasId", "==", selectedClass.id));
-      const unsub = onSnapshot(q, (snap) => {
-        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        setRiwayatAbsenData(data.sort((a: any, b: any) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime()));
-      });
-      return () => unsub();
-    }
-  }, [selectedClass, isRiwayatAbsenOpen]);
-
-  useEffect(() => {
-    if (selectedClass && isRiwayatJurnalOpen) {
-      const q = query(collection(db, "jurnal_kbm"), where("kelasId", "==", selectedClass.id));
-      const unsub = onSnapshot(q, (snap) => {
-        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        setRiwayatJurnalData(data.sort((a: any, b: any) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime()));
-      });
-      return () => unsub();
-    }
-  }, [selectedClass, isRiwayatJurnalOpen]);
+    if (!selectedClass) { setUjianKelas([]); setJawabanKelas([]); return; }
+    const unsubUjian = onSnapshot(
+      query(collection(db, "bank_soal"), where("kelasId", "==", selectedClass.id)),
+      (snap) => setUjianKelas(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    );
+    const unsubJawaban = onSnapshot(
+      query(collection(db, "jawaban_siswa"), where("kelas", "==", selectedClass.nama)),
+      (snap) => setJawabanKelas(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    );
+    return () => { unsubUjian(); unsubJawaban(); };
+  }, [selectedClass]);
 
   // ==========================================
   // SEMUA FUNCTION HANDLERS
@@ -141,28 +116,10 @@ export default function ManajemenKelas() {
     if (!newClass.nama || !newClass.mapel || !userUid) return;
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, "manajemen_kelas"), { nama: newClass.nama, mapel: newClass.mapel, kode: Math.floor(100000 + Math.random() * 900000).toString(), siswa: 0, peserta: [], status: "Aktif", guruId: userUid, timestamp: serverTimestamp() });
+      await addDoc(collection(db, "manajemen_kelas"), { nama: newClass.nama, mapel: newClass.mapel, npsn: guruNpsn || "", kode: Math.floor(100000 + Math.random() * 900000).toString(), siswa: 0, peserta: [], status: "Aktif", guruId: userUid, timestamp: serverTimestamp() });
       setIsModalOpen(false); setNewClass({ nama: "", mapel: "" });
+      tampilkanNotifikasi({ tipe: "sukses", judul: "Kelas Dibuat", pesan: `Kelas ${newClass.nama} siap digunakan.` });
     } catch {} finally { setIsSubmitting(false); }
-  };
-
-  const handleSimpanAbsensi = async (e: FormEvent) => {
-    e.preventDefault();
-    setIsSubmittingAbsen(true); setStatusPesanAbsen(null);
-    try {
-      await setDoc(doc(db, "absensi_siswa", `${selectedClass.id}_${tanggal}`), { guruId: userUid, kelasId: selectedClass.id, tanggal: tanggal, dataKehadiran: absensi, timestamp: serverTimestamp() }, { merge: true });
-      setStatusPesanAbsen({ tipe: "sukses", teks: "Data absensi berhasil diperbarui." }); setTimeout(() => setStatusPesanAbsen(null), 3000);
-    } catch { setStatusPesanAbsen({ tipe: "error", teks: "Gagal menyimpan absensi. Periksa koneksi." }); } finally { setIsSubmittingAbsen(false); }
-  };
-
-  const handleSimpanJurnal = async (e: FormEvent) => {
-    e.preventDefault();
-    setIsSubmittingJurnal(true); setStatusPesanJurnal(null);
-    try {
-      await addDoc(collection(db, "jurnal_kbm"), { guruId: userUid, namaGuru: guruNama || "", kelasId: selectedClass.id, namaKelas: selectedClass.nama || "", kelas: selectedClass.nama || "", mapel: selectedClass.mapel || "Umum", npsn: guruNpsn || "", tanggal: tanggal, ...jurnal, timestamp: serverTimestamp() });
-      setJurnal({ materi: "", kegiatan: "", hambatan: "", solusi: "" });
-      setStatusPesanJurnal({ tipe: "sukses", teks: "Jurnal KBM berhasil dikirim." }); setTimeout(() => setStatusPesanJurnal(null), 3000);
-    } catch { setStatusPesanJurnal({ tipe: "error", teks: "Gagal mengirim jurnal. Periksa koneksi." }); } finally { setIsSubmittingJurnal(false); }
   };
 
   const handleUbahNilai = (idSiswa: string, idIndikator: string, value: string) => {
@@ -183,6 +140,7 @@ export default function ManajemenKelas() {
     try {
       await setDoc(doc(db, "rekap_nilai", selectedClass.id), { guruId: userUid, kelasId: selectedClass.id, kkm: kkm, indikator: indikatorNilai, dataNilai: nilai, terakhirDiperbarui: serverTimestamp() }, { merge: true });
       setStatusPesanRekap({ tipe: "sukses", teks: "Rekap Nilai berhasil disimpan." }); setTimeout(() => setStatusPesanRekap(null), 3000);
+      tampilkanNotifikasi({ tipe: "sukses", judul: "Buku Nilai Tersimpan", pesan: "Rekap nilai dan bobot indikator kelas berhasil diperbarui." });
     } catch { setStatusPesanRekap({ tipe: "error", teks: "Gagal menyimpan rekap nilai. Periksa koneksi." }); } finally { setIsSubmittingRekap(false); }
   };
 
@@ -239,22 +197,43 @@ export default function ManajemenKelas() {
     setTimeout(() => { printWindow.print(); }, 800);
   };
 
-  if (isLoading) return <div className="w-full h-[70vh] flex flex-col justify-center items-center"><Loader2 size={36} className="animate-spin text-blue-600" /></div>;
+  const peringkatPrestasi = useMemo(() => {
+    const map = new Map<string, { nama: string; totalNilai: number; jumlahUjian: number; bantuan: number }>();
+    jawabanKelas.forEach((j) => {
+      const sid = j.uid || j.siswaId || j.nama || j.id;
+      const cur = map.get(sid) || { nama: j.nama || "Siswa", totalNilai: 0, jumlahUjian: 0, bantuan: 0 };
+      cur.totalNilai += Number(j.nilai) || 0;
+      cur.jumlahUjian += 1;
+      cur.bantuan += Number(j.metadataAnalitik?.totalBantuanAI ?? j.metadataAnalitik?.jumlahBantuanAI ?? 0);
+      map.set(sid, cur);
+    });
+    return Array.from(map.entries())
+      .map(([id, v]) => ({
+        id,
+        nama: v.nama,
+        rataRata: v.jumlahUjian ? Math.round(v.totalNilai / v.jumlahUjian) : 0,
+        jumlahUjian: v.jumlahUjian,
+        status: v.bantuan === 0 ? "Mandiri" : v.bantuan <= v.jumlahUjian * 2 ? "Berkembang" : "Perlu Pendampingan",
+      }))
+      .sort((a, b) => b.rataRata - a.rataRata || b.jumlahUjian - a.jumlahUjian);
+  }, [jawabanKelas]);
+
+  if (isLoading) return <MemuatHalaman label="Memuat Data Kelas..." />;
   const realClassData = selectedClass ? (kelasData.find(k => k.id === selectedClass.id) || selectedClass) : null;
   const siswaKelasAsli = realClassData ? daftarSiswaGlobal.filter(s => realClassData.peserta?.includes(s.id) || s.kelas === realClassData.nama) : [];
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-7xl mx-auto space-y-5 pb-6">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-7xl mx-auto space-y-5 pb-4">
       
       {/* TAMPILAN 1: DAFTAR KELAS (HOME) */}
       {!selectedClass && (
         <>
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-200 pb-5">
-            <div>
-              <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>Manajemen Kelas & Akademik</h1>
-              <p className="text-slate-500 text-sm mt-1">Kelola data peserta didik, absensi, rekap nilai, dan asesmen CBT.</p>
+            <div className="min-w-0">
+              <h1 className={`text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>Manajemen Kelas &amp; Prestasi</h1>
+              <p className="text-slate-500 text-xs sm:text-sm mt-1">Kelola peserta didik, pantau prestasi asesmen interaktif, dan buku nilai digital.</p>
             </div>
-            <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 shrink-0">
+            <button onClick={() => setIsModalOpen(true)} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 shrink-0">
               <Plus size={16} /> Buat Kelas Baru
             </button>
           </div>
@@ -295,10 +274,10 @@ export default function ManajemenKelas() {
             <ArrowLeft size={15} /> Kembali ke Daftar Kelas
           </button>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6 flex flex-col md:flex-row justify-between md:items-center gap-4">
-            <div>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 md:p-6 flex flex-col md:flex-row justify-between md:items-center gap-4">
+            <div className="min-w-0">
               <h1 className={`text-xl md:text-2xl font-bold text-slate-900 truncate ${teachersFont.className}`}>{realClassData.nama}</h1>
-              <p className="text-xs text-slate-400 mt-0.5">{realClassData.mapel} • {siswaKelasAsli.length} Siswa Terdaftar</p>
+              <p className="text-xs text-slate-400 mt-0.5 truncate">{realClassData.mapel} • {siswaKelasAsli.length} Siswa Terdaftar</p>
             </div>
             <div className="bg-indigo-50 border border-indigo-100 px-4 py-3 rounded-2xl flex items-center justify-between gap-4 shrink-0">
               <div>
@@ -309,28 +288,55 @@ export default function ManajemenKelas() {
             </div>
           </div>
 
-          <div className="flex gap-2 border-b border-slate-200 overflow-x-auto scrollbar-none pb-0" style={{ scrollbarWidth: 'none' }}>
-            {["siswa", "absensi", "jurnal", "rekap"].map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)} className={`pb-3 px-3 text-xs md:text-sm font-bold capitalize transition-all relative shrink-0 ${activeTab === tab ? "text-indigo-600 font-extrabold" : "text-slate-500 hover:text-slate-700"}`}>
-                {tab}
-                {activeTab === tab && <span className="absolute bottom-0 left-0 w-full h-1 bg-indigo-600 rounded-t-full"></span>}
+          <div className="flex gap-2 border-b border-slate-200 overflow-x-auto no-scrollbar pb-0">
+            {([
+              { id: "siswa", label: "Peserta Didik" },
+              { id: "prestasi", label: "Prestasi & Asesmen" },
+              { id: "rekap", label: "Buku Nilai" },
+            ] as const).map(tab => (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`min-h-[44px] pb-3 pt-1 px-3.5 text-xs md:text-sm font-bold transition-all relative shrink-0 ${activeTab === tab.id ? "text-indigo-600 font-extrabold" : "text-slate-500 hover:text-slate-700"}`}>
+                {tab.label}
+                {activeTab === tab.id && <span className="absolute bottom-0 left-0 w-full h-1 bg-indigo-600 rounded-t-full"></span>}
               </button>
             ))}
           </div>
 
-          <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 min-h-[400px]">
+          <div className="bg-white p-4 sm:p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200 min-h-[360px]">
             
             {/* TAB: SISWA */}
             {activeTab === "siswa" && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pb-3 border-b border-slate-100">
                   <h3 className="font-bold text-slate-800 text-sm md:text-base">Database Siswa</h3>
-                  <button onClick={handleDownloadCSVSiswa} className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all">
+                  <button onClick={handleDownloadCSVSiswa} className="w-full sm:w-auto bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3.5 py-2.5 sm:py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all">
                     <ArrowDownToLine size={14} /> Unduh CSV
                   </button>
                 </div>
 
-                <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                {/* Mobile Card View */}
+                <div className="block md:hidden space-y-2.5">
+                  {siswaKelasAsli.length > 0 ? siswaKelasAsli.map((siswa, idx) => (
+                    <div key={siswa.id} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/40 space-y-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-800 truncate">{idx + 1}. {siswa.nama}</p>
+                          <p className="text-[11px] font-mono text-slate-500 mt-0.5 truncate">{siswa.nisn || "-"}</p>
+                          <p className="text-[10px] text-slate-400 truncate">{siswa.email || "-"}</p>
+                        </div>
+                        <span className="text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-lg inline-flex items-center gap-1 shrink-0">
+                          <CheckCircle2 size={11}/> Aktif
+                        </span>
+                      </div>
+                      <button type="button" onClick={() => handlePrintKartuPlickers(siswa)} className="w-full py-2 text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-lg hover:bg-indigo-100 transition-colors">
+                        Cetak Kartu Offline
+                      </button>
+                    </div>
+                  )) : (
+                    <div className="text-center py-10 text-xs text-slate-400">Belum ada siswa terdaftar di kelas ini.</div>
+                  )}
+                </div>
+
+                <div className="hidden md:block overflow-x-auto border border-slate-200 rounded-xl">
                   <table className="w-full text-left border-collapse min-w-[500px] text-xs">
                     <thead>
                       <tr className="bg-slate-50 text-slate-400 text-[10px] uppercase font-bold border-b border-slate-200">
@@ -369,110 +375,67 @@ export default function ManajemenKelas() {
               </motion.div>
             )}
 
-            {/* TAB: ABSENSI */}
-            {activeTab === "absensi" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pb-3 border-b border-slate-100">
-                  <h3 className="font-bold text-slate-800 text-sm md:text-base">Absensi Harian</h3>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
-                      <CalendarDays size={15} className="text-slate-400"/>
-                      <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className="bg-transparent text-xs font-bold text-slate-700 outline-none" />
-                    </div>
-                    <button type="button" onClick={() => setIsRiwayatAbsenOpen(true)} className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all">
-                      <FileSpreadsheet size={15} /> Riwayat
-                    </button>
+            {/* TAB: PRESTASI & ASESMEN */}
+            {activeTab === "prestasi" && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+                <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
+                  <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3 sm:p-4">
+                    <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1">
+                      <Target size={13} /> Ujian CBT
+                    </p>
+                    <p className={`text-xl sm:text-2xl font-black text-indigo-900 mt-1 tabular-nums ${teachersFont.className}`}>{ujianKelas.length}</p>
+                  </div>
+                  <div className="bg-emerald-50/70 border border-emerald-100 rounded-xl p-3 sm:p-4">
+                    <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
+                      <Award size={13} /> Submisi
+                    </p>
+                    <p className={`text-xl sm:text-2xl font-black text-emerald-800 mt-1 tabular-nums ${teachersFont.className}`}>{jawabanKelas.length}</p>
+                  </div>
+                  <div className="bg-amber-50/70 border border-amber-100 rounded-xl p-3 sm:p-4">
+                    <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1">
+                      <Trophy size={13} /> Rata-rata
+                    </p>
+                    <p className={`text-xl sm:text-2xl font-black text-amber-800 mt-1 tabular-nums ${teachersFont.className}`}>
+                      {peringkatPrestasi.length > 0 ? Math.round(peringkatPrestasi.reduce((s, p) => s + p.rataRata, 0) / peringkatPrestasi.length) : 0}
+                    </p>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                  <form onSubmit={handleSimpanAbsensi}>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse min-w-[550px] text-xs">
-                        <thead>
-                          <tr className="bg-slate-50 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-200">
-                            <th className="px-4 py-3 text-center w-12">No</th>
-                            <th className="px-4 py-3">Nama Siswa</th>
-                            <th className="px-4 py-3 text-center">Keterangan Kehadiran</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {siswaKelasAsli.map((siswa, idx) => (
-                            <tr key={siswa.id} className="hover:bg-slate-50/50">
-                              <td className="px-4 py-3 text-center font-bold text-slate-400">{idx + 1}</td>
-                              <td className="px-4 py-3 font-bold text-slate-800">{siswa.nama}</td>
-                              <td className="px-4 py-3">
-                                <div className="flex justify-center gap-2">
-                                  {["Hadir", "Sakit", "Izin", "Alpha"].map((opsi) => (
-                                    <label key={opsi} className={`px-2.5 py-1 rounded-lg cursor-pointer border text-[11px] font-bold transition-all ${absensi[siswa.id] === opsi ? 'border-indigo-400 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-                                      <input type="radio" name={`absen-${siswa.id}`} value={opsi} checked={absensi[siswa.id] === opsi} onChange={(e) => setAbsensi(prev => ({ ...prev, [siswa.id]: e.target.value }))} className="hidden" />
-                                      {opsi}
-                                    </label>
-                                  ))}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
-                      {statusPesanAbsen ? (
-                        <span className={`text-xs font-bold ${statusPesanAbsen.tipe === "sukses" ? "text-emerald-600" : "text-rose-600"}`}>{statusPesanAbsen.teks}</span>
-                      ) : <span />}
-                      <button type="submit" disabled={isSubmittingAbsen} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 disabled:opacity-50">
-                        {isSubmittingAbsen ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Simpan Absensi
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </motion.div>
-            )}
-
-            {/* TAB: JURNAL */}
-            {activeTab === "jurnal" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pb-3 border-b border-slate-100">
-                  <h3 className="font-bold text-slate-800 text-sm md:text-base">Jurnal Mengajar</h3>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
-                      <CalendarDays size={15} className="text-slate-400"/>
-                      <input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className="bg-transparent text-xs font-bold text-slate-700 outline-none" />
-                    </div>
-                    <button type="button" onClick={() => setIsRiwayatJurnalOpen(true)} className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all">
-                      <FileSpreadsheet size={15} /> Riwayat
-                    </button>
+                {peringkatPrestasi.length > 0 ? (
+                  <div className="space-y-2.5">
+                    <h3 className="font-bold text-slate-800 text-xs sm:text-sm uppercase tracking-wider">Peringkat Prestasi Siswa</h3>
+                    {peringkatPrestasi.map((p, idx) => (
+                      <div key={p.id} className="flex items-center gap-3 p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-white transition-colors">
+                        <span className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+                          idx === 0 ? "bg-amber-400 text-amber-950 shadow-sm"
+                          : idx === 1 ? "bg-slate-300 text-slate-800"
+                          : idx === 2 ? "bg-orange-300 text-orange-950"
+                          : "bg-white border border-slate-200 text-slate-500"
+                        }`}>
+                          #{idx + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs sm:text-sm font-bold text-slate-800 truncate">{p.nama}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="flex-1 max-w-[180px] h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                              <div className={`h-full rounded-full ${p.rataRata >= kkm ? "bg-emerald-500" : "bg-amber-500"}`} style={{ width: `${Math.min(100, p.rataRata)}%` }} />
+                            </div>
+                            <span className="text-[10px] text-slate-500 font-semibold">{p.jumlahUjian} ujian • {p.status}</span>
+                          </div>
+                        </div>
+                        <span className={`text-lg sm:text-xl font-black tabular-nums shrink-0 ${p.rataRata >= kkm ? "text-emerald-600" : "text-amber-600"} ${teachersFont.className}`}>
+                          {p.rataRata}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                </div>
-
-                <form onSubmit={handleSimpanJurnal} className="space-y-3.5 text-xs">
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Materi Pembelajaran *</label>
-                    <input type="text" required value={jurnal.materi} onChange={(e) => setJurnal({...jurnal, materi: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-800 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 font-medium" placeholder="Contoh: Teks Deskripsi Budaya Lokal" />
+                ) : (
+                  <div className="text-center py-12 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200">
+                    <Trophy size={32} className="mx-auto text-slate-300 mb-2" />
+                    <p className="text-xs font-bold text-slate-600">Belum ada hasil asesmen di kelas ini</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Buat E-Ujian di menu Asesmen agar peringkat prestasi siswa tampil di sini.</p>
                   </div>
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Uraian Kegiatan Belajar *</label>
-                    <textarea required rows={3} value={jurnal.kegiatan} onChange={(e) => setJurnal({...jurnal, kegiatan: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-800 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 font-medium resize-none" placeholder="Deskripsikan jalannya pembelajaran..." />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Hambatan (Opsional)</label>
-                      <textarea rows={2} value={jurnal.hambatan} onChange={(e) => setJurnal({...jurnal, hambatan: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-800 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 font-medium resize-none" />
-                    </div>
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1 uppercase tracking-wider">Solusi (Opsional)</label>
-                      <textarea rows={2} value={jurnal.solusi} onChange={(e) => setJurnal({...jurnal, solusi: e.target.value})} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-800 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 font-medium resize-none" />
-                    </div>
-                  </div>
-                  <div className="pt-2 flex items-center justify-between gap-3">
-                    {statusPesanJurnal ? (
-                      <span className={`text-xs font-bold ${statusPesanJurnal.tipe === "sukses" ? "text-emerald-600" : "text-rose-600"}`}>{statusPesanJurnal.teks}</span>
-                    ) : <span />}
-                    <button type="submit" disabled={isSubmittingJurnal} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 disabled:opacity-50">
-                      {isSubmittingJurnal ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Kirim Jurnal KBM
-                    </button>
-                  </div>
-                </form>
+                )}
               </motion.div>
             )}
 
@@ -497,7 +460,36 @@ export default function ManajemenKelas() {
 
                 <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                   <form onSubmit={handleSimpanRekap}>
-                    <div className="overflow-x-auto">
+                    {/* Mobile Card View Rekap Nilai */}
+                    <div className="block md:hidden divide-y divide-slate-100">
+                      {siswaKelasAsli.length > 0 ? siswaKelasAsli.map((siswa, idx) => {
+                        const dataN = nilai[siswa.id] || {};
+                        const nilaiAkhir = hitungNilaiAkhir(dataN);
+                        const tuntas = nilaiAkhir >= kkm;
+                        return (
+                          <div key={siswa.id} className="p-3.5 space-y-2.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs font-bold text-slate-800 truncate">{idx + 1}. {siswa.nama}</p>
+                              <span className={`px-2.5 py-0.5 rounded-lg text-xs font-black tabular-nums border ${nilaiAkhir > 0 ? (tuntas ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200') : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+                                Akhir: {nilaiAkhir}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              {indikatorNilai.map(ind => (
+                                <div key={ind.id} className="bg-slate-50/70 p-2 rounded-lg border border-slate-200 flex items-center justify-between gap-2">
+                                  <span className="text-[11px] font-semibold text-slate-600 truncate">{ind.nama} <span className="text-[9px] text-slate-400">({ind.bobot}%)</span></span>
+                                  <input type="number" value={dataN[ind.id] || ""} onChange={(e) => handleUbahNilai(siswa.id, ind.id, e.target.value)} className="w-12 p-1 bg-white border border-slate-300 rounded-md text-center font-bold outline-none focus:border-indigo-400 text-xs shrink-0" />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }) : (
+                        <div className="text-center py-8 text-xs text-slate-400">Belum ada siswa di kelas ini.</div>
+                      )}
+                    </div>
+
+                    <div className="hidden md:block overflow-x-auto">
                       <table className="w-full text-left border-collapse min-w-[600px] text-xs">
                         <thead>
                           <tr className="bg-slate-50 text-[10px] uppercase font-bold text-slate-400 border-b border-slate-200">
@@ -534,11 +526,11 @@ export default function ManajemenKelas() {
                         </tbody>
                       </table>
                     </div>
-                    <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
+                    <div className="p-4 border-t border-slate-100 bg-slate-50 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
                       {statusPesanRekap ? (
-                        <span className={`text-xs font-bold ${statusPesanRekap.tipe === "sukses" ? "text-emerald-600" : "text-rose-600"}`}>{statusPesanRekap.teks}</span>
-                      ) : <span />}
-                      <button type="submit" disabled={isSubmittingRekap} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 disabled:opacity-50">
+                        <span className={`text-xs font-bold text-center sm:text-left ${statusPesanRekap.tipe === "sukses" ? "text-emerald-600" : "text-rose-600"}`}>{statusPesanRekap.teks}</span>
+                      ) : <span className="hidden sm:inline" />}
+                      <button type="submit" disabled={isSubmittingRekap} className="w-full sm:w-auto justify-center bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 sm:py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 disabled:opacity-50">
                         {isSubmittingRekap ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Simpan Rekap Nilai
                       </button>
                     </div>
@@ -602,57 +594,6 @@ export default function ManajemenKelas() {
               </div>
               <div className="px-5 py-3 border-t border-slate-100 flex justify-end bg-slate-50 shrink-0">
                 <button onClick={() => setIsPengaturanNilaiOpen(false)} className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all">Selesai</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* MODAL RIWAYAT ABSENSI */}
-      <AnimatePresence>
-        {isRiwayatAbsenOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5"><CalendarDays className="text-indigo-600" size={16}/> Riwayat Absensi Kelas</h3>
-                <button onClick={() => setIsRiwayatAbsenOpen(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"><X size={18}/></button>
-              </div>
-              <div className="p-5 overflow-y-auto space-y-2.5 text-xs custom-scrollbar">
-                {riwayatAbsenData.length > 0 ? riwayatAbsenData.map((absen, idx) => (
-                  <div key={idx} className="p-3.5 border border-slate-200 rounded-xl flex justify-between items-center bg-white shadow-sm">
-                    <div>
-                      <p className="font-bold text-slate-800">{absen.tanggal}</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">Hadir: {Object.values(absen.dataKehadiran || {}).filter(v => v === "Hadir").length} Siswa</p>
-                    </div>
-                    <button onClick={() => { setTanggal(absen.tanggal); setAbsensi(absen.dataKehadiran || {}); setIsRiwayatAbsenOpen(false); }} className="text-xs font-bold bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-xl hover:bg-indigo-100 transition-all">Muat Data</button>
-                  </div>
-                )) : <p className="text-center py-8 text-slate-400 font-bold">Belum ada riwayat absensi.</p>}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* MODAL RIWAYAT JURNAL */}
-      <AnimatePresence>
-        {isRiwayatJurnalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5"><FileSpreadsheet className="text-indigo-600" size={16}/> Riwayat Jurnal Mengajar</h3>
-                <button onClick={() => setIsRiwayatJurnalOpen(false)} className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"><X size={18}/></button>
-              </div>
-              <div className="p-5 overflow-y-auto space-y-3 text-xs custom-scrollbar">
-                {riwayatJurnalData.length > 0 ? riwayatJurnalData.map((j, idx) => (
-                  <div key={idx} className="p-4 border border-slate-200 rounded-2xl bg-white shadow-sm space-y-2">
-                    <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                      <span className="font-bold text-slate-800 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">{j.tanggal}</span>
-                      <button onClick={async () => { if(confirm("Hapus jurnal ini?")) await deleteDoc(doc(db, "jurnal_kbm", j.id)); }} className="text-slate-300 hover:text-rose-500"><Trash2 size={15}/></button>
-                    </div>
-                    <p className="font-bold text-slate-900">Materi: {j.materi}</p>
-                    <p className="text-slate-600 leading-relaxed">{j.kegiatan}</p>
-                  </div>
-                )) : <p className="text-center py-8 text-slate-400 font-bold">Belum ada riwayat jurnal.</p>}
               </div>
             </motion.div>
           </div>

@@ -258,7 +258,7 @@ export default function StatusKoleksiGuru() {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 24 }}
-              className="bg-white w-full sm:max-w-6xl h-[92vh] sm:h-[90vh] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+              className="bg-white w-full sm:max-w-6xl h-[92dvh] sm:h-[90dvh] rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
             >
               {/* Header modal */}
               <div className="flex justify-between items-center gap-2 p-3 sm:p-4 border-b border-slate-200 bg-slate-50 shrink-0">
@@ -283,12 +283,12 @@ export default function StatusKoleksiGuru() {
 
               <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
                 {/* Preview */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-100 p-3 sm:p-6">
+                <div className="flex-1 min-h-[42dvh] lg:min-h-0 overflow-y-auto custom-scrollbar bg-slate-100 p-2.5 sm:p-6">
                   <div
                     ref={previewRef}
-                    className={`bg-white shadow-lg border border-slate-300 rounded p-5 sm:p-10 md:p-14 mx-auto ${isLanskap ? "w-full" : "max-w-4xl"}`}
+                    className={`bg-white shadow-lg border border-slate-300 rounded-xl sm:rounded p-3.5 sm:p-8 md:p-12 mx-auto w-full overflow-hidden ${isLanskap ? "" : "max-w-4xl"}`}
                   >
-                    <div className="markdown-body">
+                    <div className="markdown-body w-full max-w-full">
                       <style>{gayaPreview}</style>
                       {dipilih.kontenHtml ? (
                         <div dangerouslySetInnerHTML={{ __html: bersihkanSvg(dipilih.kontenHtml) }} />
@@ -315,7 +315,7 @@ export default function StatusKoleksiGuru() {
                 </div>
 
                 {/* Sisi info */}
-                <aside className="w-full lg:w-[320px] bg-white border-t lg:border-t-0 lg:border-l border-slate-200 flex flex-col shrink-0">
+                <aside className="w-full max-h-[38dvh] lg:max-h-none lg:w-[320px] bg-white border-t lg:border-t-0 lg:border-l border-slate-200 flex flex-col shrink-0">
                   <div className="p-4 sm:p-5 flex-1 overflow-y-auto custom-scrollbar space-y-5">
                     <div className={`p-3.5 rounded-xl border ${
                       dipilih.statusValidasi === "disetujui" ? "bg-emerald-50 border-emerald-200" :
@@ -393,20 +393,27 @@ export default function StatusKoleksiGuru() {
 /* ---------------------------------- UI ---------------------------------- */
 
 const gayaPreview = `
-  .markdown-body { font-family: 'Times New Roman', Times, serif; font-size: 13px; line-height: 1.6; color: #000; text-align: justify; }
-  @media (min-width: 768px) { .markdown-body { font-size: 12pt; } }
-  .markdown-body p { margin-bottom: .7rem; }
-  .markdown-body table { width: 100%; border-collapse: collapse; margin: 1rem 0; word-wrap: break-word; }
-  .markdown-body th, .markdown-body td { border: 1pt solid #000; padding: 6px 10px; text-align: left; vertical-align: top; }
+  .markdown-body { font-family: 'Times New Roman', Times, serif; font-size: 11.5px; line-height: 1.5; color: #000; text-align: left; max-width: 100%; overflow-wrap: break-word; word-break: normal; }
+  @media (min-width: 640px) { .markdown-body { font-size: 13px; line-height: 1.6; } }
+  @media (min-width: 768px) { .markdown-body { font-size: 12pt; text-align: justify; } }
+  .markdown-body p { margin-bottom: .65rem; }
+  .markdown-body table { width: 100%; border-collapse: collapse; margin: .85rem 0; }
+  .markdown-body th, .markdown-body td { border: 1pt solid #000; padding: 4px 5px; text-align: left; vertical-align: top; overflow-wrap: break-word; word-break: normal; font-size: 10.5px; line-height: 1.4; }
+  @media (min-width: 640px) { .markdown-body th, .markdown-body td { padding: 6px 10px; font-size: inherit; line-height: 1.55; } }
   .markdown-body th { background: #f2f2f2; font-weight: bold; text-align: center; }
-  .markdown-body h1 { text-align: center; font-size: 1.2em; font-weight: bold; margin-bottom: 1.2rem; text-transform: uppercase; }
-  .markdown-body h2 { font-weight: bold; font-size: 1.06em; margin: 1.2rem 0 .5rem; text-transform: uppercase; }
-  .markdown-body h3 { font-weight: bold; margin: 1rem 0 .4rem; }
-  .markdown-body ul, .markdown-body ol { padding-left: 22px; margin-bottom: 1rem; }
+  .markdown-body h1 { text-align: center; font-size: 13px; font-weight: bold; margin-bottom: .85rem; text-transform: uppercase; }
+  .markdown-body h2 { font-weight: bold; font-size: 12px; margin: 1rem 0 .45rem; text-transform: uppercase; }
+  .markdown-body h3 { font-weight: bold; font-size: 11.5px; margin: .85rem 0 .35rem; }
+  @media (min-width: 640px) {
+    .markdown-body h1 { font-size: 1.2em; margin-bottom: 1.2rem; }
+    .markdown-body h2 { font-size: 1.06em; margin: 1.2rem 0 .5rem; }
+    .markdown-body h3 { font-size: 1em; margin: 1rem 0 .4rem; }
+  }
+  .markdown-body ul, .markdown-body ol { padding-left: 16px; margin-bottom: .85rem; }
+  @media (min-width: 640px) { .markdown-body ul, .markdown-body ol { padding-left: 22px; margin-bottom: 1rem; } }
   .markdown-body li { margin-bottom: .3rem; }
   .markdown-body img, .markdown-body svg { max-width: 100%; height: auto; display: block; margin: 10px auto; }
-  .table-wrapper { overflow-x: auto; width: 100%; margin-bottom: 1rem; }
-  @media (max-width: 768px) { .markdown-body table { min-width: 520px; } }
+  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-width: 100%; margin-bottom: 1rem; }
   .kop-surat table, .kop-surat td, .header-table td, .header-table th, .sig-table td, .sig-table th { border: none !important; }
 `;
 
@@ -417,12 +424,12 @@ function KartuStat({ ikon: Ikon, label, nilai, nuansa }: { ikon: any; label: str
     rose: "bg-rose-50 text-rose-600 border-rose-100",
   }[nuansa];
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-sm flex items-center gap-3">
-      <span className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border shrink-0 ${gaya}`}>
-        <Ikon size={18} />
+    <div className="bg-white border border-slate-200 rounded-2xl p-2.5 sm:p-4 shadow-sm flex flex-col sm:flex-row items-center text-center sm:text-left gap-1.5 sm:gap-3">
+      <span className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border shrink-0 ${gaya}`}>
+        <Ikon size={17} />
       </span>
-      <div className="min-w-0">
-        <p className="text-lg sm:text-xl font-black text-slate-800 leading-none">{nilai}</p>
+      <div className="min-w-0 w-full">
+        <p className="text-lg sm:text-xl font-black text-slate-800 leading-none tabular-nums">{nilai}</p>
         <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-1 truncate">{label}</p>
       </div>
     </div>

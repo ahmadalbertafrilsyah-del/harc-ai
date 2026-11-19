@@ -7,6 +7,8 @@ import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase"; 
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { MemuatHalaman } from "@/components/Memuat";
+import KartuNotifikasiPwa from "@/components/KartuNotifikasiPwa";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -108,16 +110,16 @@ export default function PengaturanSiswa() {
     }
   };
 
-  if (isLoading) return <div className="flex h-[70vh] items-center justify-center"><Loader2 className="animate-spin text-blue-500 w-10 h-10"/></div>;
+  if (isLoading) return <MemuatHalaman label="Memuat Profil & Privasi..." />;
 
   return (
-    <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`max-w-4xl mx-auto space-y-6 md:space-y-8 pb-20 p-4 md:p-6 ${teachersFont.className}`}>
+    <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`max-w-4xl mx-auto space-y-5 md:space-y-8 pb-4 ${teachersFont.className}`}>
       
-      <header className="border-b border-slate-200 pb-5">
-        <h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-3">
-          <User className="text-blue-600" size={28} /> Profil & Privasi Data
+      <header className="border-b border-slate-200 pb-4 md:pb-5">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2.5 sm:gap-3">
+          <User className="text-blue-600 shrink-0" size={26} /> Profil & Privasi Data
         </h1>
-        <p className="text-slate-600 text-sm mt-2 max-w-2xl leading-relaxed">
+        <p className="text-slate-600 text-xs sm:text-sm mt-2 max-w-2xl leading-relaxed">
           Kelola informasi pribadimu dan kendalikan bagaimana mesin AI memproses data belajarmu.
         </p>
       </header>
@@ -199,6 +201,8 @@ export default function PengaturanSiswa() {
           </div>
         </div>
       </section>
+
+      <KartuNotifikasiPwa urlTujuan="/dashboard/siswa/beranda" />
 
     </motion.main>
   );

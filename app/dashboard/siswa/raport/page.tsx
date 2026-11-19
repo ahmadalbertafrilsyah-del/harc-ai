@@ -7,6 +7,7 @@ import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase"; 
 import { collection, onSnapshot, query, where, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { MemuatHalaman } from "@/components/Memuat";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -42,22 +43,28 @@ export default function RaportSiswa() {
 
   useEffect(() => {
     const auth = getAuth();
+    let unsubProfil: (() => void) | undefined;
+    let unsubKelas: (() => void) | undefined;
+    let unsubRiwayat: (() => void) | undefined;
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      unsubProfil?.(); unsubProfil = undefined;
+      unsubKelas?.(); unsubKelas = undefined;
+      unsubRiwayat?.(); unsubRiwayat = undefined;
       if (user) {
         setUserUid(user.uid);
-        onSnapshot(doc(db, "users", user.uid), (snap) => {
+        unsubProfil = onSnapshot(doc(db, "users", user.uid), (snap) => {
             if(snap.exists()) setProfilSiswa(snap.data());
         });
-        onSnapshot(
+        unsubKelas = onSnapshot(
           query(collection(db, "manajemen_kelas"), where("peserta", "array-contains", user.uid)),
           (snap) => setKelasList(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
         );
-        fetchRiwayatUjian(user.uid);
+        unsubRiwayat = fetchRiwayatUjian(user.uid);
       } else {
         setIsLoading(false);
       }
     });
-    return () => unsubscribeAuth();
+    return () => { unsubscribeAuth(); unsubProfil?.(); unsubKelas?.(); unsubRiwayat?.(); };
   }, []);
 
   // Langganan rekap_nilai per kelas yang diikuti (doc id = kelasId)
@@ -151,20 +158,20 @@ export default function RaportSiswa() {
     return matchesSearch && matchesKelas;
   });
 
-  if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-emerald-500 w-10 h-10"/></div>;
+  if (isLoading) return <MemuatHalaman label="Memuat Raport Belajar..." />;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`p-4 md:p-6 max-w-7xl mx-auto pb-24 md:pb-10 ${teachersFont.className}`}>
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`max-w-7xl mx-auto pb-4 ${teachersFont.className}`}>
       
       {/* Header & Aksi */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 border-b border-slate-200 pb-6">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-800 flex items-center gap-3">
-            <Award className="text-emerald-500" size={32} /> Raport & Hasil Belajar
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 border-b border-slate-200 pb-4 md:pb-6">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-800 flex items-center gap-2.5 sm:gap-3">
+            <Award className="text-emerald-500 shrink-0" size={28} /> Raport & Hasil Belajar
           </h1>
-          <p className="text-slate-500 mt-1.5 text-sm">Rekapitulasi nilai evaluasi, umpan balik, dan rekam kemandirian belajarmu.</p>
+          <p className="text-slate-500 mt-1.5 text-xs sm:text-sm">Rekapitulasi nilai evaluasi, umpan balik, dan rekam kemandirian belajarmu.</p>
         </div>
-        <button onClick={handleDownloadExcel} className="w-full md:w-auto flex items-center justify-center gap-2 bg-white border border-slate-300 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95">
+        <button onClick={handleDownloadExcel} className="w-full md:w-auto flex items-center justify-center gap-2 bg-white border border-slate-300 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95 shrink-0">
           <Download size={16} /> Unduh Raport (CSV)
         </button>
       </div>
@@ -243,7 +250,44 @@ export default function RaportSiswa() {
 
       {/* Tabel Data Raport */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="overflow-x-auto custom-scrollbar">
+        {/* Mobile Card View */}
+        <div className="block md:hidden p-3 space-y-3 bg-slate-50/30">
+          {filteredRiwayat.length > 0 ? filteredRiwayat.map((raport) => {
+            const nilaiAngka = raport.nilai ? Math.round(raport.nilai) : 0;
+            const statusMandiri = raport.metadataAnalitik?.statusKemandirian || "Selesai";
+            return (
+              <div key={raport.idDoc} className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm space-y-2.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-800 text-sm leading-snug">{raport.judulUjian}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Kelas: {raport.kelas} • {raport.timestamp ? new Date(dapatkanWaktuAman(raport)).toLocaleDateString('id-ID') : '-'}</p>
+                  </div>
+                  <span className={`text-2xl font-black tabular-nums shrink-0 ${nilaiAngka >= 75 ? 'text-emerald-600' : nilaiAngka >= 60 ? 'text-amber-500' : 'text-rose-600'}`}>
+                    {nilaiAngka}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 line-clamp-2 italic bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                  &ldquo;{raport.feedbackGuru || "Belum ada umpan balik."}&rdquo;
+                </p>
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <span className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border bg-slate-100 text-slate-600 border-slate-200">
+                    {statusMandiri}
+                  </span>
+                  <button onClick={() => setSelectedRaport(raport)} className="px-3.5 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-bold transition-colors">
+                    Lihat Detail
+                  </button>
+                </div>
+              </div>
+            );
+          }) : (
+            <div className="py-12 px-4 text-center text-slate-400 bg-white rounded-xl border border-slate-200">
+              <BarChart3 size={36} className="mx-auto text-slate-300 mb-2.5" />
+              <p className="font-bold text-sm text-slate-600">Tidak ada data raport ditemukan</p>
+            </div>
+          )}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-[10px] uppercase tracking-widest text-slate-500 font-bold">
@@ -305,18 +349,18 @@ export default function RaportSiswa() {
       {/* MODAL DETAIL SANGGAHAN */}
       <AnimatePresence>
         {selectedRaport && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/50 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }} className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90dvh]">
               
-              <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-800">Detail & Evaluasi</h2>
-                  <p className="text-xs text-slate-500 font-medium">{selectedRaport.judulUjian}</p>
+              <div className="p-4 sm:p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0 gap-2">
+                <div className="min-w-0">
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">Detail & Evaluasi</h2>
+                  <p className="text-xs text-slate-500 font-medium truncate">{selectedRaport.judulUjian}</p>
                 </div>
-                <button onClick={() => setSelectedRaport(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg"><X size={20}/></button>
+                <button onClick={() => setSelectedRaport(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg shrink-0" aria-label="Tutup detail"><X size={20}/></button>
               </div>
 
-              <div className="p-6 overflow-y-auto space-y-6 custom-scrollbar">
+              <div className="p-4 sm:p-6 overflow-y-auto space-y-5 sm:space-y-6 custom-scrollbar">
                 
                 <div className="flex justify-between items-center bg-emerald-50 border border-emerald-100 p-4 rounded-xl">
                   <span className="text-sm font-bold text-emerald-800 uppercase">Nilai Akhir:</span>
@@ -345,9 +389,11 @@ export default function RaportSiswa() {
                       placeholder="Contoh: Jawaban saya di nomor 3 menggunakan tingkatan bahasa Krama Inggil..."
                       className="w-full p-3 bg-white border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 outline-none resize-none h-24 mb-3 shadow-sm"
                     />
-                    <button onClick={handleAjukanSanggahan} disabled={!sanggahanText.trim() || isSubmitting} className="w-full md:w-auto float-right px-6 py-2.5 bg-purple-600 text-white rounded-xl text-xs font-bold hover:bg-purple-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
-                      {isSubmitting ? <Loader2 size={14} className="animate-spin"/> : <Send size={14}/>} Ajukan Sanggahan
-                    </button>
+                    <div className="flex justify-end">
+                      <button onClick={handleAjukanSanggahan} disabled={!sanggahanText.trim() || isSubmitting} className="w-full md:w-auto px-6 py-2.5 bg-purple-600 text-white rounded-xl text-xs font-bold hover:bg-purple-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+                        {isSubmitting ? <Loader2 size={14} className="animate-spin"/> : <Send size={14}/>} Ajukan Sanggahan
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

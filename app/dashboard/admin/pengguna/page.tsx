@@ -11,6 +11,7 @@ import { useState, useEffect } from "react";
 // IMPORT FIREBASE REAL-TIME
 import { db } from "@/lib/firebase"; 
 import { collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, query, where, serverTimestamp } from "firebase/firestore";
+import { MemuatHalaman } from "@/components/Memuat";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -195,16 +196,11 @@ export default function ManajemenPenggunaAdmin() {
   };
 
   if (isLoading) {
-    return (
-      <div className="w-full h-[70vh] flex flex-col items-center justify-center text-slate-500" role="status">
-        <Loader2 size={36} className="animate-spin text-indigo-600 mb-3" />
-        <p className="text-xs font-bold text-slate-700">Memuat Database Pengguna...</p>
-      </div>
-    );
+    return <MemuatHalaman label="Memuat Database Pengguna..." />;
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-7xl mx-auto space-y-5 pb-6 relative">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-7xl mx-auto space-y-5 pb-4 relative">
       
       {/* OVERLAY LOADING ACC */}
       {isProcessingAcc && (
@@ -508,19 +504,19 @@ export default function ManajemenPenggunaAdmin() {
       {/* MODAL DETAIL PENGGUNA */}
       <AnimatePresence>
         {detailPengguna && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }} className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90dvh]">
               <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
                 <h3 className={`text-sm font-bold text-slate-800 flex items-center gap-2 ${teachersFont.className}`}>
                   <UserCircle size={16} className="text-indigo-600"/> Detail Profil Pengguna
                 </h3>
-                <button onClick={() => setDetailPengguna(null)} className="text-slate-400 hover:text-slate-600 p-1 rounded-xl hover:bg-slate-100 transition-colors"><X size={18} /></button>
+                <button onClick={() => setDetailPengguna(null)} className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-colors" aria-label="Tutup detail"><X size={18} /></button>
               </div>
               
               <div className="p-5 space-y-4 overflow-y-auto">
                 <div className="flex items-center gap-3.5 border-b border-slate-100 pb-4">
                   <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-lg shrink-0">
-                    {detailPengguna.nama.charAt(0).toUpperCase()}
+                    {(detailPengguna.nama || "U").charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
                     <h4 className="font-bold text-slate-900 text-base truncate">{detailPengguna.nama}</h4>
@@ -528,7 +524,7 @@ export default function ManajemenPenggunaAdmin() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                     <p className="text-[10px] uppercase text-slate-400 font-bold mb-0.5">Role Sistem</p>
                     <p className="font-bold text-indigo-700 uppercase">{detailPengguna.role}</p>
@@ -537,7 +533,7 @@ export default function ManajemenPenggunaAdmin() {
                     <p className="text-[10px] uppercase text-slate-400 font-bold mb-0.5">Status Akun</p>
                     <p className={`font-bold ${detailPengguna.status === 'Dibekukan' ? 'text-rose-600' : 'text-emerald-600'}`}>{detailPengguna.status || 'Aktif'}</p>
                   </div>
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 col-span-2">
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 sm:col-span-2">
                     <p className="text-[10px] uppercase text-slate-400 font-bold mb-0.5">Instansi / Sekolah</p>
                     <p className="font-medium text-slate-800 truncate">{detailPengguna.role === 'lembaga' ? (detailPengguna.namaLembaga || detailPengguna.namaInstansi) : getNamaLembagaDariNPSN(detailPengguna.npsn || detailPengguna.instansi)}</p>
                   </div>

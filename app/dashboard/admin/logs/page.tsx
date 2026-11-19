@@ -9,6 +9,7 @@ import { Teachers } from "next/font/google";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase"; 
 import { collection, onSnapshot, query, orderBy, doc, deleteDoc, getDocs } from "firebase/firestore";
+import { MemuatHalaman } from "@/components/Memuat";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -71,16 +72,11 @@ export default function ManajemenLogs() {
   );
 
   if (isLoading) {
-    return (
-      <div className="w-full h-[70vh] flex flex-col items-center justify-center text-slate-500" role="status">
-        <Loader2 size={36} className="animate-spin text-indigo-600 mb-3" />
-        <p className="text-xs font-bold text-slate-700">Memuat Log Sistem...</p>
-      </div>
-    );
+    return <MemuatHalaman label="Memuat Log Sistem..." />;
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-7xl mx-auto space-y-5 pb-12">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-7xl mx-auto space-y-5 pb-4">
       
       {/* HEADER DESKTOP */}
       <header className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-5">

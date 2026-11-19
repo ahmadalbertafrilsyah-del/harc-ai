@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import PwaBootstrap from "@/components/PwaBootstrap";
+import NotifikasiToast from "@/components/NotifikasiToast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,11 +17,28 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Portal Akademik HARC-AI | Mahatma Academy",
   description:
-    "Sistem Evaluasi Humanistik, Adaptif, dan Responsif-Kultural didukung oleh Kecerdasan Buatan.",
+    "Platform perangkat pembelajaran Kemendikdasmen & Kemenag serta e-learning interaktif untuk meningkatkan prestasi siswa.",
+  applicationName: "HARC-AI",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "HARC-AI",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    icon: "/icon.png",
+    apple: "/logo.png",
+  },
 };
 
 /* Warna bilah status ponsel ikut tema, agar terasa seperti aplikasi. */
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#F7F5F1" },
     { media: "(prefers-color-scheme: dark)", color: "#12151C" },
@@ -53,7 +72,11 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: BOOTSTRAP_TEMA }} />
       </head>
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <PwaBootstrap />
+        <NotifikasiToast />
+        {children}
+      </body>
     </html>
   );
 }

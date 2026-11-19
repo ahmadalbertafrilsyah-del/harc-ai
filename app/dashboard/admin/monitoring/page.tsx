@@ -6,6 +6,7 @@ import { Teachers } from "next/font/google";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase"; 
 import { collection, onSnapshot, doc, query, orderBy, limit, setDoc } from "firebase/firestore";
+import { MemuatHalaman } from "@/components/Memuat";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -96,16 +97,11 @@ export default function MonitoringAI() {
   };
 
   if (isLoading) {
-    return (
-      <div className="w-full h-[70vh] flex flex-col items-center justify-center text-slate-500" role="status">
-        <Loader2 size={36} className="animate-spin text-indigo-600 mb-3" />
-        <p className="text-xs font-bold text-slate-700">Memuat Data Monitoring...</p>
-      </div>
-    );
+    return <MemuatHalaman label="Memuat Data Monitoring..." />;
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-7xl mx-auto space-y-5 pb-6">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-7xl mx-auto space-y-5 pb-4">
       
       {/* HEADER DESKTOP */}
       <header className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-5">
@@ -190,15 +186,15 @@ export default function MonitoringAI() {
         </div>
 
         <div className="space-y-2">
-          <div className="flex justify-between items-center text-xs">
-            <span className="font-bold text-slate-700 flex items-center gap-1.5"><Coins size={14} className="text-amber-500"/> Penggunaan ({(tokenStats.tokenTerpakai / 1000).toFixed(1)}K / {(tokenStats.limitBulanan / 1000).toFixed(0)}K)</span>
+          <div className="flex flex-wrap justify-between items-center gap-2 text-xs">
+            <span className="font-bold text-slate-700 flex items-center gap-1.5"><Coins size={14} className="text-amber-500 shrink-0"/> Penggunaan ({(tokenStats.tokenTerpakai / 1000).toFixed(1)}K / {(tokenStats.limitBulanan / 1000).toFixed(0)}K)</span>
             <span className="font-mono font-bold text-indigo-600">{persentaseToken.toFixed(1)}%</span>
           </div>
           <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden shadow-inner">
             <motion.div initial={{ width: 0 }} animate={{ width: `${persentaseToken}%` }} transition={{ duration: 1 }} className={`h-full ${getProgressColor()}`} />
           </div>
-          <div className="flex justify-between items-center text-xs pt-2 mt-1 border-t border-slate-100">
-            <span className="font-medium text-slate-500 flex items-center gap-1.5"><DollarSign size={14} className="text-emerald-500"/> Estimasi biaya bulan ini</span>
+          <div className="flex flex-wrap justify-between items-center gap-2 text-xs pt-2 mt-1 border-t border-slate-100">
+            <span className="font-medium text-slate-500 flex items-center gap-1.5"><DollarSign size={14} className="text-emerald-500 shrink-0"/> Estimasi biaya bulan ini</span>
             <span className="font-mono font-bold text-emerald-600">${estimasiBiayaDinamis.toFixed(2)}</span>
           </div>
         </div>
@@ -207,8 +203,8 @@ export default function MonitoringAI() {
       {/* RIWAYAT PENGGUNAAN AI */}
       <div className="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200">
         <div className="flex items-center gap-3 mb-5">
-          <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl"><Activity size={20} /></div>
-          <div>
+          <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl shrink-0"><Activity size={20} /></div>
+          <div className="min-w-0">
             <h2 className={`text-base font-bold text-slate-800 ${teachersFont.className}`}>Riwayat Aktivitas AI Terbaru</h2>
             <p className="text-xs text-slate-400">15 pemanggilan model terakhir yang tercatat.</p>
           </div>
@@ -219,11 +215,11 @@ export default function MonitoringAI() {
         ) : (
           <div className="flex flex-col divide-y divide-slate-100">
             {aiLogs.map((log) => (
-              <div key={log.id} className="flex items-center justify-between gap-3 py-2.5 text-xs">
+              <div key={log.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-3 py-2.5 text-xs">
                 <span className="font-semibold text-slate-700 truncate">{log.aksi || log.deskripsi || log.model || "Pemanggilan model"}</span>
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
                   {typeof log.tokens === "number" && <span className="font-mono text-slate-500">{log.tokens.toLocaleString("id-ID")} tok</span>}
-                  <span className="text-slate-400">{log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString("id-ID") : "—"}</span>
+                  <span className="text-slate-400 text-[11px]">{log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString("id-ID") : "—"}</span>
                 </div>
               </div>
             ))}

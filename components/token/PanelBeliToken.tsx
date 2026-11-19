@@ -40,6 +40,7 @@ import {
 } from "firebase/firestore";
 import { unggahKeCloudinary, cloudinaryDikonfigurasi } from "@/lib/cloudinary";
 import { buatQrisDinamis, qrisValid, urlGambarQr, formatRupiah } from "@/lib/qris";
+import { MemuatHalaman } from "@/components/Memuat";
 
 type Paket = {
   id: string;
@@ -311,26 +312,22 @@ export default function PanelBeliToken({ role }: { role: "guru" | "siswa" }) {
   };
 
   if (memuatKonfig) {
-    return (
-      <div className="flex items-center justify-center py-20 text-slate-400">
-        <Loader2 className="animate-spin mr-2" size={20} /> Memuat layanan token…
-      </div>
-    );
+    return <MemuatHalaman label="Memuat layanan token…" />;
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-5 pb-6">
+    <div className="w-full max-w-5xl mx-auto space-y-5 pb-4">
       {/* Ringkasan saldo */}
       <div className={`rounded-2xl p-5 md:p-6 bg-gradient-to-br ${C.grad} text-white shadow-lg`}>
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <p className="text-white/70 text-sm">Saldo Token AI Anda</p>
-            <p className="text-3xl md:text-4xl font-extrabold mt-1 flex items-center gap-2">
-              <Coins className="text-amber-300" size={30} /> {saldoToken.toLocaleString("id-ID")}
+            <p className="text-white/70 text-xs sm:text-sm">Saldo Token AI Anda</p>
+            <p className="text-3xl md:text-4xl font-extrabold mt-1 flex items-center gap-2 tabular-nums">
+              <Coins className="text-amber-300 shrink-0" size={28} /> {saldoToken.toLocaleString("id-ID")}
             </p>
           </div>
-          <div className="text-right text-xs text-white/70 max-w-[220px]">
-            <ShoppingCart className="inline mb-1" size={18} /> Beli token untuk melanjutkan penggunaan
+          <div className="text-left sm:text-right text-xs text-white/75 sm:max-w-[230px] leading-relaxed">
+            <ShoppingCart className="inline mr-1 mb-0.5" size={16} /> Beli token untuk melanjutkan penggunaan
             fitur AI tanpa batas kuota awal.
           </div>
         </div>
@@ -479,7 +476,7 @@ export default function PanelBeliToken({ role }: { role: "guru" | "siswa" }) {
                         alt="QRIS Pembayaran"
                         width={220}
                         height={220}
-                        className="w-[220px] h-[220px] bg-white rounded-lg"
+                        className="w-full max-w-[220px] aspect-square bg-white rounded-lg"
                       />
                     ) : (
                       <p className="text-xs text-rose-600 py-8 text-center">

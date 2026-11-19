@@ -23,6 +23,7 @@ import rehypeRaw from "rehype-raw";
 
 import KopSurat from "@/components/KopSurat";
 import EditorDokumen from "@/components/EditorDokumen";
+import { OverlayProses } from "@/components/Memuat";
 import { useKopLembaga, kopTerisi } from "@/lib/kop";
 import {
   bersihkanSvg, hitungPenandaGambar, instruksiDiagramSVG, instruksiIlustrasiRaster,
@@ -45,12 +46,13 @@ export default function GeneratorBahanAjar() {
   // Kop lembaga otomatis mengikuti NPSN guru.
   const { kop, lembagaDitemukan } = useKopLembaga(npsnGuru);
 
-  const [sumber, setSumber] = useState("Kemendikdasmen (SK BSKAP 32/2024)");
+  const [sumber, setSumber] = useState("Kemendikdasmen (SK BSKAP 046/H/KR/2025)");
   const [tipe, setTipe] = useState("Modul Ajar");
   const [fase, setFase] = useState("");
   const [kelas, setKelas] = useState("");
   const [mapel, setMapel] = useState("");
   const [topik, setTopik] = useState("");
+  const [capaianPembelajaran, setCapaianPembelajaran] = useState("");
   const [materi, setMateri] = useState("");
 
   // Identitas guru penyusun (milik guru, bukan lembaga).
@@ -62,6 +64,9 @@ export default function GeneratorBahanAjar() {
   const [metode, setMetode] = useState("");
   const [alokasiWaktu, setAlokasiWaktu] = useState("");
   const [profilPelajar, setProfilPelajar] = useState("");
+  const [targetSiswa, setTargetSiswa] = useState("Peserta Didik Reguler (Umum)");
+  const [jpPerMinggu, setJpPerMinggu] = useState("");
+  const [pekanEfektif, setPekanEfektif] = useState("");
 
   // Gambar
   const [pakaiDiagram, setPakaiDiagram] = useState(true);
@@ -96,13 +101,67 @@ export default function GeneratorBahanAjar() {
   const metaRef = useRef<any>({});
 
   const isLandscape = tipe === "PROMES" || tipe === "PROTA" || tipe === "ATP";
+  const isKemenag = sumber.includes("Agama") || sumber.includes("KMA");
+  const isSkTerbaru = sumber.includes("046/H/KR/2025");
   const mapelPerluDiagram = perluDiagram(mapel);
 
-  const p5Kemendikbud: string[] = ["Semua Dimensi P5", "Beriman, Bertakwa & Berakhlak Mulia", "Berkebinekaan Global", "Bergotong Royong", "Mandiri", "Bernalar Kritis", "Kreatif"];
-  const p5Kemenag: string[] = ["Semua Nilai P5 & PPRA", "Berkeadaban (Ta'addub)", "Keteladanan (Qudwah)", "Kewarganegaraan (Muwatana)", "Mengambil jalan tengah (Tawassut)", "Berimbang (Tawazun)", "Lurus dan tegas (I'tidal)", "Kesetaraan (Musawa)"];
+  const profilLulusan2025: string[] = [
+    "Semua 8 Dimensi Profil Lulusan",
+    "Keimanan & Ketakwaan terhadap Tuhan YME",
+    "Kewargaan",
+    "Penalaran Kritis",
+    "Kreativitas",
+    "Kolaborasi",
+    "Kemandirian",
+    "Kesehatan",
+    "Komunikasi",
+  ];
+  const p5Kemendikbud: string[] = [
+    "Semua Dimensi P5",
+    "Beriman, Bertakwa & Berakhlak Mulia",
+    "Berkebinekaan Global",
+    "Bergotong Royong",
+    "Mandiri",
+    "Bernalar Kritis",
+    "Kreatif",
+  ];
+  const p5Kemenag: string[] = [
+    "Semua Nilai P5RA & Panca Cinta (KBC)",
+    "PPRA: Berkeadaban (Ta'addub)",
+    "PPRA: Keteladanan (Qudwah)",
+    "PPRA: Kewarganegaraan (Muwathanah)",
+    "PPRA: Mengambil Jalan Tengah (Tawassuth)",
+    "PPRA: Berimbang (Tawazun)",
+    "PPRA: Lurus dan Tegas (I'tidal)",
+    "PPRA: Kesetaraan (Musawah)",
+    "PPRA: Musyawarah (Syura)",
+    "PPRA: Toleransi (Tasamuh)",
+    "PPRA: Dinamis & Inovatif (Tathawwur wa Ibtikar)",
+    "Panca Cinta: Cinta Allah & Rasul-Nya",
+    "Panca Cinta: Cinta Ilmu",
+    "Panca Cinta: Cinta Lingkungan",
+    "Panca Cinta: Cinta Diri & Sesama Manusia",
+    "Panca Cinta: Cinta Tanah Air",
+  ];
+
+  const daftarKarakter = isKemenag
+    ? p5Kemenag
+    : isSkTerbaru
+      ? profilLulusan2025
+      : p5Kemendikbud;
+
+  const labelFase: Record<string, string> = {
+    "Fase PAUD": "Fase Fondasi (PAUD / TK / RA)",
+    "Fase A": "Fase A (SD / MI — Kelas 1–2)",
+    "Fase B": "Fase B (SD / MI — Kelas 3–4)",
+    "Fase C": "Fase C (SD / MI — Kelas 5–6)",
+    "Fase D": "Fase D (SMP / MTs — Kelas 7–9)",
+    "Fase E": "Fase E (SMA / MA / SMK — Kelas 10)",
+    "Fase F": "Fase F (SMA / MA / SMK — Kelas 11–12)",
+  };
 
   const opsiKelas: Record<string, string[]> = {
-    "Fase PAUD": ["TK A", "TK B"],
+    "Fase PAUD": ["Kelompok A (TK/RA)", "Kelompok B (TK/RA)"],
     "Fase A": ["Kelas 1", "Kelas 2"],
     "Fase B": ["Kelas 3", "Kelas 4"],
     "Fase C": ["Kelas 5", "Kelas 6"],
@@ -114,11 +173,15 @@ export default function GeneratorBahanAjar() {
   const opsiTipeDokumen = ["Modul Ajar", "RPP", "ATP", "PROMES", "PROTA", "LKPD", "Bahan Bacaan Siswa", "Rubrik Penilaian"];
 
   useEffect(() => {
+    let unsubProfil: (() => void) | undefined;
+    let unsubRiwayat: (() => void) | undefined;
     const unsubscribeAuth = onAuthStateChanged(getAuth(), (user) => {
+      unsubProfil?.(); unsubProfil = undefined;
+      unsubRiwayat?.(); unsubRiwayat = undefined;
       if (!user) return;
       setUserUid(user.uid);
 
-      const unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
+      unsubProfil = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
         if (!docSnap.exists()) return;
         const data = docSnap.data();
         setUserName(data.nama || "Pendidik");
@@ -133,17 +196,15 @@ export default function GeneratorBahanAjar() {
         where("userId", "==", user.uid),
         orderBy("createdAt", "desc")
       );
-      const unsubRiwayat = onSnapshot(qRiwayat, (snapshot) => {
+      unsubRiwayat = onSnapshot(qRiwayat, (snapshot) => {
         setRiwayatModul(
           snapshot.docs
             .map((d) => ({ id: d.id, ...d.data() }) as any)
             .filter((d) => !String(d.tipe || "").match(/Asesmen|Bank Soal|Kisi/))
         );
       });
-
-      return () => { unsubProfil(); unsubRiwayat(); };
     });
-    return () => unsubscribeAuth();
+    return () => { unsubscribeAuth(); unsubProfil?.(); unsubRiwayat?.(); };
   }, []);
 
   // Tahun pelajaran & semester mengikuti setelan lembaga bila guru belum mengubahnya.
@@ -265,50 +326,69 @@ export default function GeneratorBahanAjar() {
     if (pakaiDiagram) sistemPrompt += `\n${instruksiDiagramSVG(mapel)}\n`;
     if (pakaiIlustrasi) sistemPrompt += `\n${instruksiIlustrasiRaster()}\n`;
 
-    if (sumber.includes("BSKAP")) {
-      sistemPrompt += `PENTING: Rujuk pada SK BSKAP No. 32 Tahun 2024 tentang Capaian Pembelajaran (CP) Kurikulum Merdeka.\n`;
+    if (isSkTerbaru) {
+      sistemPrompt += `PENTING: Rujuk pada regulasi terbaru Kemendikdasmen **SK BSKAP No. 046/H/KR/2025** tentang Capaian Pembelajaran serta **Permendikdasmen No. 13 Tahun 2025** dengan pendekatan Pembelajaran Mendalam (Deep Learning: Berkesadaran/Mindful, Bermakna/Meaningful, Menggembirakan/Joyful) dan **8 Dimensi Profil Lulusan** (Keimanan & Ketakwaan, Kewargaan, Penalaran Kritis, Kreativitas, Kolaborasi, Kemandirian, Kesehatan, Komunikasi).\n`;
+    } else if (sumber.includes("BSKAP")) {
+      sistemPrompt += `PENTING: Rujuk pada SK BSKAP No. 032/H/KR/2024 tentang Capaian Pembelajaran (CP) Kurikulum Merdeka dan 6 Dimensi Profil Pelajar Pancasila (P5).\n`;
     } else {
-      sistemPrompt += `PENTING: Rujuk pada regulasi KMA No. 1503 Tahun 2025 terbaru terkait Capaian Pembelajaran dan integrasi PPRA Madrasah.\n`;
+      sistemPrompt += `PENTING: Rujuk pada regulasi terbaru Kementerian Agama **KMA No. 1503 Tahun 2025** (penyempurnaan KMA 450/2024) tentang Implementasi Kurikulum Madrasah (RA/MI/MTs/MA/MAK) dengan pendekatan Pembelajaran Mendalam (Deep Learning), penguatan **P5RA** (10 Nilai Rahmatan lil 'Alamin), dan **Kurikulum Berbasis Cinta / Panca Cinta** (Cinta Allah & Rasul-Nya, Cinta Ilmu, Cinta Lingkungan, Cinta Diri & Sesama, Cinta Tanah Air).\n`;
     }
 
+    const labelProfilKarakter = isKemenag
+      ? "P5RA & Kurikulum Berbasis Cinta (Panca Cinta)"
+      : isSkTerbaru
+        ? "Dimensi Profil Lulusan (8 Dimensi)"
+        : "Profil Pelajar Pancasila (P5)";
+
     let topikKirim = `Buatlah dokumen **${tipe}**.\n\n`;
+    if (topik.trim()) topikKirim += `Elemen CP / Topik: ${topik.trim()}\n`;
+    if (capaianPembelajaran.trim()) topikKirim += `Capaian Pembelajaran (CP) Acuan Guru:\n"""\n${capaianPembelajaran.trim()}\n"""\n\n`;
 
     if (tipe === "Modul Ajar") {
       topikKirim += `STRUKTUR WAJIB MODUL AJAR:\n`;
-      topikKirim += `1. INFORMASI UMUM. Buatlah TABEL Informasi Umum berisi kolom Komponen dan Keterangan dengan data berikut:\n`;
+      topikKirim += `1. INFORMASI UMUM. Buatlah TABEL Identitas Modul berisi kolom Komponen dan Keterangan dengan data:\n`;
       topikKirim += `   - Penyusun: ${namaGuru || "(Nama Guru Penyusun)"}\n`;
-      topikKirim += `   - Institusi: ${kop.namaLembaga || "(Nama Sekolah)"}\n`;
+      topikKirim += `   - Satuan Pendidikan / Madrasah: ${kop.namaLembaga || "(Nama Sekolah/Madrasah)"}\n`;
       topikKirim += `   - Tahun Pelajaran: ${tahunPelajaran || "(Tahun Pelajaran)"}\n`;
-      topikKirim += `   - Jenjang Sekolah: (Isi sesuai fase)\n`;
+      topikKirim += `   - Jenjang / Fase / Kelas: ${labelFase[fase] || fase} / ${kelas} (Semester ${semester})\n`;
       topikKirim += `   - Mata Pelajaran: ${mapel}\n`;
-      topikKirim += `   - Fase / Kelas: ${fase} / ${kelas} (Semester ${semester})\n`;
+      if (topik.trim()) topikKirim += `   - Elemen CP / Topik: ${topik.trim()}\n`;
       topikKirim += `   - Materi Pokok: ${materi}\n`;
-      topikKirim += `   - Alokasi Waktu: ${alokasiWaktu || "(Isi alokasi waktu yang sesuai)"}\n\n`;
-      topikKirim += `Setelah tabel identitas, lanjutkan Informasi Umum dengan sub-judul: Kompetensi Awal, P5/PPRA (${profilPelajar || "Sesuaikan"}), Sarpras, Target Peserta Didik, dan Model Pembelajaran (${metode || "Sesuaikan"}).\n`;
-      topikKirim += `2. KOMPONEN INTI (Tujuan Pembelajaran, Pemahaman Bermakna, Pertanyaan Pemantik, Tabel Kegiatan Pembelajaran [Pendahuluan, Inti, Penutup], Asesmen, Pengayaan & Remedial)\n`;
+      topikKirim += `   - Alokasi Waktu: ${alokasiWaktu || "(Isi alokasi waktu & jumlah pertemuan yang sesuai)"}\n\n`;
+      topikKirim += `Lanjutkan Informasi Umum dengan sub-judul: Kompetensi Awal (Asesmen Diagnostik Awal), ${labelProfilKarakter} (${profilPelajar || "Sesuaikan dengan materi"}), Sarana & Prasarana (termasuk pemanfaatan digital), Target Peserta Didik (${targetSiswa}), dan Model/Pendekatan Pembelajaran (${metode || "Pembelajaran Mendalam (Deep Learning)"}).\n`;
+      topikKirim += `2. KOMPONEN INTI: Capaian Pembelajaran (CP), Tujuan Pembelajaran (TP) & Kriteria Ketercapaian Tujuan Pembelajaran (KKTP), Pemahaman Bermakna, Pertanyaan Pemantik, TABEL Kegiatan Pembelajaran (kolom: Tahapan | Aktivitas Pembelajaran [mencerminkan prinsip Berkesadaran/Mindful, Bermakna/Meaningful, Menggembirakan/Joyful dengan pengalaman Memahami, Mengaplikasi, Merefleksi] | Alokasi Waktu), Asesmen Pembelajaran (Awal/Diagnostik, Formatif/Proses, Sumatif/Akhir), serta Pengayaan & Remedial.\n`;
       topikKirim += `Peringatan: Pada Tabel Kegiatan Pembelajaran, HANYA gunakan <br/> sebagai pemisah baris di dalam sel!\n`;
-      topikKirim += `3. LAMPIRAN (Lembar Kerja Peserta Didik, Rubrik, Bahan Bacaan, Daftar Pustaka).\n`;
-    } else if (tipe === "PROMES" || tipe === "PROTA") {
+      topikKirim += `3. LAMPIRAN (LKPD ringkas, Instrumen & Rubrik Penilaian KKTP, Bahan Bacaan Guru & Peserta Didik, Glosarium, Daftar Pustaka).\n`;
+    } else if (tipe === "PROTA") {
+      topikKirim += `STRUKTUR WAJIB PROGRAM TAHUNAN (PROTA):\n`;
+      topikKirim += `**IDENTITAS PROTA**\n- Satuan Pendidikan: ${kop.namaLembaga || "(Nama Sekolah/Madrasah)"}\n- Mata Pelajaran: ${mapel}\n- Fase / Kelas: ${labelFase[fase] || fase} / ${kelas}\n- Tahun Pelajaran: ${tahunPelajaran || "2026/2027"} (Mencakup Semester Ganjil & Semester Genap)\n- Alokasi Jam Pelajaran: ${jpPerMinggu || "Sesuaikan struktur kurikulum per minggu"}\n\n`;
+      topikKirim += `Buatlah: (a) Rekapitulasi Minggu Efektif & Total JP dalam 1 Tahun Pelajaran (Semester Ganjil + Semester Genap + Kokurikuler ${isKemenag ? "P5RA" : "Kokurikuler/P5"}), lalu (b) TABEL Program Tahunan.\n`;
+      topikKirim += `Kolom Tabel WAJIB: No | Semester | Elemen CP / Topik | Alur Tujuan Pembelajaran (ATP) & Materi Pokok | Alokasi Waktu (JP) | Keterangan.\n`;
+      topikKirim += `Pastikan materi pada Semester Ganjil dan Semester Genap terdistribusi proporsional sesuai fokus materi "${materi}" dan CP fase terkait.\n`;
+    } else if (tipe === "PROMES") {
       const bulanGanjil = "Jul 1|Jul 2|Jul 3|Jul 4|Jul 5|Agu 1|Agu 2|Agu 3|Agu 4|Agu 5|Sep 1|Sep 2|Sep 3|Sep 4|Sep 5|Okt 1|Okt 2|Okt 3|Okt 4|Okt 5|Nov 1|Nov 2|Nov 3|Nov 4|Nov 5|Des 1|Des 2|Des 3|Des 4|Des 5";
       const bulanGenap = "Jan 1|Jan 2|Jan 3|Jan 4|Jan 5|Feb 1|Feb 2|Feb 3|Feb 4|Feb 5|Mar 1|Mar 2|Mar 3|Mar 4|Mar 5|Apr 1|Apr 2|Apr 3|Apr 4|Apr 5|Mei 1|Mei 2|Mei 3|Mei 4|Mei 5|Jun 1|Jun 2|Jun 3|Jun 4|Jun 5";
       const kalender = semester === "Ganjil" ? bulanGanjil : bulanGenap;
-      topikKirim += `STRUKTUR WAJIB PROMES/PROTA:\n`;
-      topikKirim += `Buatlah Judul "MATRIKS PROGRAM SEMESTER", lalu TABEL Matriks.\n`;
-      topikKirim += `Kolom Tabel WAJIB PERSIS: No | Tema / Materi | Sub-Tema | JP | ${kalender}\n`;
-      topikKirim += `Isi sel matriks dengan tanda centang (✓) pada minggu efektif.\n`;
+      topikKirim += `STRUKTUR WAJIB PROGRAM SEMESTER (PROMES):\n`;
+      topikKirim += `**IDENTITAS PROMES**\n- Mata Pelajaran: ${mapel} | Fase / Kelas: ${labelFase[fase] || fase} / ${kelas}\n- Tahun Pelajaran: ${tahunPelajaran || "2026/2027"} | Semester: ${semester}\n- Alokasi JP/Minggu: ${jpPerMinggu || "Sesuaikan struktur kurikulum"} | Target Pekan Efektif: ${pekanEfektif || "18 Minggu Efektif"}\n\n`;
+      topikKirim += `Buatlah ringkasan perhitungan pekan efektif vs pekan tidak efektif (MPLS/PTS/PAS/SAS/Libur), lalu Judul "MATRIKS PROGRAM SEMESTER (${semester.toUpperCase()})", dan TABEL Matriks.\n`;
+      topikKirim += `Kolom Tabel WAJIB PERSIS: No | ATP / Materi Pokok | Sub-Materi / Pertemuan | JP | ${kalender}\n`;
+      topikKirim += `Isi sel matriks dengan tanda centang (✓) pada minggu efektif sesuai pembagian JP.\n`;
     } else {
-      topikKirim += `**IDENTITAS DOKUMEN**\n- Mata Pelajaran: ${mapel}\n- Fase / Kelas: ${fase} / ${kelas}\n- Tahun Pelajaran: ${tahunPelajaran} (Semester ${semester})\n- Materi Pokok: ${materi}\n\n`;
+      topikKirim += `**IDENTITAS DOKUMEN**\n- Satuan Pendidikan: ${kop.namaLembaga || "(Nama Sekolah/Madrasah)"}\n- Mata Pelajaran: ${mapel}\n- Fase / Kelas: ${labelFase[fase] || fase} / ${kelas}\n- Tahun Pelajaran: ${tahunPelajaran || "2026/2027"} (Semester ${semester})\n- Materi Pokok: ${materi}\n`;
+      if (alokasiWaktu.trim()) topikKirim += `- Alokasi Waktu: ${alokasiWaktu.trim()}\n`;
+      topikKirim += `\n`;
       if (tipe === "RPP") {
-        topikKirim += `STRUKTUR WAJIB:\n1. Identitas\n2. Tujuan Pembelajaran\n3. Tabel Langkah Pembelajaran (Tahap, Deskripsi Kegiatan Guru & Siswa, Alokasi Waktu)\n4. Penilaian.\n`;
+        topikKirim += `STRUKTUR WAJIB RPP (Permendikbudristek 16/2022 & Pendekatan Pembelajaran Mendalam):\n1. Identitas & Target Peserta Didik (${targetSiswa})\n2. Capaian Pembelajaran (CP), Tujuan Pembelajaran (TP), KKTP, serta penguatan ${labelProfilKarakter} (${profilPelajar || "Sesuaikan"})\n3. Tabel Langkah Pembelajaran (kolom: Tahap [Pendahuluan, Inti ${metode ? `(${metode})` : "(Mindful, Meaningful, Joyful)"}, Penutup & Refleksi] | Deskripsi Kegiatan Guru & Peserta Didik | Alokasi Waktu)\n4. Asesmen Pembelajaran (Diagnostik Awal, Formatif Proses, Sumatif Akhir + Rubrik Penilaian ringkas).\n`;
       } else if (tipe === "ATP") {
-        topikKirim += `STRUKTUR WAJIB:\nTABEL Alur Tujuan Pembelajaran dengan kolom: Elemen | Tujuan Pembelajaran | Alokasi Waktu | Profil Pelajar Pancasila.\n`;
+        topikKirim += `STRUKTUR WAJIB ALUR TUJUAN PEMBELAJARAN (ATP):\nAlokasi Referensi: ${jpPerMinggu || "Sesuaikan JP/Minggu"}.\nBuatlah TABEL Alur Tujuan Pembelajaran dengan kolom: No | Elemen CP | Capaian Pembelajaran (Ringkas) | Kode & Rumusan Tujuan Pembelajaran (TP) | Ruang Lingkup Materi | Alokasi Waktu (JP) | ${labelProfilKarakter} | Rencana Asesmen.\n`;
       } else if (tipe === "LKPD") {
-        topikKirim += `STRUKTUR WAJIB:\nJudul LKPD, Identitas Peserta Didik (Nama, Kelas, Tanggal — sediakan titik-titik isian), Tujuan Kegiatan, Alat & Bahan, Langkah Kerja (Sistematis), TABEL Pengamatan (No | Aspek | Hasil [Biarkan Kosong]), Pertanyaan Analisis, dan Kesimpulan.\n`;
+        topikKirim += `STRUKTUR WAJIB LKPD:\nJudul LKPD, Identitas Peserta Didik (Nama, Kelas, Kelompok, Tanggal — sediakan titik-titik isian), Petunjuk Belajar, Tujuan Pembelajaran, Alat & Bahan, Langkah Kerja / Eksplorasi (Sistematis), TABEL Pengamatan/Aktivitas (No | Aspek | Hasil Pengamatan [Biarkan Kosong]), Pertanyaan Analisis (HOTS), Refleksi & Kesimpulan, serta Kolom Nilai/Paraf Guru.\n`;
         if (pakaiDiagram) topikKirim += `LKPD ini WAJIB memuat minimal satu diagram SVG yang harus diamati atau dilengkapi peserta didik.\n`;
       } else if (tipe === "Bahan Bacaan Siswa") {
-        topikKirim += `STRUKTUR WAJIB:\nJudul Materi, Tujuan, Peta Konsep (Bulleted List), Uraian Materi (Lengkap dan menarik), Rangkuman, Latihan Mandiri.\n`;
+        topikKirim += `STRUKTUR WAJIB:\nJudul Materi, Tujuan Pembelajaran, Peta Konsep (Bulleted List), Uraian Materi Kontekstual (mendukung pemahaman mendalam & contoh nyata), Rangkuman, Glosarium Singkat, dan Latihan Mandiri / Refleksi.\n`;
       } else if (tipe === "Rubrik Penilaian") {
-        topikKirim += `STRUKTUR WAJIB:\nTABEL Rubrik Penilaian dengan kolom: Aspek Penilaian | Skor 4 (Sangat Baik) | Skor 3 (Baik) | Skor 2 (Cukup) | Skor 1 (Kurang).\n`;
+        topikKirim += `STRUKTUR WAJIB RUBRIK PENILAIAN (KKTP):\nIdentitas Tugas/Asesmen & Kriteria Ketercapaian Tujuan Pembelajaran (KKTP), lalu TABEL Rubrik Penilaian 4 Skala dengan kolom: Aspek / Kriteria Penilaian | Skor 4 (Mahir / Sangat Berkembang) | Skor 3 (Cakap / Berkembang Sesuai Harapan) | Skor 2 (Layak / Mulai Berkembang) | Skor 1 (Perlu Bimbingan), diikuti Pedoman Penskoran & Tindak Lanjut (Remedial/Pengayaan).\n`;
       }
     }
 
@@ -511,7 +591,7 @@ export default function GeneratorBahanAjar() {
             Modul Ajar, RPP, LKPD, dan dokumen pedagogi lain. Soal & kisi-kisi ada di menu Asesmen.
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
           <button
             onClick={() => setShowKoleksi(true)}
             className="flex-1 sm:flex-none min-h-[40px] flex items-center justify-center gap-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-3.5 rounded-xl text-xs font-bold shadow-sm transition-colors"
@@ -535,7 +615,7 @@ export default function GeneratorBahanAjar() {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 24 }}
-              className="bg-white w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
+              className="bg-white w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[85dvh] overflow-hidden"
             >
               <div className="flex justify-between items-center p-4 sm:p-5 border-b border-slate-200 bg-slate-50">
                 <h3 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-2">
@@ -614,20 +694,21 @@ export default function GeneratorBahanAjar() {
               </p>
 
               <Bidang label="Standar Kurikulum">
-                <select value={sumber} onChange={(e) => setSumber(e.target.value)} className={kelasInput}>
-                  <option value="Kemendikdasmen (SK BSKAP 32/2024)">Kemendikdasmen (SK BSKAP 32/2024)</option>
-                  <option value="Kementerian Agama (KMA)">Kementerian Agama (KMA 1503/2025)</option>
+                <select value={sumber} onChange={(e) => { setSumber(e.target.value); setProfilPelajar(""); }} className={kelasInput}>
+                  <option value="Kemendikdasmen (SK BSKAP 046/H/KR/2025)">Kemendikdasmen — Pembelajaran Mendalam (SK BSKAP 046/H/KR/2025)</option>
+                  <option value="Kemendikdasmen (SK BSKAP 32/2024)">Kemendikdasmen — Kurikulum Merdeka (SK BSKAP 032/H/KR/2024)</option>
+                  <option value="Kementerian Agama (KMA 1503/2025)">Kementerian Agama — Madrasah (KMA 1503/2025: P5RA & KBC)</option>
                 </select>
               </Bidang>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Bidang label="Fase">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Bidang label="Fase / Jenjang">
                   <select value={fase} onChange={(e) => { setFase(e.target.value); setKelas(""); }} required className={kelasInput}>
                     <option value="">Pilih Fase</option>
-                    {Object.keys(opsiKelas).map((f) => <option key={f} value={f}>{f}</option>)}
+                    {Object.keys(opsiKelas).map((f) => <option key={f} value={f}>{labelFase[f] || f}</option>)}
                   </select>
                 </Bidang>
-                <Bidang label="Kelas">
+                <Bidang label="Kelas / Kelompok">
                   <select value={kelas} onChange={(e) => setKelas(e.target.value)} disabled={!fase} required className={`${kelasInput} disabled:bg-slate-100 disabled:text-slate-400`}>
                     <option value="">Pilih Kelas</option>
                     {fase && opsiKelas[fase]?.map((k) => <option key={k} value={k}>{k}</option>)}
@@ -636,13 +717,22 @@ export default function GeneratorBahanAjar() {
               </div>
 
               <Bidang label="Mata Pelajaran">
-                <input type="text" value={mapel} onChange={(e) => setMapel(e.target.value)} placeholder="Cth: Matematika / Biologi" required className={kelasInput} />
+                <input type="text" value={mapel} onChange={(e) => setMapel(e.target.value)} placeholder="Cth: Matematika / IPAS / Fikih / Akidah Akhlak" required className={kelasInput} />
               </Bidang>
               <Bidang label="Elemen CP / Topik (opsional)">
-                <input type="text" value={topik} onChange={(e) => setTopik(e.target.value)} placeholder="Cth: Bilangan / Geometri" className={kelasInput} />
+                <input type="text" value={topik} onChange={(e) => setTopik(e.target.value)} placeholder="Cth: Bilangan / Fikih Ibadah / Pemahaman Konsep" className={kelasInput} />
               </Bidang>
-              <Bidang label="Materi Spesifik">
-                <input type="text" value={materi} onChange={(e) => setMateri(e.target.value)} placeholder="Cth: Luas dan Keliling Segitiga" required className={kelasInput} />
+              <Bidang label="Capaian Pembelajaran (CP) Acuan (opsional)">
+                <textarea
+                  rows={2}
+                  value={capaianPembelajaran}
+                  onChange={(e) => setCapaianPembelajaran(e.target.value)}
+                  placeholder="Tempel rumusan CP resmi jika ada, atau kosongkan agar dirujuk otomatis sesuai SK BSKAP / KMA..."
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-[12.5px] font-medium text-slate-800 outline-none focus:border-slate-800 transition-colors resize-y"
+                />
+              </Bidang>
+              <Bidang label="Materi Pokok / Tujuan Pembelajaran">
+                <input type="text" value={materi} onChange={(e) => setMateri(e.target.value)} placeholder="Cth: Luas dan Keliling Segitiga / Thaharah dan Wudhu" required className={kelasInput} />
               </Bidang>
             </div>
 
@@ -656,21 +746,27 @@ export default function GeneratorBahanAjar() {
                   <Bidang label="Nama Guru">
                     <input type="text" value={namaGuru} onChange={(e) => setNamaGuru(e.target.value)} className={kelasInput} />
                   </Bidang>
-                  <Bidang label="NIP Guru">
-                    <input type="text" value={nipGuru} onChange={(e) => setNipGuru(e.target.value)} className={`${kelasInput} font-mono`} />
+                  <Bidang label="NIP / NUPTK / NPK">
+                    <input type="text" value={nipGuru} onChange={(e) => setNipGuru(e.target.value)} placeholder="Opsional jika belum ada" className={`${kelasInput} font-mono`} />
                   </Bidang>
                   <Bidang label="Tahun Pelajaran">
                     <input type="text" value={tahunPelajaran} onChange={(e) => setTahunPelajaran(e.target.value)} placeholder="2026/2027" className={kelasInput} />
                   </Bidang>
                   <Bidang label="Semester">
-                    <select value={semester} onChange={(e) => setSemester(e.target.value)} className={kelasInput}>
-                      <option value="Ganjil">Ganjil</option>
-                      <option value="Genap">Genap</option>
-                    </select>
+                    {tipe === "PROTA" ? (
+                      <div className={`${kelasInput} flex items-center bg-slate-100 text-slate-500 text-xs`}>
+                        1 Tahun Penuh (Ganjil &amp; Genap)
+                      </div>
+                    ) : (
+                      <select value={semester} onChange={(e) => setSemester(e.target.value)} className={kelasInput}>
+                        <option value="Ganjil">Ganjil</option>
+                        <option value="Genap">Genap</option>
+                      </select>
+                    )}
                   </Bidang>
                 </div>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Nama sekolah, kepala sekolah, dan kota penandatanganan diambil otomatis dari Kop Lembaga.
+                  Nama sekolah/madrasah, kepala lembaga, dan kota penandatanganan diambil otomatis dari Kop Lembaga.
                 </p>
               </div>
 
@@ -705,37 +801,110 @@ export default function GeneratorBahanAjar() {
                     exit={{ opacity: 0, height: 0 }}
                     className="p-4 sm:p-5 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-3 overflow-hidden"
                   >
-                    <p className="text-[11px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100 pb-2">5. Pengaturan Modul</p>
-                    <Bidang label="Model Pendekatan">
+                    <p className="text-[11px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100 pb-2">5. Pengaturan Pembelajaran</p>
+                    <Bidang label="Model / Pendekatan Pembelajaran">
                       <select value={metode} onChange={(e) => setMetode(e.target.value)} className={kelasInput}>
-                        <option value="">Rekomendasi AI</option>
-                        <option value="Problem Based Learning (PBL)">PBL</option>
-                        <option value="Project Based Learning (PjBL)">PjBL</option>
+                        <option value="">Rekomendasi AI (Pembelajaran Mendalam)</option>
+                        <option value="Pembelajaran Mendalam (Deep Learning: Mindful, Meaningful, Joyful)">Pembelajaran Mendalam (Deep Learning)</option>
+                        <option value="Problem Based Learning (PBL)">Problem Based Learning (PBL)</option>
+                        <option value="Project Based Learning (PjBL)">Project Based Learning (PjBL)</option>
+                        <option value="Inquiry Learning">Inquiry Learning</option>
                         <option value="Discovery Learning">Discovery Learning</option>
+                        <option value="Pembelajaran Berdiferensiasi">Pembelajaran Berdiferensiasi</option>
+                        <option value="Teaching at the Right Level (TaRL)">Teaching at the Right Level (TaRL)</option>
+                        <option value="Cooperative Learning">Cooperative Learning</option>
                       </select>
                     </Bidang>
-                    <Bidang label="Fokus P5 / PPRA">
+                    <Bidang label={isKemenag ? "Fokus Nilai P5RA & Panca Cinta" : isSkTerbaru ? "Fokus 8 Dimensi Profil Lulusan" : "Fokus Dimensi P5"}>
                       <select value={profilPelajar} onChange={(e) => setProfilPelajar(e.target.value)} className={kelasInput}>
                         <option value="">Pilih Fokus (opsional)</option>
-                        {(sumber.includes("Agama") ? p5Kemenag : p5Kemendikbud).map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                        {daftarKarakter.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                       </select>
                     </Bidang>
-                    <Bidang label="Alokasi Waktu">
-                      <input type="text" value={alokasiWaktu} onChange={(e) => setAlokasiWaktu(e.target.value)} placeholder="Cth: 2 JP x 45 Menit" className={kelasInput} />
-                    </Bidang>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <Bidang label="Target Peserta Didik">
+                        <select value={targetSiswa} onChange={(e) => setTargetSiswa(e.target.value)} className={kelasInput}>
+                          <option value="Peserta Didik Reguler (Umum)">Reguler / Umum</option>
+                          <option value="Berdiferensiasi (Reguler, Kesulitan Belajar, Berpencapaian Tinggi)">Berdiferensiasi (3 Tingkat)</option>
+                          <option value="Pendidikan Inklusif">Pendidikan Inklusif</option>
+                        </select>
+                      </Bidang>
+                      <Bidang label="Alokasi Waktu">
+                        <input type="text" value={alokasiWaktu} onChange={(e) => setAlokasiWaktu(e.target.value)} placeholder="Cth: 2 JP × 45 Menit (1 Pertemuan)" className={kelasInput} />
+                      </Bidang>
+                    </div>
                   </motion.div>
                 )}
 
-                {(tipe === "PROMES" || tipe === "PROTA") && (
+                {(tipe === "PROMES" || tipe === "PROTA" || tipe === "ATP") && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="p-5 bg-slate-50/80 border border-slate-200 rounded-xl text-center overflow-hidden"
+                    className="p-4 sm:p-5 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-3 overflow-hidden"
                   >
-                    <CalendarDays size={30} className="mx-auto text-slate-400 mb-3" />
-                    <p className="text-[13px] font-bold text-slate-800 mb-1.5">Format Kaldik Terpadu</p>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">Matriks alokasi minggu efektif disusun otomatis dalam orientasi lanskap.</p>
+                    <p className="text-[11px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100 pb-2 flex items-center gap-1.5">
+                      <CalendarDays size={13} /> 5. Pengaturan Kaldik &amp; Alokasi JP
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <Bidang label="Alokasi JP per Minggu">
+                        <input
+                          type="text"
+                          value={jpPerMinggu}
+                          onChange={(e) => setJpPerMinggu(e.target.value)}
+                          placeholder="Cth: 4 JP / Minggu"
+                          className={kelasInput}
+                        />
+                      </Bidang>
+                      {tipe === "PROMES" && (
+                        <Bidang label="Target Pekan Efektif">
+                          <input
+                            type="text"
+                            value={pekanEfektif}
+                            onChange={(e) => setPekanEfektif(e.target.value)}
+                            placeholder="Cth: 18 Minggu Efektif"
+                            className={kelasInput}
+                          />
+                        </Bidang>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      {tipe === "PROTA"
+                        ? "Disusun untuk 1 Tahun Pelajaran penuh (Semester Ganjil + Genap) beserta rekapitulasi jam efektif & kokurikuler."
+                        : tipe === "PROMES"
+                          ? "Matriks distribusi minggu efektif per semester disusun otomatis dalam orientasi lanskap."
+                          : "Alur Tujuan Pembelajaran diurutkan secara logis per elemen CP dalam tabel lanskap."}
+                    </p>
+                  </motion.div>
+                )}
+
+                {(tipe === "LKPD" || tipe === "Rubrik Penilaian" || tipe === "Bahan Bacaan Siswa") && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="p-4 sm:p-5 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-3 overflow-hidden"
+                  >
+                    <p className="text-[11px] font-bold text-emerald-800 uppercase tracking-widest border-b border-emerald-100 pb-2">
+                      5. Pengaturan Tambahan ({tipe})
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <Bidang label="Alokasi Waktu (opsional)">
+                        <input
+                          type="text"
+                          value={alokasiWaktu}
+                          onChange={(e) => setAlokasiWaktu(e.target.value)}
+                          placeholder="Cth: 1 × 45 Menit"
+                          className={kelasInput}
+                        />
+                      </Bidang>
+                      <Bidang label={isKemenag ? "Nilai P5RA / Panca Cinta" : isSkTerbaru ? "Dimensi Profil Lulusan" : "Dimensi P5"}>
+                        <select value={profilPelajar} onChange={(e) => setProfilPelajar(e.target.value)} className={kelasInput}>
+                          <option value="">Sesuaikan Otomatis</option>
+                          {daftarKarakter.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                      </Bidang>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -781,7 +950,7 @@ export default function GeneratorBahanAjar() {
           </div>
 
           {hasil && (
-            <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0 lg:flex-wrap lg:overflow-visible">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 w-full lg:w-auto">
               {isLandscape ? (
                 <>
                   <TombolEkspor onClick={handleDownloadExcel} ikon={FileSpreadsheet} label="Excel" />
@@ -796,7 +965,7 @@ export default function GeneratorBahanAjar() {
               <TombolEkspor onClick={handlePrintPDF} ikon={Printer} label="Cetak PDF" />
               <button
                 onClick={() => setEditorBuka(true)}
-                className="shrink-0 min-h-[40px] px-3.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors border shadow-sm bg-slate-900 hover:bg-slate-800 text-white border-slate-900"
+                className="shrink-0 min-h-[40px] px-3.5 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors border shadow-sm bg-slate-900 hover:bg-slate-800 text-white border-slate-900"
               >
                 <Pencil size={15} /> Edit Dokumen
               </button>
@@ -813,45 +982,49 @@ export default function GeneratorBahanAjar() {
           </div>
         )}
 
-        <div className="bg-slate-100 p-3 sm:p-5 md:p-8 relative min-h-[360px]">
+        <div className="bg-slate-100 p-2 sm:p-5 md:p-8 relative min-h-[360px]">
           {isGenerating ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/92 backdrop-blur-sm z-10 px-6 text-center">
-              <div className="relative w-16 h-16 flex items-center justify-center mb-5">
-                <div className="absolute inset-0 border-4 border-slate-200 rounded-full" />
-                <div className="absolute inset-0 border-4 border-slate-800 rounded-full border-t-transparent animate-spin" />
-                <Bot size={22} className="text-slate-800" />
-              </div>
-              <p className="font-bold text-slate-800 text-sm sm:text-base uppercase tracking-widest">
-                {progresGambar ? "Membuat Ilustrasi..." : "Menyusun Dokumen..."}
-              </p>
-              <p className="text-xs text-slate-500 mt-2 max-w-sm leading-relaxed">
-                {progresGambar
-                  ? `Gambar ${Math.min(progresGambar.selesai + 1, progresGambar.total)} dari ${progresGambar.total}${progresGambar.deskripsi ? `: ${progresGambar.deskripsi}` : ""}`
-                  : `Mengkalibrasi standar ${sumber.split(" ")[0]}`}
-              </p>
-            </div>
+            <OverlayProses
+              judul={progresGambar ? "Membuat Ilustrasi..." : "Menyusun Dokumen..."}
+              keterangan={progresGambar
+                ? `Gambar ${Math.min(progresGambar.selesai + 1, progresGambar.total)} dari ${progresGambar.total}${progresGambar.deskripsi ? `: ${progresGambar.deskripsi}` : ""}`
+                : `Mengkalibrasi standar ${sumber.split(" ")[0]}`}
+              progres={progresGambar}
+            />
           ) : hasil ? (
-            <div className={`bg-white shadow-lg border border-slate-300 p-4 sm:p-8 md:p-12 mx-auto overflow-x-auto ${isLandscape ? "w-full" : "max-w-4xl"}`}>
-              <div ref={pdfRef} className="pdf-container">
+            <div className={`bg-white shadow-lg border border-slate-300 rounded-xl sm:rounded-none p-3.5 sm:p-8 md:p-12 mx-auto w-full overflow-hidden ${isLandscape ? "" : "max-w-4xl"}`}>
+              <div ref={pdfRef} className="pdf-container w-full max-w-full">
                 <style>{`
-                  .pdf-container { font-family: 'Times New Roman', Times, serif !important; font-size: 13px; line-height: 1.6 !important; color: #000; }
+                  .pdf-container { font-family: 'Times New Roman', Times, serif !important; font-size: 11.5px; line-height: 1.5 !important; color: #000; max-width: 100%; overflow-wrap: break-word; }
+                  @media (min-width: 640px) { .pdf-container { font-size: 13px; line-height: 1.6 !important; } }
                   @media (min-width: 768px) { .pdf-container { font-size: 12pt; } }
-                  .markdown-body p { margin-bottom: .8rem; text-align: justify; }
-                  .markdown-body table { width: 100%; border-collapse: collapse; margin-top: 1rem; margin-bottom: 1.5rem; word-wrap: break-word; }
+                  .markdown-body { max-width: 100%; overflow-wrap: break-word; word-break: normal; }
+                  .markdown-body p { margin-bottom: .65rem; text-align: left; }
+                  @media (min-width: 640px) { .markdown-body p { margin-bottom: .8rem; text-align: justify; } }
+                  .markdown-body table { width: 100%; border-collapse: collapse; margin-top: .75rem; margin-bottom: 1.15rem; }
                   .markdown-body table.promes-table { font-size: 9pt !important; }
-                  .markdown-body th, .markdown-body td { border: 1pt solid #000; padding: 6px 10px; text-align: left; vertical-align: top; overflow-wrap: break-word; }
+                  @media (max-width: 767px) { .markdown-body table.promes-table { display: block; width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; } }
+                  .markdown-body th, .markdown-body td { border: 1pt solid #000; padding: 4px 5px; text-align: left; vertical-align: top; overflow-wrap: break-word; word-break: normal; font-size: 10.5px; line-height: 1.4; }
+                  @media (min-width: 640px) { .markdown-body th, .markdown-body td { padding: 6px 10px; font-size: inherit; line-height: 1.55; } }
                   .markdown-body th { background-color: #f8fafc; font-weight: bold; text-align: center; }
                   .markdown-body tr { page-break-inside: avoid; }
-                  .markdown-body h1 { font-size: 1.2em; font-weight: bold; text-align: center; margin-bottom: 1.2rem; text-transform: uppercase; }
-                  .markdown-body h2 { font-size: 1.08em; margin-top: 1.4rem; margin-bottom: .5rem; font-weight: bold; text-transform: uppercase; }
-                  .markdown-body h3 { font-size: 1em; margin-top: 1rem; margin-bottom: .4rem; font-weight: bold; }
-                  .markdown-body ul, .markdown-body ol { padding-left: 20px; margin-bottom: 1rem; margin-top: .4rem; text-align: justify; }
-                  .markdown-body li { margin-bottom: .4rem; text-align: justify; }
-                  .markdown-body img { max-width: 320px; width: 100%; height: auto; display: block; margin: 12px auto; page-break-inside: avoid; }
-                  .markdown-body svg { max-width: 100%; height: auto; display: block; margin: 12px auto; page-break-inside: avoid; }
-                  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; margin-bottom: 1.5rem; }
-                  @media (max-width: 768px) { .markdown-body table { min-width: 560px; } }
-                  .sig-table, .sig-table td, .sig-table th, .sig-table tr { border: none !important; padding: 4px; vertical-align: top; }
+                  .markdown-body h1 { font-size: 13px; font-weight: bold; text-align: center; margin-bottom: .85rem; text-transform: uppercase; }
+                  .markdown-body h2 { font-size: 12px; margin-top: 1rem; margin-bottom: .4rem; font-weight: bold; text-transform: uppercase; }
+                  .markdown-body h3 { font-size: 11.5px; margin-top: .8rem; margin-bottom: .3rem; font-weight: bold; }
+                  @media (min-width: 640px) {
+                    .markdown-body h1 { font-size: 1.2em; margin-bottom: 1.1rem; }
+                    .markdown-body h2 { font-size: 1.08em; margin-top: 1.3rem; margin-bottom: .5rem; }
+                    .markdown-body h3 { font-size: 1em; margin-top: 1rem; margin-bottom: .4rem; }
+                  }
+                  .markdown-body ul, .markdown-body ol { padding-left: 16px; margin-bottom: .8rem; margin-top: .35rem; }
+                  @media (min-width: 640px) { .markdown-body ul, .markdown-body ol { padding-left: 22px; margin-bottom: 1rem; text-align: justify; } }
+                  .markdown-body li { margin-bottom: .3rem; }
+                  .markdown-body img { max-width: 100%; width: min(320px, 100%); height: auto; display: block; margin: 10px auto; page-break-inside: avoid; }
+                  .markdown-body svg { max-width: 100%; height: auto; display: block; margin: 10px auto; page-break-inside: avoid; }
+                  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; max-width: 100%; margin-bottom: 1.15rem; }
+                  .sig-table { width: 100%; table-layout: fixed; }
+                  .sig-table, .sig-table td, .sig-table th, .sig-table tr { border: none !important; padding: 3px; vertical-align: top; font-size: 10.5px; overflow-wrap: break-word; word-break: normal; }
+                  @media (min-width: 640px) { .sig-table td, .sig-table th { padding: 4px; font-size: inherit; } }
                   .kop-surat table, .kop-surat td, .header-table td, .header-table th { border: none !important; }
                   .pdf-container [contenteditable] { outline: none; }
                 `}</style>
@@ -904,17 +1077,27 @@ export default function GeneratorBahanAjar() {
                         const text = String(children).toLowerCase().trim();
                         let width = "auto";
                         let whiteSpace = "normal";
-                        if (text === "no" || text === "no.") width = "3%";
-                        else if (text.includes("tema") && isLandscape) width = "15%";
-                        else if (text.includes("sub-tema") && isLandscape) width = "15%";
-                        else if (text.includes("jp") && isLandscape) width = "3%";
-                        else if (/tema|materi|tujuan|elemen|capaian/.test(text)) width = "25%";
-                        else if (/skor|nilai/.test(text)) width = "15%";
-                        else if (isLandscape) whiteSpace = "nowrap";
-                        return <th style={{ width, whiteSpace: whiteSpace as any, padding: isLandscape ? "4px 2px" : "6px 10px" }} {...props}>{children}</th>;
+                        if (isLandscape) {
+                          if (text === "no" || text === "no.") width = "3%";
+                          else if (text.includes("tema")) width = "15%";
+                          else if (text.includes("sub-tema")) width = "15%";
+                          else if (text.includes("jp")) width = "3%";
+                          else if (/materi|tujuan|elemen|capaian/.test(text)) width = "25%";
+                          else whiteSpace = "nowrap";
+                        } else if (text === "no" || text === "no.") {
+                          whiteSpace = "nowrap";
+                        }
+                        return (
+                          <th
+                            style={isLandscape ? { width, whiteSpace: whiteSpace as any, padding: "4px 2px" } : { whiteSpace: whiteSpace as any }}
+                            {...props}
+                          >
+                            {children}
+                          </th>
+                        );
                       },
                       td: ({ children, ...props }) => (
-                        <td style={{ padding: isLandscape ? "4px 2px" : "6px 10px", fontSize: isLandscape ? "9pt" : "inherit" }} {...props}>{children}</td>
+                        <td style={isLandscape ? { padding: "4px 2px", fontSize: "9pt" } : undefined} {...props}>{children}</td>
                       ),
                       /* eslint-disable-next-line @next/next/no-img-element */
                       img: ({ ...props }) => <img {...props} alt={props.alt || ""} loading="lazy" />,
@@ -1003,7 +1186,7 @@ function ModalBank({
         <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm sm:p-4">
           <motion.div
             initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
-            className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
+            className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[85dvh] overflow-hidden"
           >
             <div className="p-4 border-b border-slate-200 bg-gradient-to-br from-emerald-50 to-white">
               <div className="flex items-start justify-between gap-2">
@@ -1096,7 +1279,7 @@ function TombolEkspor({
     emerald: "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200",
   }[nuansa];
   return (
-    <button onClick={onClick} className={`shrink-0 min-h-[40px] px-3.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors border shadow-sm ${gaya}`}>
+    <button onClick={onClick} className={`shrink-0 min-h-[40px] px-3.5 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors border shadow-sm ${gaya}`}>
       <Ikon size={15} /> {label}
     </button>
   );

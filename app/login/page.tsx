@@ -664,7 +664,10 @@ export default function LoginPage() {
             href="/"
             className="focusable relative z-10 flex w-fit items-center gap-3 transition-opacity duration-300 hover:opacity-85"
           >
-            <img src="/logo.png" alt="" aria-hidden="true" className="h-11 w-11 object-contain" />
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white p-1.5 shadow-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="" aria-hidden="true" className="h-full w-full object-contain" />
+            </span>
             <span className="leading-tight">
               <span className="block text-[19px] font-medium tracking-tight" style={judulSerif}>
                 Mahatma Academy
@@ -717,9 +720,22 @@ export default function LoginPage() {
             <div className="cahaya cahaya-b -left-40 top-1/3 h-[380px] w-[380px]" />
           </div>
 
-          {/* Bilah atas ponsel — menempel seperti bilah aplikasi */}
+          {/* Bilah atas desktop — kembali & pengatur tema */}
+          <div className="relative z-20 hidden items-center justify-between px-8 pt-6 md:flex">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="focusable inline-flex items-center gap-2 rounded-full border border-[color:var(--line)] bg-[color:var(--surface)]/80 px-3.5 py-2 text-[13px] font-medium text-[color:var(--ink-2)] backdrop-blur transition-colors hover:text-[color:var(--ink)]"
+            >
+              <ArrowLeft size={15} aria-hidden="true" />
+              {step === 1 ? "Beranda" : step === 2 ? "Ganti peran" : "Kembali"}
+            </button>
+            {tombolTema}
+          </div>
+
+          {/* Bilah atas ponsel — menempel simetris seperti bilah aplikasi */}
           <div
-            className="sticky top-0 z-30 flex items-center gap-3 border-b border-[color:var(--line-soft)] bg-[color:var(--bg)]/85 px-4 py-3 backdrop-blur-xl md:hidden"
+            className="sticky top-0 z-30 grid grid-cols-[40px_1fr_40px] items-center gap-2 border-b border-[color:var(--line-soft)] bg-[color:var(--bg)]/85 px-4 py-3 backdrop-blur-xl md:hidden"
             style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top, 0px))" }}
           >
             <button
@@ -730,27 +746,15 @@ export default function LoginPage() {
             >
               <ArrowLeft size={17} />
             </button>
-            <Link href="/" className="focusable flex min-w-0 flex-1 items-center gap-2.5">
-              <img src="/logo.png" alt="" aria-hidden="true" className="h-8 w-8 object-contain" />
+            <Link href="/" className="focusable flex min-w-0 items-center justify-center gap-2">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white p-1 shadow-xs ring-1 ring-black/5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.png" alt="" aria-hidden="true" className="h-full w-full object-contain" />
+              </span>
               <span className="truncate text-[15px] font-medium" style={judulSerif}>
                 Mahatma Academy
               </span>
             </Link>
-            {tombolTema}
-          </div>
-
-          {/* Kendali khusus layar besar */}
-          <div className="absolute right-8 top-8 z-30 hidden items-center gap-2 md:flex">
-            {step !== 1 && (
-              <button
-                type="button"
-                onClick={handleBack}
-                className="focusable inline-flex items-center gap-2 rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-2.5 text-[13px] text-[color:var(--ink-2)] shadow-[var(--shadow-soft)] transition-colors duration-300 hover:text-[color:var(--ink)]"
-              >
-                <ArrowLeft size={15} aria-hidden="true" />
-                {step === 2 ? "Ganti peran" : "Kembali"}
-              </button>
-            )}
             {tombolTema}
           </div>
 
@@ -804,21 +808,23 @@ export default function LoginPage() {
                     exit={{ opacity: 0, y: -12 }}
                     transition={{ duration: 0.32, ease: HALUS }}
                   >
-                    <p className="mb-3 text-[12.5px] font-medium uppercase tracking-[0.12em] text-[color:var(--accent)]">
-                      Langkah 1 dari 2
-                    </p>
-                    <h1
-                      className="text-[clamp(28px,7vw,36px)] font-normal leading-[1.15] tracking-[-0.02em]"
-                      style={judulSerif}
-                    >
-                      Selamat datang
-                    </h1>
-                    <p className="mt-3 text-[15px] leading-[1.7] text-[color:var(--ink-2)]">
-                      Pilih peran Anda untuk melanjutkan ke halaman masuk.
-                    </p>
+                    <div className="text-center md:text-left">
+                      <p className="mb-2.5 text-[12px] font-medium uppercase tracking-[0.12em] text-[color:var(--accent)] sm:mb-3 sm:text-[12.5px]">
+                        Langkah 1 dari 2
+                      </p>
+                      <h1
+                        className="text-[clamp(26px,7vw,36px)] font-normal leading-[1.15] tracking-[-0.02em]"
+                        style={judulSerif}
+                      >
+                        Selamat datang
+                      </h1>
+                      <p className="mt-2.5 text-[14.5px] leading-[1.7] text-[color:var(--ink-2)] sm:mt-3 sm:text-[15px]">
+                        Pilih peran Anda untuk melanjutkan ke halaman masuk.
+                      </p>
+                    </div>
 
                     <div
-                      className="mt-8 grid grid-cols-2 gap-3 sm:gap-4"
+                      className="mt-7 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-4"
                       role="radiogroup"
                       aria-label="Pilihan peran pengguna"
                     >
@@ -836,7 +842,7 @@ export default function LoginPage() {
                             tabIndex={aktif || (!selectedRole && i === 0) ? 0 : -1}
                             onKeyDown={(e) => onKeyPeran(e, i)}
                             onClick={() => setSelectedRole(role.id)}
-                            className={`focusable relative flex flex-col items-start overflow-hidden rounded-2xl border p-5 text-left shadow-[var(--shadow-soft)] transition-all duration-300 active:scale-[.98] ${
+                            className={`focusable relative flex min-h-[136px] flex-col items-center justify-center overflow-hidden rounded-2xl border p-4 text-center shadow-[var(--shadow-soft)] transition-all duration-300 active:scale-[.98] sm:min-h-[144px] sm:items-start sm:justify-start sm:p-5 sm:text-left ${
                               aktif
                                 ? "border-[color:var(--brand)] bg-[color:var(--brand-soft)]"
                                 : "border-[color:var(--line-soft)] bg-[color:var(--surface)] hover:border-[color:var(--line)]"
@@ -850,15 +856,15 @@ export default function LoginPage() {
                                   exit={{ opacity: 0, scale: 0.6 }}
                                   transition={{ duration: 0.2 }}
                                   aria-hidden="true"
-                                  className="absolute right-3.5 top-3.5 text-[color:var(--brand)]"
+                                  className="absolute right-2.5 top-2.5 text-[color:var(--brand)] sm:right-3.5 sm:top-3.5"
                                 >
-                                  <CheckCircle2 size={18} />
+                                  <CheckCircle2 size={17} />
                                 </motion.span>
                               )}
                             </AnimatePresence>
                             <span
                               aria-hidden="true"
-                              className={`mb-4 grid h-11 w-11 place-items-center rounded-xl transition-colors duration-300 ${
+                              className={`mb-3 grid h-11 w-11 place-items-center rounded-xl transition-colors duration-300 sm:mb-4 ${
                                 aktif
                                   ? "bg-[color:var(--brand)] text-[color:var(--brand-ink)]"
                                   : "bg-[color:var(--surface-2)] text-[color:var(--ink-2)]"
@@ -866,10 +872,10 @@ export default function LoginPage() {
                             >
                               <role.icon size={20} />
                             </span>
-                            <span className="text-[16px] font-medium" style={judulSerif}>
+                            <span className="text-[15.5px] font-medium sm:text-[16px]" style={judulSerif}>
                               {role.name}
                             </span>
-                            <span className="mt-1 text-[12.5px] leading-snug text-[color:var(--ink-2)]">
+                            <span className="mt-1 text-[12px] leading-snug text-[color:var(--ink-2)] sm:text-[12.5px]">
                               {role.desc}
                             </span>
                           </button>
@@ -906,7 +912,7 @@ export default function LoginPage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -12 }}
                     transition={{ duration: 0.32, ease: HALUS }}
-                    className="rounded-3xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-6 shadow-[var(--shadow-soft)] sm:p-8"
+                    className="rounded-3xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-5 shadow-[var(--shadow-soft)] sm:p-8"
                   >
                     <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-[color:var(--line)] bg-[color:var(--surface-2)] px-3 py-1.5 text-[12.5px] text-[color:var(--ink-2)]">
                       {(() => {
@@ -1051,7 +1057,7 @@ export default function LoginPage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -12 }}
                     transition={{ duration: 0.32, ease: HALUS }}
-                    className="rounded-3xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-6 shadow-[var(--shadow-soft)] sm:p-8"
+                    className="rounded-3xl border border-[color:var(--line-soft)] bg-[color:var(--surface)] p-5 shadow-[var(--shadow-soft)] sm:p-8"
                   >
                     <p className="mb-3 text-[12.5px] font-medium uppercase tracking-[0.12em] text-[color:var(--accent)]">
                       Pengajuan akun baru
@@ -1173,11 +1179,11 @@ export default function LoginPage() {
 
                       {/* Verifikasi kode */}
                       {metodeVerifikasi === "otp_email" && (
-                        <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--accent-soft)]/60 p-4">
+                        <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--accent-soft)]/60 p-3.5 sm:p-4">
                           <label htmlFor="reg-otp" className="mb-2 block text-[13px] font-medium">
                             Kode verifikasi email
                           </label>
-                          <div className="flex gap-2">
+                          <div className="flex flex-col gap-2 min-[360px]:flex-row">
                             <div className="relative flex-1">
                               <span className={ikonKelas} aria-hidden="true">
                                 <KeyRound size={16} />
@@ -1192,7 +1198,7 @@ export default function LoginPage() {
                                 value={inputOtp}
                                 onChange={(e) => setInputOtp(e.target.value.replace(/\D/g, ""))}
                                 placeholder={otpSent ? "6 digit kode" : "Kirim kode dulu"}
-                                className="kolom focusable tracking-[0.3em]"
+                                className="kolom focusable tracking-[0.18em] sm:tracking-[0.3em]"
                               />
                             </div>
                             <button
@@ -1201,7 +1207,7 @@ export default function LoginPage() {
                               disabled={
                                 isSendingOtp || !regEmail.trim() || jedaKirimUlang > 0 || sibuk
                               }
-                              className="focusable inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-[color:var(--accent)] px-4 text-[13.5px] font-medium text-white transition-opacity duration-300 hover:opacity-90 active:scale-95 disabled:opacity-45"
+                              className="focusable inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-[color:var(--accent)] px-4 py-3 text-[13.5px] font-medium text-white transition-opacity duration-300 hover:opacity-90 active:scale-95 disabled:opacity-45 min-[360px]:py-0"
                             >
                               {isSendingOtp ? (
                                 <Loader2 size={16} className="animate-spin" />
@@ -1278,6 +1284,19 @@ export default function LoginPage() {
                         )}
                       </button>
                     </form>
+
+                    <div className="mt-7 border-t border-[color:var(--line-soft)] pt-6 text-center">
+                      <p className="text-[13.5px] text-[color:var(--ink-2)]">
+                        Sudah punya akun?{" "}
+                        <button
+                          type="button"
+                          onClick={() => setStep(2)}
+                          className="focusable rounded font-medium text-[color:var(--accent)] underline underline-offset-4 transition-opacity duration-300 hover:opacity-75"
+                        >
+                          Kembali ke halaman masuk
+                        </button>
+                      </p>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>

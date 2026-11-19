@@ -3,13 +3,14 @@
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, BrainCircuit, Activity,
-  Loader2, Search, Download, Users, CheckCircle, FileText, BarChart3,
+  Search, Download, Users, CheckCircle, FileText, BarChart3,
 } from "lucide-react";
 import { Teachers } from "next/font/google";
 import { useState, useEffect, useMemo } from "react";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query, doc, where } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { MemuatHalaman } from "@/components/Memuat";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -142,41 +143,38 @@ export default function AnalitikLembaga() {
   };
 
   if (isLoading) {
-    return (
-      <div className="w-full h-[70vh] flex flex-col items-center justify-center">
-        <Loader2 size={40} className="animate-spin text-purple-600 mb-4" />
-        <p className="font-bold text-sm text-slate-500 uppercase tracking-widest">Mengkalkulasi Data…</p>
-      </div>
-    );
+    return <MemuatHalaman label="Mengkalkulasi Data…" />;
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto w-full space-y-5 md:space-y-6 pb-10">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto w-full space-y-5 md:space-y-6 pb-4">
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-5 border-b border-slate-200">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 md:pb-5 border-b border-slate-200">
         <div className="min-w-0">
-          <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 leading-tight ${teachersFont.className}`}>Laporan Analitik Instansi</h1>
-          <p className="text-slate-500 text-[13px] md:text-sm mt-1.5 max-w-2xl leading-relaxed">
+          <h1 className={`text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 leading-tight ${teachersFont.className}`}>Laporan Analitik Instansi</h1>
+          <p className="text-slate-500 text-xs sm:text-[13px] md:text-sm mt-1.5 max-w-2xl leading-relaxed">
             Performa akademik dan tingkat kemandirian belajar siswa di <strong className="text-purple-700">{namaInstansi}</strong>, dirangkum dari hasil asesmen daring.
           </p>
         </div>
         <button
           onClick={handleEksporLaporan}
-          className="shrink-0 bg-white border border-slate-300 text-slate-700 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300 px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition-all active:scale-95 whitespace-nowrap"
+          className="w-full md:w-auto justify-center shrink-0 bg-white border border-slate-300 text-slate-700 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300 px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition-all active:scale-95 whitespace-nowrap"
         >
           <Download size={16} /> Unduh Rekap CSV
         </button>
       </div>
 
       {/* KPI */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-5">
         <KpiCard title="Rata-rata Prestasi" value={kpi.rataPrestasi} suffix="/ 100" icon={TrendingUp}
           note="Nilai rata-rata seluruh asesmen" accent="emerald" />
         <KpiCard title="Total Partisipan" value={kpi.partisipan} suffix="Siswa" icon={Users}
           note="Siswa yang telah mengerjakan asesmen" accent="purple" />
-        <KpiCard title="Tingkat Kemandirian" value={`${kpi.persenMandiri}%`} icon={BrainCircuit}
-          note="Persentase siswa berkategori Mandiri" accent="blue" />
+        <div className="col-span-2 sm:col-span-1">
+          <KpiCard title="Tingkat Kemandirian" value={`${kpi.persenMandiri}%`} icon={BrainCircuit}
+            note="Persentase siswa berkategori Mandiri" accent="blue" />
+        </div>
       </div>
 
       {/* Distribusi kemandirian */}
@@ -216,7 +214,44 @@ export default function AnalitikLembaga() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-x-auto custom-scrollbar">
+        {/* Mobile Card View */}
+        <div className="block md:hidden p-3 space-y-3 bg-slate-50/30">
+          {filteredData.length > 0 ? filteredData.map((item) => (
+            <div key={item.id} className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm space-y-2.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-bold text-slate-800 text-sm truncate">{item.nama}</p>
+                  <p className="text-[11px] text-slate-500 truncate">{item.kelas} · {item.jumlahUjian} asesmen</p>
+                </div>
+                <span className={`text-xl font-black tabular-nums shrink-0 ${item.nilaiAkhir >= 80 ? "text-emerald-600" : item.nilaiAkhir >= 70 ? "text-blue-600" : "text-amber-600"}`}>
+                  {item.nilaiAkhir}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-20 h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div className={`h-full ${item.petunjuk > 5 ? "bg-amber-400" : "bg-purple-500"}`} style={{ width: `${Math.min((item.petunjuk / 10) * 100, 100)}%` }} />
+                  </div>
+                  <span className="text-[11px] font-bold text-slate-600 tabular-nums">{item.petunjuk}x AI</span>
+                </div>
+                <span className={`px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-md border ${
+                  item.status === "Mandiri" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                  item.status === "Berkembang" ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-amber-50 text-amber-700 border-amber-200"
+                }`}>
+                  {item.status}
+                </span>
+              </div>
+            </div>
+          )) : (
+            <div className="py-12 px-4 text-center bg-white rounded-xl border border-slate-200">
+              <FileText size={36} className="mx-auto text-slate-300 mb-2.5" />
+              <p className="text-slate-600 font-bold text-sm">Belum ada data asesmen</p>
+              <p className="text-slate-400 text-xs mt-1">Data muncul setelah siswa menyelesaikan asesmen daring.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="hidden md:block flex-1 overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse min-w-[640px]">
             <thead>
               <tr className="bg-white border-b border-slate-200 text-[10px] uppercase tracking-widest text-slate-500 font-bold">

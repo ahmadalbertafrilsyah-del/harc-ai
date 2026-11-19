@@ -292,19 +292,19 @@ export default function AdminTokenPage() {
     "w-full border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300";
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-5">
+    <div className="w-full max-w-6xl mx-auto space-y-5 pb-4">
       <div>
         <h1 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
-          <Coins className="text-amber-500" /> Komersialisasi Token
+          <Coins className="text-amber-500 shrink-0" /> Komersialisasi Token
         </h1>
-        <p className="text-sm text-slate-500">Kelola pesanan pembelian token dan konfigurasi pembayaran.</p>
+        <p className="text-sm text-slate-500 mt-0.5">Kelola pesanan pembelian token dan konfigurasi pembayaran.</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 bg-white border border-slate-200 rounded-xl p-1 w-fit">
+      <div className="flex gap-2 bg-white border border-slate-200 rounded-xl p-1 w-full sm:w-fit">
         <button
           onClick={() => setTab("pesanan")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+          className={`flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
             tab === "pesanan" ? "bg-indigo-600 text-white" : "text-slate-600 hover:bg-slate-100"
           }`}
         >
@@ -317,7 +317,7 @@ export default function AdminTokenPage() {
         </button>
         <button
           onClick={() => setTab("konfigurasi")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+          className={`flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
             tab === "konfigurasi" ? "bg-indigo-600 text-white" : "text-slate-600 hover:bg-slate-100"
           }`}
         >
@@ -489,7 +489,7 @@ export default function AdminTokenPage() {
                     : ""}
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-semibold text-slate-700">
                     Harga per 1.000 Token (Rp)
@@ -550,40 +550,52 @@ export default function AdminTokenPage() {
                     <span className="col-span-1" />
                   </div>
                   {konfig.paket.map((p) => (
-                    <div key={p.id} className="grid grid-cols-12 gap-2 items-center">
-                      <input
-                        value={p.nama}
-                        onChange={(e) => ubahPaket(p.id, "nama", e.target.value)}
-                        placeholder="Nama"
-                        className="col-span-12 md:col-span-4 border border-slate-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                      />
-                      <input
-                        type="number"
-                        min={0}
-                        value={p.jumlahToken || ""}
-                        onChange={(e) => ubahPaket(p.id, "jumlahToken", e.target.value)}
-                        placeholder="Token"
-                        className="col-span-4 md:col-span-3 border border-slate-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                      />
-                      <input
-                        type="number"
-                        min={0}
-                        value={p.bonus || ""}
-                        onChange={(e) => ubahPaket(p.id, "bonus", e.target.value)}
-                        placeholder="Bonus"
-                        className="col-span-3 md:col-span-2 border border-slate-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                      />
-                      <input
-                        type="number"
-                        min={0}
-                        value={p.harga || ""}
-                        onChange={(e) => ubahPaket(p.id, "harga", e.target.value)}
-                        placeholder="Harga"
-                        className="col-span-4 md:col-span-2 border border-slate-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                      />
+                    <div key={p.id} className="grid grid-cols-12 gap-2 items-end md:items-center bg-slate-50/70 md:bg-transparent p-3 md:p-0 rounded-xl border md:border-0 border-slate-200">
+                      <div className="col-span-12 md:col-span-4">
+                        <label className="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Nama Paket</label>
+                        <input
+                          value={p.nama}
+                          onChange={(e) => ubahPaket(p.id, "nama", e.target.value)}
+                          placeholder="Nama"
+                          className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        />
+                      </div>
+                      <div className="col-span-4 md:col-span-3">
+                        <label className="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Token</label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={p.jumlahToken || ""}
+                          onChange={(e) => ubahPaket(p.id, "jumlahToken", e.target.value)}
+                          placeholder="Token"
+                          className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        />
+                      </div>
+                      <div className="col-span-3 md:col-span-2">
+                        <label className="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Bonus</label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={p.bonus || ""}
+                          onChange={(e) => ubahPaket(p.id, "bonus", e.target.value)}
+                          placeholder="Bonus"
+                          className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        />
+                      </div>
+                      <div className="col-span-4 md:col-span-2">
+                        <label className="block md:hidden text-[10px] font-bold text-slate-400 uppercase mb-1">Harga</label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={p.harga || ""}
+                          onChange={(e) => ubahPaket(p.id, "harga", e.target.value)}
+                          placeholder="Harga"
+                          className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        />
+                      </div>
                       <button
                         onClick={() => hapusPaket(p.id)}
-                        className="col-span-1 flex justify-center text-slate-400 hover:text-rose-600"
+                        className="col-span-1 flex justify-center items-center h-9 text-slate-400 hover:text-rose-600"
                         aria-label="Hapus paket"
                       >
                         <Trash2 size={16} />
@@ -633,7 +645,7 @@ export default function AdminTokenPage() {
                     alt="Pratinjau QRIS"
                     width={220}
                     height={220}
-                    className="w-[220px] h-[220px] bg-white rounded-lg border border-slate-100"
+                    className="w-full max-w-[220px] aspect-square bg-white rounded-lg border border-slate-100"
                   />
                   <p className="text-[11px] text-slate-400 mt-2 text-center">
                     Contoh untuk nominal {formatRupiah(10000)}. Nominal asli mengikuti pesanan.

@@ -11,6 +11,8 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { doc, onSnapshot, collection, query, orderBy, limit, setDoc, serverTimestamp, where } from "firebase/firestore";
 
 import { unggahKeCloudinary } from "@/lib/cloudinary";
+import { MemuatHalaman } from "@/components/Memuat";
+import { tampilkanNotifikasi } from "@/lib/notifikasiPwa";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -51,6 +53,8 @@ export default function ProfilGuru() {
   useEffect(() => {
     if (!userUid) return;
 
+    let unsubLembaga: (() => void) | undefined;
+
     // Ambil data profil dari koleksi 'users'
     const unsubProfil = onSnapshot(doc(db, "users", userUid), (docSnap) => {
       if (docSnap.exists()) {
@@ -59,9 +63,11 @@ export default function ProfilGuru() {
 
         // Cari Nama Lembaga dari NPSN
         const npsn = data.npsn || data.instansi;
+        unsubLembaga?.();
+        unsubLembaga = undefined;
         if (npsn) {
           const qLembaga = query(collection(db, "users"), where("role", "==", "lembaga"), where("npsn", "==", npsn));
-          onSnapshot(qLembaga, (lembagaSnap) => {
+          unsubLembaga = onSnapshot(qLembaga, (lembagaSnap) => {
             if (!lembagaSnap.empty) {
               const dataLembaga = lembagaSnap.docs[0].data();
               setNamaSekolah(dataLembaga.namaLembaga || dataLembaga.namaInstansi || `NPSN: ${npsn}`);
@@ -85,7 +91,7 @@ export default function ProfilGuru() {
       setAktivitas(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
 
-    return () => { unsubProfil(); unsubAktivitas(); };
+    return () => { unsubProfil(); unsubLembaga?.(); unsubAktivitas(); };
   }, [userUid]);
 
   const unggahFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,7 +118,11 @@ export default function ProfilGuru() {
         { fotoUrl: hasil.url, lastUpdate: serverTimestamp() },
         { merge: true }
       );
-      // profilData diperbarui otomatis oleh listener onSnapshot.
+      tampilkanNotifikasi({
+        tipe: "sukses",
+        judul: "Foto Profil Diperbarui",
+        pesan: "Foto profil Anda sekarang tampil di beranda dan header.",
+      });
     } catch (error: any) {
       console.error("Gagal mengunggah foto:", error);
       alert(error?.message || "Gagal mengunggah foto profil.");
@@ -155,16 +165,11 @@ export default function ProfilGuru() {
   };
 
   if (isLoading) {
-    return (
-      <div className="w-full h-[70vh] flex flex-col justify-center items-center text-slate-500">
-        <Loader2 size={40} className="animate-spin text-blue-600 mb-4" />
-        <p className="font-bold">Memuat Identitas...</p>
-      </div>
-    );
+    return <MemuatHalaman label="Memuat Identitas..." />;
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="max-w-5xl mx-auto space-y-6 pb-24 md:pb-10">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="max-w-5xl mx-auto space-y-5 md:space-y-6 pb-4">
       
       {/* HEADER HALAMAN */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 border-b border-slate-200 pb-5">
@@ -189,6 +194,7 @@ export default function ProfilGuru() {
             >
               <div className="w-28 h-28 md:w-32 md:h-32 rounded-full border-4 border-white shadow-lg overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center text-4xl font-bold">
                 {profilData?.fotoUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={profilData.fotoUrl} alt={profilData?.nama} className="w-full h-full object-cover" />
                 ) : (
                   profilData?.nama ? profilData.nama.charAt(0).toUpperCase() : "U"
@@ -209,7 +215,7 @@ export default function ProfilGuru() {
             <h2 className={`text-xl md:text-2xl font-bold text-slate-800 leading-tight ${teachersFont.className}`}>{profilData?.nama || "Pendidik Baru"}</h2>
             <p className="text-sm text-blue-600 font-medium mt-1">{profilData?.email}</p>
             
-            <div className="flex gap-2 mt-4">
+            <div className="flex flex-wrap justify-center gap-2 mt-4">
               <span className="text-xs font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-lg border border-blue-100">{profilData?.role === 'guru' ? 'Pendidik' : profilData?.role}</span>
               <span className={`text-xs font-bold px-3 py-1 rounded-lg border ${profilData?.status === 'Dibekukan' ? 'bg-rose-50 text-rose-700 border-rose-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
                 {profilData?.status || "Aktif"}
@@ -323,20 +329,20 @@ export default function ProfilGuru() {
       {/* MODAL EDIT PROFIL */}
       <AnimatePresence>
         {isEditing && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }} className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90dvh]">
               
-              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+              <div className="px-5 sm:px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
                 <h3 className={`text-lg font-bold text-slate-800 flex items-center gap-2 ${teachersFont.className}`}><Edit size={18} className="text-blue-600" /> Perbarui Data Diri</h3>
-                <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-slate-700 hover:bg-slate-200 p-1 rounded-md transition-colors"><X size={20} /></button>
+                <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-slate-700 hover:bg-slate-200 p-1.5 rounded-md transition-colors"><X size={20} /></button>
               </div>
               
-              <form onSubmit={simpanProfil} className="p-6 space-y-5 overflow-y-auto">
+              <form onSubmit={simpanProfil} className="p-5 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto">
                 
                 {/* Info Read-Only */}
                 <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100/50 space-y-2">
-                  <p className="text-xs text-slate-600 flex justify-between"><span>Email:</span> <span className="font-bold">{profilData?.email}</span></p>
-                  <p className="text-xs text-slate-600 flex justify-between"><span>NPSN:</span> <span className="font-bold truncate max-w-[200px]">{profilData?.npsn || profilData?.instansi}</span></p>
+                  <p className="text-xs text-slate-600 flex justify-between gap-2"><span className="shrink-0">Email:</span> <span className="font-bold truncate">{profilData?.email}</span></p>
+                  <p className="text-xs text-slate-600 flex justify-between gap-2"><span className="shrink-0">NPSN:</span> <span className="font-bold truncate max-w-[200px]">{profilData?.npsn || profilData?.instansi}</span></p>
                   <p className="text-[10px] text-blue-500 mt-1 italic">*Hubungi Admin jika ingin mengubah Email atau NPSN.</p>
                 </div>
 
@@ -378,9 +384,9 @@ export default function ProfilGuru() {
                   <textarea value={formData.lokasi} onChange={(e) => setFormData({...formData, lokasi: e.target.value})} className="w-full p-3 bg-white border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm transition-all resize-none" rows={3}></textarea>
                 </div>
 
-                <div className="pt-5 border-t border-slate-100 flex justify-end gap-3 shrink-0">
-                  <button type="button" onClick={() => setIsEditing(false)} className="px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Batal</button>
-                  <button type="submit" disabled={isSaving} className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl shadow-md flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70">
+                <div className="pt-5 border-t border-slate-100 flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3 shrink-0">
+                  <button type="button" onClick={() => setIsEditing(false)} className="w-full sm:w-auto px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">Batal</button>
+                  <button type="submit" disabled={isSaving} className="w-full sm:w-auto justify-center px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl shadow-md flex items-center gap-2 transition-all active:scale-95 disabled:opacity-70">
                     {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Simpan Perubahan
                   </button>
                 </div>

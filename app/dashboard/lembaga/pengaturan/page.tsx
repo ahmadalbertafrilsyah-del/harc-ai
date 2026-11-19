@@ -7,6 +7,8 @@ import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase"; 
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { MemuatHalaman } from "@/components/Memuat";
+import KartuNotifikasiPwa from "@/components/KartuNotifikasiPwa";
 
 const teachersFont = Teachers({ subsets: ["latin"], weight: ["400", "600", "700"], display: "swap" });
 
@@ -81,30 +83,26 @@ export default function PengaturanLembaga() {
   };
 
   if (isLoading) {
-    return (
-      <div className="w-full h-[60vh] flex items-center justify-center">
-        <Loader2 size={40} className="animate-spin text-purple-600" />
-      </div>
-    );
+    return <MemuatHalaman label="Memuat Profil Lembaga..." />;
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl mx-auto space-y-6 pb-16 px-4 md:px-6">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl mx-auto space-y-5 md:space-y-6 pb-4">
       
-      <div className="pb-5 border-b border-slate-200">
-        <h1 className={`text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>Pengaturan Profil</h1>
-        <p className="text-slate-500 text-sm mt-1.5">
+      <div className="pb-4 md:pb-5 border-b border-slate-200">
+        <h1 className={`text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 ${teachersFont.className}`}>Pengaturan Profil</h1>
+        <p className="text-slate-500 text-xs sm:text-sm mt-1.5">
           Kelola informasi identitas lembaga dan narahubung yang bertanggung jawab.
         </p>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center gap-3">
-          <Building className="text-purple-600" size={20} />
-          <h2 className={`text-lg font-bold text-slate-800 ${teachersFont.className}`}>Identitas Lembaga</h2>
+        <div className="p-4 sm:p-6 border-b border-slate-100 bg-slate-50 flex items-center gap-3">
+          <Building className="text-purple-600 shrink-0" size={20} />
+          <h2 className={`text-base sm:text-lg font-bold text-slate-800 ${teachersFont.className}`}>Identitas Lembaga</h2>
         </div>
         
-        <form onSubmit={handleSave} className="p-6 md:p-8 space-y-5">
+        <form onSubmit={handleSave} className="p-4 sm:p-6 md:p-8 space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             <div className="space-y-2">
@@ -165,6 +163,8 @@ export default function PengaturanLembaga() {
           </div>
         </form>
       </div>
+
+      <KartuNotifikasiPwa urlTujuan="/dashboard/lembaga/beranda" />
 
     </motion.div>
   );
