@@ -102,7 +102,7 @@ export async function POST(req: Request) {
     // Update pemakaian token hari ini ke Firebase secara asinkron
     settingsRef.update({
       tokensUsedToday: FieldValue.increment(estimatedTokensUsed)
-    }).catch(err => console.error("Gagal mengupdate pemakaian token:", err));
+    }).catch((err: any) => console.error("Gagal mengupdate pemakaian token:", err));
 
     return NextResponse.json({
       choices: [
